@@ -1,3 +1,8 @@
+'''
+The primaries_shortcuts_brats was originally used in this project, but has now been replaced by the cancer_primaries_dict.
+The former version was a modified dict, which had been used by the BRATS dataset.
+'''
+
 primaries_shortcuts_brats = { '1a': 'small cell lung cancer',
                         '1b': 'squamous cell lung cancer',
                         '1c': 'adenocarcinoma of the lung',
@@ -29,9 +34,27 @@ primaries_shortcuts_brats = { '1a': 'small cell lung cancer',
                         '24': 'vulvar carcinoma',
                         '25': 'salivary gland cancer',
                         '26': 'cancer of unknown primary',
-                        '27': 'pancreatic cancer'}
+}
 
-cancer_primaries_dict = { '1a': 'small cell lung cancer',
+
+'''
+The cancer_primaries_dict is sorted by the most common sources of brain metastases, i.e.
+lung cancer (1a-1g),
+breast cancer (2),
+genitourinary tract cancers (3-10),
+sarcoma (11a-h),
+melanoma (12),
+head and neck cancer (13-18),
+gastrointestinal cancers (19-25)
+
+at the end are other cancer primaries like
+- cancers originating from mesothelium (26a-b),
+- thymoma (27)
+- plasmocytoma (28)
+
+and lastly CUP (29)
+'''
+cancer_primaries_dict = {   '1a': 'small cell lung cancer',
                             '1b': 'squamous cell lung cancer',
                             '1c': 'adenocarcinoma of the lung',
                             '1d': 'large cell lung cancer',
@@ -48,23 +71,30 @@ cancer_primaries_dict = { '1a': 'small cell lung cancer',
                             '9': 'endometrial cancer',
                             '10': 'ovarian cell carcinoma',
                             '11a': 'osteosarcoma',
-                            '11b': 'liposarcome',
+                            '11b': 'liposarcoma',
                             '11c': 'leiomyosarcoma',
                             '11d': 'rhabdomyosarcoma',
                             '11e': 'synovial sarcoma',
-                            '11f': 'sarcoma, other',
-                            '11g': 'sarcoma, exact histology unknown',
+                            '11f': 'solitary fibrous tumor',
+                            '11g': 'sarcoma, other',
+                            '11h': 'sarcoma, exact histology unknown',
                             '12': 'melanoma',
-                            '13': 'salivary gland cancer',
-                            'x': 'XXXXXXXXX',
+                            '13': 'lacrimal gland carcinoma',
+                            '14': 'salivary gland cancer',
                             '15': 'oral squamous cell carcinoma',
-                            '16': 'laryngeal cancer',
-                            '17': 'thyroid cancer',
-                            '18': 'esophageal cancer',
-                            '19': 'gastric cancer',
-                            '20': 'pancreatic cancer',
-                            '21': 'cholangiocellular carcinoma',
-                            '22': 'colorectal cancer',
-                            '23': 'plasmacytoma',
-                            '24': 'cancer of unknown primary'
+                            '16': 'adenoid cystic carcinoma',
+                            '17': 'laryngeal cancer',
+                            '18': 'thyroid cancer',
+                            '19': 'esophageal cancer',
+                            '20': 'gastric cancer',
+                            '21': 'pancreatic cancer',
+                            '22': 'cholangiocellular carcinoma',
+                            '23': 'colorectal cancer',
+                            '24': 'NET', # = neuroendocrine tumors
+                            '25': 'MiNEN', # = mixed neuroendocrine non-neuroendocine neurplasms
+                            '26a': 'DSRCT', # = Desmoplastic small-round-cell Tumor
+                            '26b': 'mesothelioma, other',
+                            '27': 'thymoma',
+                            '28': 'plasmacytoma',
+                            '29': 'cancer of unknown primary'
 }
