@@ -1,5 +1,17 @@
 path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Rgb_Brain_Mets/N30"
 
+dsStore = ".DS_Store"
+
+seq_whitelist = ["ax", "axial", "tra", "transversal", "diff", "adc", "dti"]
+seq_blacklist = ["lws", "hand", "roi", "scout", "hws", "bws", "sag", "posdisp", "cor"]
+
+FLAIRlist = ['flair', 'tirm', '110b19']
+T1list = ['t1']
+KMlist = ['km', 'contrast', 'post', 'ce', 'enhaced', '+', '17rb130', 'rephasiert', 'dotarem']
+T2list = ['t2']
+T2STERNlist = ['t2stern', 'ciss', 'blutung']
+sub = ['sub']
+
 
 '''
 The primaries_shortcuts_brats was originally used in this project, but has now been replaced by the cancer_primaries_dict.
