@@ -1,3 +1,6 @@
+path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Rgb_Brain_Mets/N30"
+
+
 '''
 The primaries_shortcuts_brats was originally used in this project, but has now been replaced by the cancer_primaries_dict.
 The former version was a modified dict, which had been used by the BRATS dataset.
