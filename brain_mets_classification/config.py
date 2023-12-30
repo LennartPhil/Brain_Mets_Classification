@@ -2,6 +2,8 @@ path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Rgb_Brain_Mets/N30"
 
 dsStore = ".DS_Store"
 
+desiredSequences = ["FLAIR", "T1", "T1CE", "T2"]
+
 seq_whitelist = ["ax", "axial", "tra", "transversal", "diff", "adc", "dti"]
 seq_blacklist = ["lws", "hand", "roi", "scout", "hws", "bws", "sag", "posdisp", "cor"]
 
