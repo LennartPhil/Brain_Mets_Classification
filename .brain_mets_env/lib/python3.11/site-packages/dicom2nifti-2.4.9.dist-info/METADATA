@@ -1,0 +1,33 @@
+Metadata-Version: 2.1
+Name: dicom2nifti
+Version: 2.4.9
+Summary: package for converting dicom files to nifti
+Home-page: https://github.com/icometrix/dicom2nifti
+Download-URL: https://github.com/icometrix/dicom2nifti/tarball/2.4.9
+Author: icometrix NV
+Author-email: dicom2nifti@icometrix.com
+Maintainer: icometrix NV
+Maintainer-email: dicom2nifti@icometrix.com
+License: MIT
+Keywords: dicom,nifti,medical imaging
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Healthcare Industry
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Medical Science Apps.
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: POSIX :: Linux
+License-File: LICENSE
+Requires-Dist: nibabel
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pydicom >=2.2.0
+Requires-Dist: python-gdcm
+
+
+With this package you can convert dicom images to nifti files.
+There is support for most anatomical CT and MR data.
+For MR specifically there is support for most 4D data (like DTI and fMRI)

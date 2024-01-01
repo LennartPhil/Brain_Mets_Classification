@@ -1,0 +1,16 @@
+#!/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification/.brain_mets_env/bin/python3.11
+
+"""
+Wrap of gdcm application
+"""
+
+import os
+import subprocess
+import sys
+
+import gdcm
+
+path = os.path.dirname(gdcm.__file__)
+command = [os.path.join(path, "_gdcm", os.path.basename(sys.argv[0]))]
+command.extend(sys.argv[1:])
+subprocess.call(command)
