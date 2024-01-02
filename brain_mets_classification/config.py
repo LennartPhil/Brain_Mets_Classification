@@ -1,4 +1,5 @@
-path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Rgb_Brain_Mets/N30"
+# path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Rgb_Brain_Mets/N30"
+path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification/Rgb_Brain_Mets_Dataset/N30"
 
 dsStore = ".DS_Store"
 
