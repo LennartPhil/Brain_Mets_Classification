@@ -21,10 +21,15 @@ def getUnrenamedFile(path):
 
     for file in files:
 
-        patientID = str(file.split("_")[0])
+        try:
+            patientID = str(file.split("_")[0])
+        except RuntimeError as e:
+            print("Couldn't split filename: ", e)
 
         if not len(patientID) == 8: # all patient IDs are 8 numbers long
             return f"{path}/{file}"
+        else:
+            print("patientID not 8 numbers long")
 
 
 def createNewPreprocessingStepFolder(step):
