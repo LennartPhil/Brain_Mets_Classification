@@ -43,8 +43,8 @@ def createNewPreprocessingStepFolder(step):
     the folder is named such as the following Rgb_Brain_Mets_Preprocessing#X_202X-XX-XX_XX_XX_XX
     '''
     now = datetime.now()
-    timeFormatted = now.strftime("%Y-%m-%d_%H-%M-%S")
-    pathToPreprocessingFolder = f"{config.path}/Rgb_Brain_Mets_Preprocessing#{step}_{timeFormatted}"
+    timeFormatted = now.strftime("%Y%m%d-%H%M%S")
+    pathToPreprocessingFolder = f"{config.path}/Rgb_Brain_Mets_Preprocessing{step}_{timeFormatted}"
     os.mkdir(pathToPreprocessingFolder)
 
     return pathToPreprocessingFolder
