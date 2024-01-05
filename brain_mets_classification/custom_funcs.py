@@ -14,6 +14,30 @@ def createFolderForPatient(path, patientID):
     if not patientID in pathFiles:
         os.mkdir(f"{path}/{patientID}")
 
+def createSequenceFolder(path, patientID, sequence, sequence_list):
+    '''a helper function that creates a folder for a MRI sequence if it doesn't exist yet in the given path
+
+    keyword arguments:
+    - path: Union[str, pathlib.Path] = path. where the new folder should be created
+    - patientID: str = the individual patientID that will be part of the name of the new folder
+    - sequence: str = type of sequence that will be used (should be one of the following: T1, T1CE, T2, FLAIR)
+    - sequence_list: [str] = needed to ensure correct numbering of files
+
+    Returns:
+    - path_to_new_folder: str = path as a string to the newly created folder
+    '''
+
+    sequence_number = len(sequence_list)
+    folderName = f"{patientID}_{sequence}_{sequence_number}"
+    pathFiles = os.listdir(path)
+
+    if not folderName in pathFiles:
+        path_to_new_folder = f"{path}/{folderName}"
+        os.mkdir(path_to_new_folder)
+        return path_to_new_folder
+    else:
+        print("WARNING: Couldn't create sequence folder as folder with same name already exists!")
+
 
 def getUnrenamedFile(path):
     '''a function that returns the path to the file that hasn't been renamed yet'''
