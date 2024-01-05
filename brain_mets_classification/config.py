@@ -2,10 +2,10 @@
 # path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Rgb_Brain_Mets/N30"
 
 # modified path
-path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification/Rgb_Brain_Mets_Dataset/N30"
+#path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification/Rgb_Brain_Mets_Dataset/N30"
 
 # path to SSD
-#path = "/Volumes/BrainMets/Rgb_Brain_Mets/allPatients"
+path = "/Volumes/BrainMets/Rgb_Brain_Mets/allPatients"
 
 dsStore = ".DS_Store"
 
@@ -17,7 +17,7 @@ class desiredSequences(Enum):
     T2 = "T2"
     FLAIR = "FLAIR"
     DWI = "DWI"
-    ACE = "ACE"
+    ADC = "ADC"
 
 
 seq_whitelist = ["ax", "axial", "tra", "transversal", "diff", "adc", "dti"]
@@ -94,7 +94,7 @@ cancer_primaries_dict = {   '1a': 'small cell lung cancer',
                             '1c': 'adenocarcinoma of the lung',
                             '1d': 'large cell lung cancer',
                             '1e': 'NSCLC',
-                            '1e': 'lung cancer, other',
+                            '1f': 'lung cancer, other',
                             '1g': 'lung cancer, exact histology unknown',
                             '2': 'breast cancer',
                             '3': 'prostate cancer',
@@ -126,7 +126,7 @@ cancer_primaries_dict = {   '1a': 'small cell lung cancer',
                             '22': 'cholangiocellular carcinoma',
                             '23': 'colorectal cancer',
                             '24': 'NET', # = neuroendocrine tumors
-                            '25': 'MiNEN', # = mixed neuroendocrine non-neuroendocine neurplasms
+                            '25': 'MiNEN', # = mixed neuroendocrine non-neuroendocine neuroplasms
                             '26a': 'DSRCT', # = Desmoplastic small-round-cell Tumor
                             '26b': 'mesothelioma, other',
                             '27': 'thymoma',
