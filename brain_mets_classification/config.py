@@ -9,7 +9,16 @@ path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification
 
 dsStore = ".DS_Store"
 
-desiredSequences = ["FLAIR", "T1", "T1CE", "T2"]
+#desiredSequences = ["FLAIR", "T1", "T1CE", "T2"]
+from enum import Enum
+class desiredSequences(Enum):
+    T1 = "T1"
+    T1CE = "T1CE"
+    T2 = "T2"
+    FLAIR = "FLAIR"
+    DWI = "DWI"
+    ACE = "ACE"
+
 
 seq_whitelist = ["ax", "axial", "tra", "transversal", "diff", "adc", "dti"]
 seq_blacklist = ["lws", "hand", "roi", "scout", "hws", "bws", "sag", "posdisp", "cor"]
