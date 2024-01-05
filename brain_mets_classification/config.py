@@ -2,10 +2,10 @@
 # path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Rgb_Brain_Mets/N30"
 
 # modified path
-# path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification/Rgb_Brain_Mets_Dataset/N30"
+path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification/Rgb_Brain_Mets_Dataset/N30"
 
 # path to SSD
-path = "/Volumes/BrainMets/Rgb_Brain_Mets/allPatients"
+#path = "/Volumes/BrainMets/Rgb_Brain_Mets/allPatients"
 
 dsStore = ".DS_Store"
 
@@ -18,7 +18,9 @@ FLAIRlist = ['flair', 'tirm', '110b19']
 T1list = ['t1']
 KMlist = ['km', 'contrast', 'post', 'ce', 'enhaced', '+', '17rb130', 'rephasiert', 'dotarem']
 T2list = ['t2']
-T2STERNlist = ['t2stern', 'ciss', 'blutung']
+T2STERNlist = ['t2stern', 'ciss', 'blutung', 'stern']
+DWIlist = ['diffusion', 'diff', 'dwi']
+ADClist = ['adc']
 sub = ['sub']
 
 
