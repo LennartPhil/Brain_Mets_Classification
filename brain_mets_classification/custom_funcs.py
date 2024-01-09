@@ -14,7 +14,7 @@ def createFolderForPatient(path, patientID):
     if not patientID in pathFiles:
         os.mkdir(f"{path}/{patientID}")
 
-def createSequenceFolder(path, patientID, sequence, sequence_list):
+def createSequenceFolder(path, patientID, sequence, sequence_list, original_sequence_name):
     '''a helper function that creates a folder for a MRI sequence if it doesn't exist yet in the given path
 
     keyword arguments:
@@ -22,13 +22,14 @@ def createSequenceFolder(path, patientID, sequence, sequence_list):
     - patientID: str = the individual patientID that will be part of the name of the new folder
     - sequence: str = type of sequence that will be used (should be one of the following: T1, T1CE, T2, FLAIR)
     - sequence_list: [str] = needed to ensure correct numbering of files
+    - orginal_sequence_name: str = original sequence name to append to the file name
 
     Returns:
     - path_to_new_folder: str = path as a string to the newly created folder
     '''
 
     sequence_number = len(sequence_list)
-    folderName = f"{patientID}_{sequence}_{sequence_number}"
+    folderName = f"{patientID}_{sequence}_{sequence_number}_{original_sequence_name}"
     pathFiles = os.listdir(path)
 
     if not folderName in pathFiles:
