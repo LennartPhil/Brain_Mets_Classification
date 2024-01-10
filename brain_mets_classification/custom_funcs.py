@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import shutil
 
 import sys
 sys.path.append(r"/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification")
@@ -39,6 +40,19 @@ def createSequenceFolder(path, patientID, sequence, sequence_list, original_sequ
     else:
         print("WARNING: Couldn't create sequence folder as folder with same name already exists!")
 
+def copyFilesFromDirectoryToNewDirectory(path_to_original_directory, path_to_new_directory):
+
+    # get list of all the dicom files for the T1 sequence
+    filesInDirectory = os.listdir(path_to_original_directory)
+
+    # loops through the list of dicom files
+    for file in filesInDirectory:
+        # ignores the ds_folders
+        if config.dsStore in file:
+            continue
+
+        # copy each file individually into the path_to_sequence folder
+        shutil.copyfile(os.path.join(path_to_original_directory, file), os.path.join(path_to_new_directory, file))
 
 def getUnrenamedFile(path):
     '''a function that returns the path to the file that hasn't been renamed yet'''
