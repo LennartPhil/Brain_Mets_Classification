@@ -1,8 +1,8 @@
 # modified path
-#path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification/Rgb_Brain_Mets_Dataset/N30"
+path = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification/Rgb_Brain_Mets_Dataset/N30"
 
 # path to SSD
-path = "/Volumes/BrainMets/Rgb_Brain_Mets/allPatients"
+#path = "/Volumes/BrainMets/Rgb_Brain_Mets/allPatients"
 
 dsStore = ".DS_Store"
 
@@ -13,6 +13,7 @@ class desiredSequences(Enum):
     T1CE = "T1CE"
     T2 = "T2"
     FLAIR = "FLAIR"
+    STERN = "STERN"
     DWI = "DWI"
     ADC = "ADC"
 
