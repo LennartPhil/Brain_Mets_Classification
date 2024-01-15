@@ -24,8 +24,8 @@ The aim of this project is to write an ai that classifies brain metastases based
 - [ ] Find correct sequences for each patient (currently working on this)
 - [ ] Preprocessing (currently working on this)
     - [X] Extract dicom metadata
-    - [ ] Convert dicom to nifi
-    - [ ] Extract brain
+    - [X] Convert dicom to nifti
+    - [ ] Extract brain (currently working on this)
     - [ ] Fill holes
     - [ ] Binary Segment
     - [ ] Cropy images
