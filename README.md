@@ -26,13 +26,13 @@ The aim of this project is to write an ai that classifies brain metastases based
     - [X] Extract dicom metadata
     - [X] Convert dicom to nifti
     - [ ] Extract brain (currently working on this)
-    - [ ] Fill holes
-    - [ ] Binary Segment
-    - [ ] Cropy images
-    - [ ] Bias correction
-    - [ ] Coregister images
-    - [ ] Resample images
-    - [ ] Z-score normalization
+    - [X] Fill holes
+    - [X] Binary Segment
+    - [X] Cropy images
+    - [X] Bias correction
+    - [X] Coregister images
+    - [X] Resample images
+    - [X] Z-score normalization
 - [ ] Write ai using tensorflow
 - [ ] Train ai
 - [ ] Explore results
