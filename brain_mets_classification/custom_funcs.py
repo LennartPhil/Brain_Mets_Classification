@@ -74,7 +74,7 @@ def getUnrenamedFile(path):
 def createNewPreprocessingStepFolder(step):
     '''a function that creates a folder for the individual preprocessing step
     arguments:
-    step: Int = the number of the current preprocessing step
+    step: str = description of the current preprocessing step
 
     outputs:
     pathToPreprocessingFolder: String = the path to the newly created folder
@@ -83,7 +83,7 @@ def createNewPreprocessingStepFolder(step):
     '''
     now = datetime.now()
     timeFormatted = now.strftime("%Y%m%d-%H%M%S")
-    pathToPreprocessingFolder = f"{config.path_to_n30}/Rgb_Brain_Mets_Preprocessing{step}_{timeFormatted}"
+    pathToPreprocessingFolder = f"{config.path_to_n30}/Rgb_Brain_Mets_Preprocessing_{step}_{timeFormatted}"
     os.mkdir(pathToPreprocessingFolder)
 
     return pathToPreprocessingFolder
