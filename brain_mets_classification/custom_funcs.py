@@ -8,7 +8,7 @@ sys.path.append(r"/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Clas
 import brain_mets_classification.config as config
 
 
-def createFolderForPatient(path, patientID):
+def createFolderForPatient(path, patientID: str):
     '''a function that creates a folder with the patientID as the name if it doesn't exist yet'''
 
     pathFiles = os.listdir(path)
