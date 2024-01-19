@@ -21,11 +21,13 @@ The aim of this project is to write an ai that classifies brain metastases based
 <!-- ROADMAP -->
 ## Road Map
 - [X] Acquire patient data
-- [ ] Find correct sequences for each patient (currently working on this)
+- [X] Find correct sequences for each patient
 - [ ] Preprocessing (currently working on this)
     - [X] Extract dicom metadata
     - [X] Convert dicom to nifti
-    - [ ] Extract brain (currently working on this)
+    - [ ] Extract brain
+        - [X] extract patients brain using HD-BET
+        - [ ] compare HD-BET images with synthstrip images 
     - [X] Fill holes
     - [X] Binary Segment
     - [X] Cropy images
@@ -33,6 +35,7 @@ The aim of this project is to write an ai that classifies brain metastases based
     - [X] Coregister images
     - [X] Resample images
     - [X] Z-score normalization
+    - [ ] Merge images into numpy
 - [ ] Write ai using tensorflow
 - [ ] Train ai
 - [ ] Explore results
