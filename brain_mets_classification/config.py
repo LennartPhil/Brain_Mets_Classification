@@ -16,6 +16,7 @@ class desiredSequences(Enum):
     STERN = "STERN"
     DWI = "DWI"
     ADC = "ADC"
+    MPR = "MPRAGE"
 
 
 seq_whitelist = ["ax", "axial", "tra", "transversal", "diff", "adc", "dti"]
