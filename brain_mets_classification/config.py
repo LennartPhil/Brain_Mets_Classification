@@ -18,6 +18,35 @@ class desiredSequences(Enum):
     ADC = "ADC"
     MPR = "MPRAGE"
 
+class patient:
+
+    patientID: int
+    T1_sequences: [str]
+    T1_amount: int
+    T1CE_sequences: [str]
+    T1CE_amount: int
+    T2_sequences: [str]
+    T2_amount: int
+    FLAIR_sequences: [str]
+    FLAIR_amount: int
+    STERN_sequences: [str]
+    STERN_amount: int
+    DWI_sequences: [str]
+    DWI_amount: int
+    ADC_sequences: [str]
+    ADC_amount: int
+    MPR_sequences: [str]
+    MPR_amount: int
+
+    birthdate: str
+    mri_date: str
+    age: int
+    sex: str
+    primary: str
+
+    def __init__(self, id):
+        self.patientID = id
+
 
 seq_whitelist = ["ax", "axial", "tra", "transversal", "diff", "adc", "dti"]
 seq_blacklist = ["lws", "hand", "roi", "scout", "hws", "bws", "sag", "posdisp", "cor"]
