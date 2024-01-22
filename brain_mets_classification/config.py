@@ -4,6 +4,8 @@ path_to_n30 = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classif
 # path to SSD
 path_to_ssd = "/Volumes/BrainMets/Rgb_Brain_Mets/allPatients"
 
+path_to_dataset = "/Volumes/BrainMets/Rgb_Brain_Mets/Rgb_Brain_Mets_Dataset"
+
 dsStore = ".DS_Store"
 
 #desiredSequences = ["FLAIR", "T1", "T1CE", "T2"]
@@ -20,32 +22,45 @@ class desiredSequences(Enum):
 
 class patient:
 
-    patientID: int
-    T1_sequences: [str]
-    T1_amount: int
-    T1CE_sequences: [str]
-    T1CE_amount: int
-    T2_sequences: [str]
-    T2_amount: int
-    FLAIR_sequences: [str]
-    FLAIR_amount: int
-    STERN_sequences: [str]
-    STERN_amount: int
-    DWI_sequences: [str]
-    DWI_amount: int
-    ADC_sequences: [str]
-    ADC_amount: int
-    MPR_sequences: [str]
-    MPR_amount: int
-
-    birthdate: str
-    mri_date: str
-    age: int
-    sex: str
-    primary: str
-
     def __init__(self, id):
         self.patientID = id
+        self.T1_sequences: [str] = []
+        self.T1_amount: int = 0
+        self.T1CE_sequences: [str] = []
+        self.T1CE_amount: int = 0
+        self.T2_sequences: [str] = []
+        self.T2_amount: int = 0
+        self.FLAIR_sequences: [str] = []
+        self.FLAIR_amount: int = 0
+        self.STERN_sequences: [str] = []
+        self.STERN_amount: int = 0
+        self.DWI_sequences: [str] = []
+        self.DWI_amount: int = 0
+        self.ADC_sequences: [str] = []
+        self.ADC_amount: int = 0
+        self.MPR_sequences: [str] = []
+        self.MPR_amount: int = 0
+
+        self.birthdate: str = ""
+        self.mri_date: str = ""
+        self.age: int = 0
+        self.sex: str = ""
+        self.primary: str = ""
+
+    def __str__(self):
+        return f"""
+id: {self.patientID}
+T1 sequences: {self.T1_sequences} ({self.T1_amount})
+T1CE sequences: {self.T1CE_sequences} ({self.T1CE_amount})
+T2 sequences: {self.T2_sequences} ({self.T2_amount})
+FLAIR sequences: {self.FLAIR_sequences} ({self.FLAIR_amount})
+STERN sequences: {self.STERN_sequences} ({self.STERN_amount})
+DWI sequences: {self.DWI_sequences} ({self.DWI_amount})
+ADC sequences: {self.ADC_sequences} ({self.ADC_amount})
+MRP sequences: {self.MPR_sequences} ({self.MPR_amount})
+birthdate: {self.birthdate}, mri date: {self.mri_date}
+age: {self.age}, sex: {self.sex}, primary: {self.primary}
+"""
 
 
 seq_whitelist = ["ax", "axial", "tra", "transversal", "diff", "adc", "dti"]
