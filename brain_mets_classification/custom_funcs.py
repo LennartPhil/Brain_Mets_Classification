@@ -15,6 +15,22 @@ def createFolderForPatient(path, patientID: str):
     if not patientID in pathFiles:
         os.mkdir(f"{path}/{patientID}")
 
+def createPatientFolderBIDS(path, patientID: str):
+    '''a function that createsa folder according to BIDS: sub-{patientID} if it doesn't exist yet
+    
+    keyword arguments:
+    - path: Union[str, pathlib.Path] = path where the new folder should be created
+    - patientID: str = uniqute ID for each patient
+    
+    '''
+    pathFiles = os.listdir(path)
+    bidsFolderName = f"sub-{patientID}"
+    if not bidsFolderName in pathFiles:
+        os.mkdir(f"{path}/{bidsFolderName}")
+        return bidsFolderName
+    else:
+        print("Warning: foldername exists already")
+
 def createSequenceFolder(path, patientID, sequence, sequence_list, original_sequence_name):
     '''a helper function that creates a folder for a MRI sequence if it doesn't exist yet in the given path
 
