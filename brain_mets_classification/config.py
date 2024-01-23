@@ -41,6 +41,9 @@ class patient:
         self.MPR_sequences: [str] = []
         self.MPR_amount: int = 0
 
+        self.other_sequences: [str] = []
+        self.other_amount: int = 0
+
         self.birthdate: str = ""
         self.mri_date: str = ""
         self.age: int = 0
