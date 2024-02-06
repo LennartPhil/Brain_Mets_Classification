@@ -1,6 +1,8 @@
 import os
 from datetime import datetime
 import shutil
+import nibabel as nib
+import numpy as np
 
 import sys
 sys.path.append(r"/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classification")
@@ -103,3 +105,33 @@ def createNewPreprocessingStepFolder(step):
     os.mkdir(pathToPreprocessingFolder)
 
     return pathToPreprocessingFolder
+
+def pad_and_stack_nifit_images(file_paths, target_shape = (155, 185, 149)):
+    padded_images = []
+
+    for file_path in file_paths:
+        # Load NIfTI file using nibabel
+        img = nib.load(file_path)
+        data = img.get_fdata()
+
+        current_shape = data.shape
+
+        # Find the value in a corner of the image
+        corner_value = data[:,:,0][0][0]
+
+        # Calculate the padding amounts for each dimension
+        pad_widths = []
+        for target_dim, current_dim in zip(target_shape, current_shape):
+            total_padding = max(0, target_dim - current_dim)
+            padding_before = total_padding // 2
+            padding_after = total_padding - padding_before
+            pad_widths.append((padding_before, padding_after))
+
+        # Pad the image using numpy.pad with the minimum value
+        padded_data = np.pad(data, pad_widths, mode='constant', constant_values=corner_value)
+
+        padded_images.append(padded_data)
+
+    stacked_images = np.stack(padded_images, axis=-1)
+
+    return stacked_images
