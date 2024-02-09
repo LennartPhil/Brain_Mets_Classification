@@ -4,6 +4,9 @@ path_to_n30 = "/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/Brain_Mets_Classif
 # path to SSD
 path_to_ssd = "/Volumes/BrainMets/Rgb_Brain_Mets/allPatients"
 
+# path to revision
+path_to_revision = "/Volumes/BrainMets/Rgb_Brain_Mets/brain_mets_revision"
+
 path_to_dataset = "/Volumes/BrainMets/Rgb_Brain_Mets/Rgb_Brain_Mets_Dataset"
 
 dsStore = ".DS_Store"
