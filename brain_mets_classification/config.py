@@ -27,24 +27,24 @@ class patient:
 
     def __init__(self, id):
         self.patientID = id
-        self.T1_sequences: [str] = []
+        self.T1_sequences: list[str] = []
         self.T1_amount: int = 0
-        self.T1CE_sequences: [str] = []
+        self.T1CE_sequences: list[str] = []
         self.T1CE_amount: int = 0
-        self.T2_sequences: [str] = []
+        self.T2_sequences: list[str] = []
         self.T2_amount: int = 0
-        self.FLAIR_sequences: [str] = []
+        self.FLAIR_sequences: list[str] = []
         self.FLAIR_amount: int = 0
-        self.STERN_sequences: [str] = []
+        self.STERN_sequences: list[str] = []
         self.STERN_amount: int = 0
-        self.DWI_sequences: [str] = []
+        self.DWI_sequences: list[str] = []
         self.DWI_amount: int = 0
-        self.ADC_sequences: [str] = []
+        self.ADC_sequences: list[str] = []
         self.ADC_amount: int = 0
-        self.MPR_sequences: [str] = []
+        self.MPR_sequences: list[str] = []
         self.MPR_amount: int = 0
 
-        self.other_sequences: [str] = []
+        self.other_sequences: list[str] = []
         self.other_amount: int = 0
 
         self.birthdate: str = ""
