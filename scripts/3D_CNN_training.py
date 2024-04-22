@@ -98,7 +98,7 @@ def load_data(path_to_tfr_folder, num_classes):
     return training_set, validation_set, testing_set
 
 
-def build_ai(num_classes):
+def build_ai(train_ages, train_sex, num_classes):
 
     data_augmentation = tf.keras.Sequential([
         tf.keras.layers.RandomFlip(mode = "horizontal"),
@@ -119,8 +119,10 @@ def build_ai(num_classes):
     age_input = tf.keras.layers.Input(shape=train_ages.shape[1:])
     sex_input = tf.keras.layers.Input(shape=train_sex.shape[1:])
 
+    augmented_images = data_augmentation(img_input)
+
     output_tensor = ai_funcs.create_res_next(nb_classes = nb_classes,
-                                      img_input = img_input,
+                                      img_input = augmented_images,
                                       depth = [3,4,6,3],
                                       cardinality = 32,
                                       width = 4,
