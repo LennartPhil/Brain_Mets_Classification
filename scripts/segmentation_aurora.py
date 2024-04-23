@@ -1,0 +1,1 @@
+# skrip to segment all the patient images using AURORA
