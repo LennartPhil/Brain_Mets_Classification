@@ -20,8 +20,6 @@ from brainles_preprocessing.registration import (ANTsRegistrator, NiftyRegRegist
 def run_preprocessing():
     
     patients_directory = "/Users/LennartPhilipp/Desktop/testing_data/raw_data"
-    #patients_directory = "/Volumes/BrainMets/Rgb_Brain_Mets/brain_mets_classification/rawdata"
-    #path_to_output = "/Volumes/BrainMets/Rgb_Brain_Mets/brain_mets_classification/derivatives"
     path_to_output = "/Users/LennartPhilipp/Desktop/testing_data/derivatives"
 
     # create folder at path to output called Rgb_Brain_Mets_preprocessed
@@ -78,13 +76,21 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
     Returns:
         None
     """
+
+    # create subfolder for each patient
+    # check if patient directory already exists
+    pat_directory = f"{outputDir}/{patID}"
+    if patID not in os.listdir(outputDir):
+        # if not create new directory for patient
+        os.mkdir(pat_directory)
+    else:
+        print("Warning: patient directory already exists")
+
     inputDir = turbopath(inputDir)
     outputDir = turbopath(outputDir)
     print("*** start ***")
-    #brainles_dir = turbopath(inputDir) + "/" + inputDir.name + "_brainles"
-    brainles_dir = outputDir + "/" + inputDir.name + "_brainles"
-    #norm_bet_dir = brainles_dir / "normalized_bet"
-    norm_bet_dir = outputDir
+    brainles_dir = pat_directory
+    norm_bet_dir = turbopath(pat_directory) / "preprocessed"
 
     t1_file = inputDir.files("*T1w.nii.gz")
     t1c_file = inputDir.files("*T1c.nii.gz")
@@ -147,14 +153,11 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
             moving_modalities=moving_modalities,
             registrator=ANTsRegistrator(), # previously NiftRegRegistrator()
             brain_extractor=HDBetExtractor(),
-            # optional: we provide a temporary directory as a sandbox for the preprocessin
             
             # REMOVE IN PRODUCTION - START
             use_gpu=False,
             # REMOVE IN PRODUCTION - END
 
-            #temp_folder="/Users/LennartPhilipp/Desktop/Uni/Prowiss/Code/preprocessing/temporary_directory",
-            temp_folder = outputDir
             #limit_cuda_visible_devices="0",
         )
 
@@ -164,8 +167,6 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
             save_dir_atlas_correction=brainles_dir + "/atlas-correction",
             save_dir_brain_extraction=brainles_dir + "/brain-extraction",
         )
-
-
 
 
 if __name__ == "__main__":
