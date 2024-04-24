@@ -115,7 +115,7 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
         center = Modality(
             modality_name="t1c",
             input_path=t1cFile,
-            normalized_bet_output_path=norm_bet_dir / inputDir.name
+            normalized_bet_output_path=norm_bet_dir / patID
             + "_t1c_bet_normalized.nii.gz",
             atlas_correction=True,
             normalizer=percentile_normalizer,
@@ -125,7 +125,7 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
             Modality(
                 modality_name="t1",
                 input_path=t1File,
-                normalized_bet_output_path=norm_bet_dir / inputDir.name
+                normalized_bet_output_path=norm_bet_dir / patID
                 + "_t1_bet_normalized.nii.gz",
                 atlas_correction=True,
                 normalizer=percentile_normalizer,
@@ -133,7 +133,7 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
             Modality(
                 modality_name="t2",
                 input_path=t2File,
-                normalized_bet_output_path=norm_bet_dir / inputDir.name
+                normalized_bet_output_path=norm_bet_dir / patID
                 + "_t2_bet_normalized.nii.gz",
                 atlas_correction=True,
                 normalizer=percentile_normalizer,
@@ -141,7 +141,7 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
             Modality(
                 modality_name="flair",
                 input_path=flaFile,
-                normalized_bet_output_path=norm_bet_dir / inputDir.name
+                normalized_bet_output_path=norm_bet_dir / patID
                 + "_fla_bet_normalized.nii.gz",
                 atlas_correction=True,
                 normalizer=percentile_normalizer,
