@@ -30,10 +30,9 @@ Tensorflow
 ### Work in Progress
 - [ ] Build AIs (currently working on this)
     - [ ] 3D CNN (entire brain)
-      - [ ] Transfer ResNeXt archtiecture to 3D
+      - [X] Transfer ResNeXt architecture to 3D
       - [ ] custom scheduler
       - [ ] custom ai architecture (input: images, age, sex)
-    - [ ] segmentation
     - [ ] 2D CNN (largest slice of metastasis)
     - [ ] 2D CNN* (transfer learning)
     - [ ] Vision Transformer (maybe)
@@ -59,3 +58,5 @@ Tensorflow
     - [X] Resample images
     - [X] Z-score normalization
     - [X] Merge images
+- [X] redo preprocessing using the brats-toolkit
+- [X] segmentation
