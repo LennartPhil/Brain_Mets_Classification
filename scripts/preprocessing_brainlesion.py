@@ -4,11 +4,13 @@
 
 # Import necessary libraries
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import matplotlib.pyplot as plt
 from auxiliary.normalization.percentile_normalizer import PercentileNormalizer
 from auxiliary.turbopath import turbopath
 from tqdm import tqdm
-import os
 from datetime import datetime
 
 from brainles_preprocessing.brain_extraction import HDBetExtractor
@@ -46,8 +48,8 @@ def run_preprocessing():
     patients = data_dir.dirs()
 
     for patient in tqdm(patients):
-        if patient.name in missing_patients:
-            print("skipping patient: ")
+        if patient.name not in missing_patients:
+            print(f"skipping patient: {patient.name}")
             continue
         print("processing: ", patient.name)
         exam = patient.dirs()[0]
@@ -100,84 +102,91 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
     brainles_dir = pat_directory
     norm_bet_dir = turbopath(pat_directory) / "preprocessed"
 
-    t1_file = inputDir.files("*T1w.nii.gz")
-    t1c_file = inputDir.files("*T1c.nii.gz")
-    t2_file = inputDir.files("*T2w.nii.gz")
-    flair_file = inputDir.files("*FLAIR.nii.gz")
+    # t1_file = inputDir.files("*T1w.nii.gz")
+    # t1c_file = inputDir.files("*T1c.nii.gz")
+    # t2_file = inputDir.files("*T2w.nii.gz")
+    # flair_file = inputDir.files("*FLAIR.nii.gz")
+    t1_file = inputDir / patID + "_T1w.nii.gz"
+    t1c_file = inputDir / patID + "_T1c.nii.gz"
+    t2_file = inputDir / patID + "_T2w.nii.gz"
+    flair_file = inputDir / patID + "_FLAIR.nii.gz"
 
     # we check that we have only one file of each type
-    if len(t1_file) == len(t1c_file) == len(t2_file) == len(flair_file) == 1:
-        t1File = t1_file[0]
-        t1cFile = t1c_file[0]
-        t2File = t2_file[0]
-        flaFile = flair_file[0]
-        
-        # normalizer
-        percentile_normalizer = PercentileNormalizer(
-            lower_percentile=0.1,
-            upper_percentile=99.9,
-            lower_limit=0,
-            upper_limit=1,
-        )
-        # define modalities
-        center = Modality(
-            modality_name="t1c",
-            input_path=t1cFile,
+    # if len(t1_file) == len(t1c_file) == len(t2_file) == len(flair_file) == 1:
+    # t1File = t1_file[0]
+    # t1cFile = t1c_file[0]
+    # t2File = t2_file[0]
+    # flaFile = flair_file[0]
+
+    
+    
+    # normalizer
+    percentile_normalizer = PercentileNormalizer(
+        lower_percentile=0.1,
+        upper_percentile=99.9,
+        lower_limit=0,
+        upper_limit=1,
+    )
+    # define modalities
+    center = Modality(
+        modality_name="t1c",
+        input_path=t1c_file,
+        normalized_bet_output_path=norm_bet_dir / patID
+        + "_t1c_bet_normalized.nii.gz",
+        atlas_correction=True,
+        normalizer=percentile_normalizer,
+    )
+
+    moving_modalities = [
+        Modality(
+            modality_name="t1",
+            input_path=t1_file,
             normalized_bet_output_path=norm_bet_dir / patID
-            + "_t1c_bet_normalized.nii.gz",
+            + "_t1_bet_normalized.nii.gz",
             atlas_correction=True,
             normalizer=percentile_normalizer,
-        )
+        ),
+        Modality(
+            modality_name="t2",
+            input_path=t2_file,
+            normalized_bet_output_path=norm_bet_dir / patID
+            + "_t2_bet_normalized.nii.gz",
+            atlas_correction=True,
+            normalizer=percentile_normalizer,
+        ),
+        Modality(
+            modality_name="flair",
+            input_path=flair_file,
+            normalized_bet_output_path=norm_bet_dir / patID
+            + "_fla_bet_normalized.nii.gz",
+            atlas_correction=True,
+            normalizer=percentile_normalizer,
+        ),
+    ]
 
-        moving_modalities = [
-            Modality(
-                modality_name="t1",
-                input_path=t1File,
-                normalized_bet_output_path=norm_bet_dir / patID
-                + "_t1_bet_normalized.nii.gz",
-                atlas_correction=True,
-                normalizer=percentile_normalizer,
-            ),
-            Modality(
-                modality_name="t2",
-                input_path=t2File,
-                normalized_bet_output_path=norm_bet_dir / patID
-                + "_t2_bet_normalized.nii.gz",
-                atlas_correction=True,
-                normalizer=percentile_normalizer,
-            ),
-            Modality(
-                modality_name="flair",
-                input_path=flaFile,
-                normalized_bet_output_path=norm_bet_dir / patID
-                + "_fla_bet_normalized.nii.gz",
-                atlas_correction=True,
-                normalizer=percentile_normalizer,
-            ),
-        ]
+    print("preparing preprocessor")
 
-        preprocessor = Preprocessor(
-            center_modality=center,
-            moving_modalities=moving_modalities,
-            registrator=ANTsRegistrator(), # previously NiftRegRegistrator()
-            brain_extractor=HDBetExtractor(),
-            
-            # REMOVE IN PRODUCTION - START
-            use_gpu=True,
-            # REMOVE IN PRODUCTION - END
+    preprocessor = Preprocessor(
+        center_modality=center,
+        moving_modalities=moving_modalities,
+        registrator=ANTsRegistrator(), # previously NiftRegRegistrator()
+        brain_extractor=HDBetExtractor(),
+        
+        # REMOVE IN PRODUCTION - START
+        use_gpu=True,
+        # REMOVE IN PRODUCTION - END
 
-            #limit_cuda_visible_devices="0",
-        )
+        #limit_cuda_visible_devices="0",
+    )
 
-        preprocessor.run(
-            save_dir_coregistration=brainles_dir + "/co-registration",
-            save_dir_atlas_registration=brainles_dir + "/atlas-registration",
-            save_dir_atlas_correction=brainles_dir + "/atlas-correction",
-            save_dir_brain_extraction=brainles_dir + "/brain-extraction",
-        )
+    preprocessor.run(
+        save_dir_coregistration=brainles_dir + "/co-registration",
+        save_dir_atlas_registration=brainles_dir + "/atlas-registration",
+        save_dir_atlas_correction=brainles_dir + "/atlas-correction",
+        save_dir_brain_extraction=brainles_dir + "/brain-extraction",
+    )
 
-        print(f"finished preprocessing for {patID}")
-
+    print(f"finished preprocessing for {patID}")
 
 if __name__ == "__main__":
     run_preprocessing()
