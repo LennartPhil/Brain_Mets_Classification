@@ -1,4 +1,6 @@
 import tensorflow as tf
+from sklearn.utils import class_weight
+import numpy as np
 
 
 # 3D ResNeXt
@@ -7,6 +9,27 @@ import tensorflow as tf
 
 kernel_initializer = "he_normal"
 activation_func = "relu"
+
+# compute class weights for the custom loss function
+def compute_class_weights(labels: tf.Tensor, classes):
+    '''Computes the classes weights based on all the labels (e.g. list of primaries) and the different possible classes (e.g. different possible primaries) to be used for the Weighted Cross Entropy loss function
+    Args:
+        labels: list of all labels for the dataset
+        classes: array of all the available classes
+    Returns: an array of the class weights for the custom loss function
+    '''
+
+    labels = labels.numpy()
+
+    classes = np.array(classes)
+
+    weights = class_weight.compute_class_weight(class_weight="balanced",
+                                            classes=classes,
+                                            y=labels)
+
+    return(weights)
+
+
 
 def __initial_conv_block(input, weight_decay = 5e-4):
     ''' Adds an initial convolution block, with batch normalization and relu activation
