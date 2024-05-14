@@ -129,7 +129,7 @@ def load_data(path_to_tfr_folder, num_classes):
     print(f"Testing size: {test_size}")
 
     # Shuffle dataset
-    dataset = parsed_dataset.shuffle(buffer_size=tf.data.AUTOTUNE) #formerly: 200
+    dataset = parsed_dataset.shuffle(buffer_size=200) #formerly: 200
     train_dataset = dataset.take(train_size).prefetch(buffer_size = tf.data.AUTOTUNE)
     remainder_dataset = dataset.skip(train_size).prefetch(buffer_size = tf.data.AUTOTUNE)
     val_dataset = remainder_dataset.take(val_size).prefetch(buffer_size = tf.data.AUTOTUNE)
@@ -212,12 +212,12 @@ def get_callbacks(path_to_callbacks: Path):
         path_to_callbacks: Path
     '''
 
-    def get_run_logdir(root_logdir="/Volumes/BrainMets/Rgb_Brain_Mets/brain_mets_classification/derivatives/logs/tensorboard"):
+    def get_run_logdir(root_logdir= path_to_callbacks / "tensorboard"):
         return Path(root_logdir) / strftime("run_%Y_%m_%d_%H_%M_%S")
 
     run_logdir = get_run_logdir()
 
-    checkpoint_cb = tf.keras.callbacks.ModelCheckpoint(filepath = path_to_callbacks,
+    checkpoint_cb = tf.keras.callbacks.ModelCheckpoint(filepath = path_to_callbacks / "saved_weights.weights.h5",
                                                     monitor = "val_accuracy",
                                                     mode = "max",
                                                     save_best_only = True,
