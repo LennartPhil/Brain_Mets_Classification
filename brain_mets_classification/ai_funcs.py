@@ -8,7 +8,8 @@ import numpy as np
 # attempt of the ResNeXt architecture for 3d, based on https://github.com/titu1994/Keras-ResNeXt/blob/master/resnext.py
 
 kernel_initializer = "he_normal"
-activation_func = "relu"
+#activation_func = "relu"
+activation_func = "mish"
 
 # compute class weights for the custom loss function
 def compute_class_weights(labels: tf.Tensor, classes):
