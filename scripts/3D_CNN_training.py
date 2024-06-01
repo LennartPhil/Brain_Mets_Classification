@@ -61,6 +61,12 @@ def train_ai():
     print("training successful")
 
 def tensorflow_setup():
+    """
+    Set up the TensorFlow environment for training.
+
+    This function sets the random seed for TensorFlow and restricts TensorFlow to use only the first GPU.
+    It also prints the number of physical and logical GPUs available.
+    """
 
     tf.keras.utils.set_random_seed(42)
 
