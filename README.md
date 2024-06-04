@@ -28,6 +28,10 @@ Tensorflow
 ## Road Map
 
 ### Work in Progress
+- [ ] redo preprocessing with n4 bias correction (last time, I swear)
+- [ ] segmentation
+    - [ ] redo segmentation on n4 bias corrected files
+    - [ ] manually adjust segmentation
 - [ ] Build AIs (currently working on this)
     - [ ] 3D CNN (entire brain)
       - [X] Transfer ResNeXt architecture to 3D
@@ -59,4 +63,3 @@ Tensorflow
     - [X] Z-score normalization
     - [X] Merge images
 - [X] redo preprocessing using the brats-toolkit
-- [X] segmentation
