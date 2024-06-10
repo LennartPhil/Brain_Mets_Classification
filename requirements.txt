@@ -20,3 +20,4 @@ intensity_normalization
 ants
 pathlib
 subprocess
+intensity_normalization
