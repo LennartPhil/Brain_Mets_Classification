@@ -68,8 +68,6 @@ def run_preprocessing():
     if preprocessed_folder_exists == False:
         raise MyException("preprocessed folder doesn't exist")
     
-    # path_to_preprocessed_files = Path(path_to_preprocessed_files) / Path("n4-z-score-normalized")
-
     data_dir = turbopath(path_to_preprocessed_files)
 
     patients = data_dir.dirs()
@@ -200,14 +198,9 @@ def preprocess_exam_in_brats_style(inputDir: str, patID: str, outputDir: str) ->
 
 def normalize():
 
-    #patients_directory = Path("/Users/LennartPhilipp/Desktop/testing_data/raw_data")
-    #path_to_output = Path("/Users/LennartPhilipp/Desktop/testing_data/derivatives")
-
     now = datetime.now()
     timeFormatted = now.strftime("%Y%m%d-%H%M%S")
 
-
-    #path_to_preprocessed_files = ""
     path_to_preprocessed_files = f"{path_to_output}/preprocessed_z_score_n4_brainlesion_percentile_{timeFormatted}"
 
     preprocessed_folder_exists = False
@@ -290,25 +283,6 @@ def perc_normalize_and_save():
 
             # n4 bias correct files
             image = sitk.ReadImage(str(path_to_file), imageIO="NiftiImageIO")
-            # corrector = sitk.N4BiasFieldCorrectionImageFilter()
-            # image_corrected = corrector.Execute(image, mask_image)
-
-            # mask_filter = sitk.MaskImageFilter()
-            # mask_filter.SetOutsideValue(0)
-            # image_corrected_masked = mask_filter.Execute(image_corrected, mask_image)
-
-            # print(f"successfully n4 bias corrected {file}")
-
-            # create new n4 corrected directory
-            # path_to_n4_corrected = path_to_patient / "n4_corrected"
-            # Path(path_to_n4_corrected).mkdir(exist_ok=True)
-
-            # save in new directory
-            # n4_file_name = f"{patient}_{sequence_type}_n4_corrected.nii.gz"
-            # path_to_n4_corrected_file = path_to_n4_corrected / n4_file_name
-            # sitk.WriteImage(image_corrected_masked, str(path_to_n4_corrected_file))
-
-            # print(f"successfully saved n4 corrected {file}")
 
             # percentile normalize
             print(f"starting percentile normalization {file}")
@@ -352,8 +326,6 @@ def normalize_old():
 
     path_to_preprocessed = ""
 
-    #path_to_output = "/Users/LennartPhilipp/Desktop/testing_data/derivatives"
-    #path_to_output = Path("/home/lennart/Desktop/brain_mets_regensburg/derivatives")
     for file in os.listdir(path_to_output):
         if "z_score_n4_brainlesion_percentile" in file:
             path_to_preprocessed = f"{path_to_output}/{file}"
@@ -470,9 +442,6 @@ def percentile_normalize(image: np.ndarray, lower_percentile: float = 0.0, upper
 
     lower_value = np.percentile(image, lower_percentile)
     upper_value = np.percentile(image, upper_percentile)
-
-    # if upper_value == lower_value:
-    #     upper_value = lower_value + 0.0001
 
     normalized_image = np.clip(
         (image - lower_value) / (upper_value - lower_value), 0, 1
