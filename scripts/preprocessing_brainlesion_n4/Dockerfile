@@ -1,4 +1,4 @@
-FROM python:3.11.9-slim-bullseye
+FROM nvcr.io/nvidia/ai-workbench/python-basic:1.0.2
 
 COPY requirements.txt /requirements.txt
 
