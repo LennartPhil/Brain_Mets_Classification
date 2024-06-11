@@ -3,7 +3,9 @@ tqdm
 datetime
 brainles_preprocessing
 brainles_hd_bet
+brainles_preprocessing[ereg]
 SimpleITK
 pathlib
 numpy
 antspyx
+intensity_normalization
