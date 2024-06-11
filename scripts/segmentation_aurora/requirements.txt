@@ -1,0 +1,7 @@
+brainles-aurora
+matplotlib
+numpy
+nibabel
+tqdm
+datetime
+pathlib
