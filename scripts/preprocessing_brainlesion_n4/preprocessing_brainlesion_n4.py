@@ -233,6 +233,9 @@ def normalize():
 
         for raw_file in raw_files:
 
+            if raw_file.startswith("."):
+                continue
+
             sequence_type = raw_file.split("_")[1].split(".nii")[0]
             file_name = patient + "_n4_normalized_" + sequence_type + ".nii.gz"
             path_to_normalized_file = path_to_normalized_folder / Path(file_name)
@@ -293,6 +296,10 @@ def perc_normalize_and_save():
         raw_bet_files = [file for file in os.listdir(path_to_raw_bet) if ".nii.gz" in file]
         # loop through all raw_bet files
         for file in raw_bet_files:
+
+            if file.startswith("."):
+                continue
+
             path_to_file = Path(path_to_raw_bet) / file
             print(f"starting n4 bias correction for  {file}")
 
