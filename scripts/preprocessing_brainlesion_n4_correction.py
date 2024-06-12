@@ -28,10 +28,12 @@ def run_preprocessing():
     
     # on Lennart's Mac Book:
     #patients_directory = "/Users/LennartPhilipp/Desktop/testing_data/raw_data"
-    patients_directory = "/home/lennart/Desktop/brain_mets_regensburg/rawdata"
+    # patients_directory = "/home/lennart/Desktop/brain_mets_regensburg/rawdata"
+    patients_directory = "/raid/lennart/brain_mets_regensburg/rawdata"
     # on Lennart's Mac Book:
     #path_to_output = "/Users/LennartPhilipp/Desktop/testing_data/derivatives"
-    path_to_output = "/home/lennart/Desktop/brain_mets_regensburg/derivatives"
+    #path_to_output = "/home/lennart/Desktop/brain_mets_regensburg/derivatives"
+    path_to_output = "/raid/lennart/brain_mets_regensburg/derivatives"
 
     # create folder at path to output called Rgb_Brain_Mets_preprocessed
     now = datetime.now()
