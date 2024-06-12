@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/l4t-pytorch:r35.2.1-pth2.0-py3
+FROM nvcr.io/nvidia/cuda:12.5.0-devel-rockylinux9
 
 COPY requirements.txt /requirements.txt
 
