@@ -1,4 +1,5 @@
 brainles-aurora
+torch
 matplotlib
 numpy
 nibabel
