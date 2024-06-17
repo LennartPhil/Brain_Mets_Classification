@@ -1,3 +1,7 @@
+# To-do:
+# - add callbacks
+# - add ResNexT structure
+
 import tensorflow as tf
 import os
 import random
@@ -32,6 +36,12 @@ def train_ai():
     model.fit(train_data, validation_data = val_data, epochs=20, batch_size=1,)
     score = model.evaluate(test_data)
 
+def verify_tfrecord(file_path):
+    try:
+        for _ in tf.dataTFRecordDataset(file_path, compression_type="GZIP"):
+            pass
+    except tf.errors.DataLossError:
+        print(f"Corrupted TFRecord file: {file_path}")
 
 def get_tfr_paths():
     tfr_file_names = [file for file in os.listdir(path_to_tfrs) if file.endswith(".tfrecord")]
@@ -40,6 +50,9 @@ def get_tfr_paths():
     tfr_paths = [str(path_to_tfrs) + "/" + file for file in tfr_file_names]
 
     print(f"total tfrs: {len(tfr_paths)}")
+
+    for path in tfr_paths:
+        verify_tfrecord(path)
 
     return tfr_paths
 
