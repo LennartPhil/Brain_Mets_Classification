@@ -10,6 +10,7 @@ import os
 import matplotlib.pyplot as plt
 from scipy import ndimage
 from pathlib import Path
+from datetime import datetime
 
 from tensorflow.train import BytesList, FloatList, Int64List
 from tensorflow.train import Feature, Features, Example
@@ -49,7 +50,7 @@ def patient_table_setup():
     training_patients.reset_index(drop=True, inplace=True)
 
     # shuffle dataset
-    training_patients = training_patients.sample(frac=1).reset_index(drop=True)
+    #training_patients = training_patients.sample(frac=1).reset_index(drop=True)
     return training_patients
 
 def unify_primaries(patients_table):
@@ -187,8 +188,11 @@ def load_patient(patientID):
     # get all four sequences
     patientID = str(patientID)
     patient_path = Path(patientID)
-    image_names = os.listdir(Path(path_to_preprocessed_directory) / patient_path / "perc_normalized")
-    
+    path_to_patient_images = path_to_preprocessed_directory / patient_path / "perc_normalized"
+    if os.path.exists(path_to_patient_images):
+        image_names = os.listdir(Path(path_to_preprocessed_directory) / patient_path / "perc_normalized")
+    else:
+        print(f"Warning: patient {patientID} does not exist")
     # load them
     for name in image_names:
         path_to_image = Path(path_to_preprocessed_directory) / patient_path / "perc_normalized" / Path(name)
@@ -238,23 +242,62 @@ def write_tfr_record(sex_encoded, training_patients, classes_primaries):
     # Write the dataset to TFRecord
     options = tf.io.TFRecordOptions(compression_type="GZIP") # compress the dataset
 
-    patients = [patient for patient in os.listdir(path_to_preprocessed_patients) if os.path.isdir(os.path.join(path_to_preprocessed_patients, patient))]
+    patient_dirs = [patient for patient in os.listdir(path_to_preprocessed_patients) if os.path.isdir(os.path.join(path_to_preprocessed_patients, patient))]
 
-    directory_name = f"pats_{num_classes}_singles"
+    timeFormatted = datetime.now().strftime("%Y%m%d-%H%M%S")
+    directory_name = f"pats_{num_classes}_singles_{timeFormatted}"
     path_to_all_tfr = path_to_tfrecords / Path(directory_name)
     os.makedirs(path_to_all_tfr, exist_ok=True)
 
-    for pat in tqdm(range(len(patients))):
+    patients = training_patients["participant_id"]
+    print(f"Number of patients: {len(patients)}")
 
-        file_path = str(path_to_all_tfr) + "/" + patients[pat] + ".tfrecord"
+    for pat_num in tqdm(range(len(patients))):
+        file_path = str(path_to_all_tfr) + "/" + patients[pat_num] + ".tfrecord"
+
         with tf.io.TFRecordWriter(file_path, options) as writer:
 
-            sex = sex_encoded[pat]
-            id = training_patients["participant_id"][pat]
-            age = training_patients["age"][pat]
-            primary = classes_primaries[pat]
+            sex = sex_encoded[pat_num]
+            id = training_patients["participant_id"][pat_num]
+            age = training_patients["age"][pat_num]
+            primary = classes_primaries[pat_num]
+
+            print(f"Currently writing:")
+            print(training_patients[training_patients["participant_id"] == id])
+            # print(f"ID: {id}")
+            # print(f"Sex: {sex}")
+            # print(f"Age: {age}")
+            # print(f"Primary: {primary}")
+            # print("COMPARE TO")
+            current_num_pat = training_patients.iloc[pat_num]
+            current_id_pat = training_patients[training_patients["participant_id"] == id]
+
+            print(current_num_pat)
+            print()
+
+            if (current_num_pat["participant_id"] != id) or (current_num_pat["age"] != age):
+                print("ERROR: The num patient does not match")
+                print(current_num_pat)
+            elif (current_id_pat["participant_id"].values[0] != id) or (current_id_pat["age"].values[0] != age):
+                print("ERROR: The id patient does not match")
+                print(current_id_pat)
+
             example = serialize_patient(id, sex, age, primary)
             writer.write(example)
+
+
+
+    # for pat in tqdm(range(len(patients))):
+
+    #     file_path = str(path_to_all_tfr) + "/" + patients[pat] + ".tfrecord"
+    #     with tf.io.TFRecordWriter(file_path, options) as writer:
+
+    #         sex = sex_encoded[pat]
+    #         id = training_patients["participant_id"][pat]
+    #         age = training_patients["age"][pat]
+    #         primary = classes_primaries[pat]
+    #         example = serialize_patient(id, sex, age, primary)
+    #         writer.write(example)
     
     print("TFRecord writing successful")
 
