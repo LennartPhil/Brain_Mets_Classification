@@ -1,7 +1,7 @@
 # To-do:
-# - add callbacks
 # - add class weights
-# - add ResNexT structure
+# - add ResNexT structure, doesn't work yet :/
+# - test nvidia docker igpu
 
 import tensorflow as tf
 import os
@@ -9,6 +9,8 @@ import random
 from time import strftime
 
 from pathlib import Path
+
+import helper_funcs as hf
 
 #import matplotlib.pyplot as plt
 
@@ -34,6 +36,12 @@ shuffle_buffer_size = 400
 activation_func = "mish"
 optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=0.001, momentum=0.9, nesterov=True)
 
+time = strftime("run_%Y_%m_%d_%H_%M_%S")
+class_directory = f"{num_classes}_classes_{time}"
+
+# create callbacks directory
+path_to_callbacks = Path(path_to_logs) / Path(class_directory)
+os.makedirs(path_to_callbacks, exist_ok=True)
 
 def train_ai():
 
@@ -113,6 +121,11 @@ def split_data(tfr_paths):
 
     print(f"train: {len(train_paths)} | val: {len(val_paths)} | test: {len(test_paths)}")
 
+    # save train / val / test patients to txt file
+    hf.save_paths_to_txt(train_paths, "train", path_to_callbacks)
+    hf.save_paths_to_txt(val_paths, "val", path_to_callbacks)
+    hf.save_paths_to_txt(test_paths, "test", path_to_callbacks)
+
     sum = len(train_paths) + len(val_paths) + len(test_paths)
     if sum != len(tfr_paths):
         print("WARNING: error occured in train / val / test split!")
@@ -132,6 +145,10 @@ def read_data(train_paths, val_paths, test_paths):
     train_data = train_data.shuffle(buffer_size=shuffle_buffer_size)
     val_data = val_data.shuffle(buffer_size=shuffle_buffer_size)
     test_data = test_data.shuffle(buffer_size=shuffle_buffer_size)
+
+    train_data = train_data.repeat(count = epochs)
+    val_data = val_data.repeat(count = epochs)
+    test_data = test_data.repeat(count = epochs)
 
     train_data = train_data.batch(batch_size)
     val_data = val_data.batch(batch_size)
@@ -176,11 +193,6 @@ def parse_record(record, labeled = False):
         return image
 
 def get_callbacks():
-    
-    class_directory = f"{num_classes}_classes"
-
-    # create callbacks directory
-    path_to_callbacks = Path(path_to_logs) / Path(class_directory)
 
     def get_run_logdir(root_logdir= path_to_callbacks / "tensorboard"):
         return Path(root_logdir) / strftime("run_%Y_%m_%d_%H_%M_%S")
@@ -210,6 +222,12 @@ class MCDropout(tf.keras.layers.Dropout):
         return super().call(inputs, training=True)
 
 def build_model():
+
+    # Define inputs
+    image_input = tf.keras.layers.Input(shape=(155, 240, 240, 4))
+    sex_input = tf.keras.layers.Input(shape=(2,))
+    age_input = tf.keras.layers.Input(shape=(1,))
+
     batch_norm_layer = tf.keras.layers.BatchNormalization()
     conv_1_layer = tf.keras.layers.Conv3D(filters = 64, kernel_size = 7, input_shape = [155, 240, 240, 4], strides=(2,2,2), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
     max_pool_1_layer = tf.keras.layers.MaxPooling3D(pool_size = (2,2,2))
@@ -221,31 +239,51 @@ def build_model():
     dropout_2_layer = tf.keras.layers.Dropout(0.5)
     output_layer = tf.keras.layers.Dense(2, activation="softmax")
 
-    # Define inputs
-    input_image = tf.keras.layers.Input(shape=(155, 240, 240, 4))
-    sex_input = tf.keras.layers.Input(shape=(2,))
-    age_input = tf.keras.layers.Input(shape=(1,))
+    batch_norm = batch_norm_layer(image_input)
 
-    # concatenate input sex and input age
-
-    batch_norm = batch_norm_layer(input_image)
     conv_1 = conv_1_layer(batch_norm)
     max_pool_1 = max_pool_1_layer(conv_1)
+
     conv_2 = conv_2_layer(max_pool_1)
     max_pool_2 = max_pool_2_layer(conv_2)
 
-    flattened_images = tf.keras.layers.Flatten()(max_pool_2)
+    flatten = tf.keras.layers.Flatten()(max_pool_2)
+
+    dense_1 = dense_1_layer(flatten)
+    dropout_1 = dropout_1_layer(dense_1)
+
+    dense_2 = dense_2_layer(dropout_1)
+    dropout_2 = dropout_2_layer(dense_2)
+
+    output = output_layer(dropout_2)
+
+    flattened_images = tf.keras.layers.Flatten()(output)
     flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
     age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)  # Reshape age_input to have 2 dimensions
     concatenated_inputs = tf.keras.layers.Concatenate()([flattened_images, age_input_reshaped, flattened_sex_input])
 
-    dense_1 = dense_1_layer(concatenated_inputs)
-    dropout_1 = dropout_1_layer(dense_1)
-    dense_2 = dense_2_layer(dropout_1)
-    dropout_2 = dropout_2_layer(dense_2)
-    output = output_layer(dropout_2)
+    x = MCDropout(0.4)(concatenated_inputs)
+    x = tf.keras.layers.Dense(200, activation="mish")(x)
+    x = MCDropout(0.4)(x)
+    x = tf.keras.layers.Dense(200, activation="mish")(x)
+    x = MCDropout(0.4)(x)
+    x = tf.keras.layers.Dense(200, activation="mish")(x)
 
-    model = tf.keras.Model(inputs = [input_image, sex_input, age_input], outputs = [output])
+    match num_classes:
+        case 2:
+            output = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+        case 3:
+            output = tf.keras.layers.Dense(3, activation='softmax')(x)
+        case 4:
+            output = tf.keras.layers.Dense(4, activation='softmax')(x)
+        case 5:
+            output = tf.keras.layers.Dense(5, activation='softmax')(x)
+        case 6:
+            output = tf.keras.layers.Dense(6, activation='softmax')(x)
+        case _:
+            print("Wrong num classes set in the buil_ai func, please pick a number between 2 and 6")
+
+    model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output])
     model.compile(loss="mse", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
     model.summary()
 
