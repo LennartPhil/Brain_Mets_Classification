@@ -72,6 +72,8 @@ def tensorflow_setup():
     It also prints the number of physical and logical GPUs available.
     """
 
+    tf.keras.mixed_precision.set_global_policy('mixed_float16')
+
     tf.keras.utils.set_random_seed(42)
 
     # copied directly from: https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
@@ -291,15 +293,20 @@ def build_model():
 
     match num_classes:
         case 2:
-            output = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+            x = tf.keras.layers.Dense(1)(x)
+            output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
         case 3:
-            output = tf.keras.layers.Dense(3, activation='softmax')(x)
+            x = tf.keras.layers.Dense(3)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         case 4:
-            output = tf.keras.layers.Dense(4, activation='softmax')(x)
+            x = tf.keras.layers.Dense(4)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         case 5:
-            output = tf.keras.layers.Dense(5, activation='softmax')(x)
+            x = tf.keras.layers.Dense(5)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         case 6:
-            output = tf.keras.layers.Dense(6, activation='softmax')(x)
+            x = tf.keras.layers.Dense(6)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         case _:
             print("Wrong num classes set in the buil_ai func, please pick a number between 2 and 6")
 
