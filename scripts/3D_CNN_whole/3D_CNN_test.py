@@ -134,13 +134,33 @@ def split_data(tfr_paths):
 
 def read_data(train_paths, val_paths, test_paths):
 
-    train_data = tf.data.TFRecordDataset([train_paths], compression_type="GZIP")
-    val_data = tf.data.TFRecordDataset([val_paths], compression_type="GZIP")
-    test_data = tf.data.TFRecordDataset([test_paths], compression_type="GZIP")
+    trian_data = tf.data.Dataset.from_tensor_slices(train_paths)
+    val_data = tf.data.Dataset.from_tensor_slices(val_paths)
+    test_data = tf.data.Dataset.from_tensor_slices(test_paths)
 
-    train_data = train_data.map(partial(parse_record, labeled = True))
-    val_data = val_data.map(partial(parse_record, labeled = True))
-    test_data = test_data.map(partial(parse_record, labeled = True))
+    train_data = train_data.interleave(
+        lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
+        num_parallel_calls=tf.data.AUTOTUNE,
+        deterministic=False
+    )
+    val_data = val_data.interleave(
+        lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
+        num_parallel_calls=tf.data.AUTOTUNE,
+        deterministic=False
+    )
+    test_data = test_data.interleave(
+        lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
+        num_parallel_calls=tf.data.AUTOTUNE,
+        deterministic=False
+    )
+
+    # train_data = tf.data.TFRecordDataset([train_paths], compression_type="GZIP")
+    # val_data = tf.data.TFRecordDataset([val_paths], compression_type="GZIP")
+    # test_data = tf.data.TFRecordDataset([test_paths], compression_type="GZIP")
+
+    train_data = train_data.map(partial(parse_record, labeled = True), num_parallel_calls=tf.data.AUTOTUNE)
+    val_data = val_data.map(partial(parse_record, labeled = True), num_parallel_calls=tf.data.AUTOTUNE)
+    test_data = test_data.map(partial(parse_record, labeled = True), num_parallel_calls=tf.data.AUTOTUNE)
 
     train_data = train_data.shuffle(buffer_size=shuffle_buffer_size)
     val_data = val_data.shuffle(buffer_size=shuffle_buffer_size)
