@@ -1,7 +1,8 @@
 # To-do:
 # - add class weights
+# - add k-fold cross validation
 # - add ResNexT structure, doesn't work yet :/
-# - test nvidia docker igpu
+# - separate testing data
 
 import tensorflow as tf
 import os
@@ -29,7 +30,7 @@ train_ratio = 0.8
 val_ratio = 0.1
 test_ratio = 0.1
 
-batch_size = 1
+batch_size = 4
 epochs = 1000
 shuffle_buffer_size = 100
 repeat_count = 1
@@ -57,7 +58,8 @@ def train_ai():
     callbacks = get_callbacks()
 
     #model = build_simple_model()
-    model = buil_resnext_model()
+    #model = buil_resnext_model()
+    model = build_resnet_model()
     model.fit(train_data,
               validation_data = val_data,
               epochs = epochs,
@@ -228,14 +230,13 @@ def get_callbacks():
         monitor = "val_accuracy",
         mode = "max",
         save_best_only = True,
-        save_weights_only = True
+        save_weights_only = True,
     )
 
     early_stopping_cb = tf.keras.callbacks.EarlyStopping(
-        patience=15,
-        monitor = "val_accuracy",
-        mode = "max",
-        restore_best_weights = True
+        patience = 50,
+        restore_best_weights = True,
+        verbose = 1
     )
 
     tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir = run_logdir,
@@ -250,6 +251,37 @@ def get_callbacks():
 class MCDropout(tf.keras.layers.Dropout):
     def call(self, inputs, training=False):
         return super().call(inputs, training=True)
+
+DefaultConv3D = partial(tf.keras.layers.Conv3D, kernel_size = 3, strides = 1, padding = "same", kernel_initializer = "he_normal", use_bias = False)
+
+class ResidualUnit(tf.keras.layers.Layer):
+    def __init__(self, filters, strides = 1, activation = "relu", **kwargs):
+        super().__init__(**kwargs)
+        self.activation = tf.keras.activations.get(activation)
+
+        self.main_layers = [
+            DefaultConv3D(filters, strides = strides),
+            tf.keras.layers.BatchNormalization(),
+            self.activation,
+            DefaultConv3D(filters),
+            tf.keras.layers.BatchNormalization()
+        ]
+
+        self.skip_layers = []
+        if strides > 1:
+            self.skip_layers = [
+                DefaultConv3D(filters, kernel_size = 1, strides = strides),
+                tf.keras.layers.BatchNormalization()
+            ]
+        
+    def call(self, inputs):
+        Z = inputs
+        for layer in self.main_layers:
+            Z = layer(Z)
+        skip_Z = inputs
+        for layer in self.skip_layers:
+            skip_Z = layer(skip_Z)
+        return self.activation(Z + skip_Z)
 
 def build_simple_model():
 
@@ -389,6 +421,64 @@ def buil_resnext_model():
     model = tf.keras.Model(inputs=[image_input, sex_input, age_input], outputs=output)
 
     model.compile(optimizer='adam', loss="mse", metrics=["RootMeanSquaredError", "accuracy", "AUC"])
+
+    return model
+
+def build_resnet_model():
+    # Define inputs
+    image_input = tf.keras.layers.Input(shape=(155, 240, 240, 4))
+    sex_input = tf.keras.layers.Input(shape=(2,))
+    age_input = tf.keras.layers.Input(shape=(1,))
+
+    resnet_model = tf.keras.Sequential([
+        DefaultConv3D(filters = 64, kernel_size = 7, strides = 2, input_shape = (155, 240, 240, 4)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Activation(activation_func),
+        tf.keras.layers.MaxPool3D(pool_size = 3, strides = 2, padding = "same"),
+    ])
+
+    prev_filters = 64
+    for filters in [64] * 3 + [128] * 4 + [256] * 6 + [512] * 3:
+        strides = 1 if filters == prev_filters else 2
+        resnet_model.add(ResidualUnit(filters, strides = strides))
+        prev_filters = filters
+    
+    resnet_model.add(tf.keras.layers.GlobalAvgPool3D())
+
+    flattened_images = tf.keras.layers.Flatten()(resnet_model(image_input))
+    flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
+    age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)  # Reshape age_input to have 2 dimensions
+    concatenated_inputs = tf.keras.layers.Concatenate()([flattened_images, age_input_reshaped, flattened_sex_input])
+
+    x = MCDropout(0.4)(concatenated_inputs)
+    x = tf.keras.layers.Dense(200, activation="mish")(x)
+    x = MCDropout(0.4)(x)
+    x = tf.keras.layers.Dense(200, activation="mish")(x)
+    x = MCDropout(0.4)(x)
+    x = tf.keras.layers.Dense(200, activation="mish")(x)
+
+    match num_classes:
+        case 2:
+            x = tf.keras.layers.Dense(1)(x)
+            output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
+        case 3:
+            x = tf.keras.layers.Dense(3)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        case 4:
+            x = tf.keras.layers.Dense(4)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        case 5:
+            x = tf.keras.layers.Dense(5)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        case 6:
+            x = tf.keras.layers.Dense(6)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        case _:
+            print("Wrong num classes set in the buil_ai func, please pick a number between 2 and 6")
+
+    model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output])
+    model.compile(loss="mse", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+    model.summary()
 
     return model
 
