@@ -323,7 +323,7 @@ def build_ai(train_ages, train_sex, num_classes, class_weights):
 
     loss = WeightedCrossEntropyLoss(class_weights=class_weights)
 
-    model.compile(optimizer='adam', loss=loss, metrics=['accuracy'])
+    model.compile(optimizer='adam', loss=loss, metrics=["RootMeanSquaredError", "accuracy", "AUC"])
 
     return model
 
