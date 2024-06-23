@@ -1,6 +1,5 @@
 # To-do:
 # - add class weights
-# - add k-fold cross validation
 # - add ResNexT structure, doesn't work yet :/
 # - separate testing data
 
@@ -8,6 +7,7 @@ import tensorflow as tf
 import os
 import random
 from time import strftime
+import numpy as np
 
 from pathlib import Path
 
@@ -16,6 +16,8 @@ import helper_funcs as hf
 #import matplotlib.pyplot as plt
 
 from functools import partial
+
+import json
 
 #random.seed(42)
 
@@ -31,12 +33,13 @@ val_ratio = 0.1
 test_ratio = 0.1
 
 batch_size = 4
-epochs = 1000
+epochs = 500 #1000
 shuffle_buffer_size = 100
 repeat_count = 1
+starting_lr = 0.00001
 
 activation_func = "mish"
-optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=0.001, momentum=0.9, nesterov=True)
+optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=starting_lr, momentum=0.9, nesterov=True)
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
 class_directory = f"{num_classes}_classes_{time}"
@@ -60,11 +63,16 @@ def train_ai():
     #model = build_simple_model()
     #model = buil_resnext_model()
     model = build_resnet_model()
-    model.fit(train_data,
+    history = model.fit(train_data,
               validation_data = val_data,
               epochs = epochs,
               batch_size = batch_size,
               callbacks = callbacks)
+    
+    history_dict = history.history
+
+    path_to_np_file = path_to_callbacks / "history.npy"
+    np.save(path_to_np_file, history_dict)
     
     #score = model.evaluate(test_data)
 
@@ -220,6 +228,8 @@ def parse_record(record, labeled = False):
 
 def get_callbacks():
 
+    callbacks = []
+
     def get_run_logdir(root_logdir= path_to_callbacks / "tensorboard"):
         return Path(root_logdir) / strftime("run_%Y_%m_%d_%H_%M_%S")
 
@@ -232,19 +242,25 @@ def get_callbacks():
         save_best_only = True,
         save_weights_only = True,
     )
+    callbacks.append(checkpoint_cb)
 
-    early_stopping_cb = tf.keras.callbacks.EarlyStopping(
-        patience = 50,
-        restore_best_weights = True,
-        verbose = 1
-    )
+    # early_stopping_cb = tf.keras.callbacks.EarlyStopping(
+    #     patience = 50,
+    #     restore_best_weights = True,
+    #     verbose = 1
+    # )
+    # callbacks.append(early_stopping_cb)
 
     tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir = run_logdir,
                                                     histogram_freq = 1)
-    
+    callbacks.append(tensorboard_cb)
+
+    lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-5 * 10**(epoch / 83))
+    callbacks.append(lr_schedule)
+
     print("get_callbacks successful")
 
-    return [checkpoint_cb, early_stopping_cb, tensorboard_cb]
+    return callbacks
 
 # MCDropout
 # https://arxiv.org/abs/1506.02142
@@ -477,7 +493,7 @@ def build_resnet_model():
             print("Wrong num classes set in the buil_ai func, please pick a number between 2 and 6")
 
     model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output])
-    model.compile(loss="mse", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
     model.summary()
 
     return model
