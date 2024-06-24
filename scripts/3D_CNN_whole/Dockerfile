@@ -10,7 +10,7 @@ RUN pip install --upgrade pip
 
 RUN pip install -r /requirements.txt
 
-COPY 3D_CNN_test.py /skript.py
+COPY 3D_CNN_training.py /skript.py
 
 COPY helper_funcs.py /helper_funcs.py
 
