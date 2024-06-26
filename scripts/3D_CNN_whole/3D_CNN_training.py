@@ -22,6 +22,8 @@ path_to_logs = "/logs"
 
 num_classes = 2
 
+use_k_fold = False
+
 ## train / val / test split
 train_ratio = 0.8
 val_ratio = 0.1
@@ -33,7 +35,7 @@ epochs = 1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
 repeat_count = 1
-learning_rate = 0.0001
+learning_rate = 0.001 #previously 0.0001
 
 activation_func = "mish"
 
@@ -50,32 +52,60 @@ def train_ai():
 
     # Data setup
     tfr_paths = np.array(get_tfr_paths())
-    train_paths, test_paths = train_test_split(tfr_paths, test_size=test_ratio, random_state=42)
-    print(f"total tfrs: {len(tfr_paths)}")
-    print(f"Training set: {len(train_paths)} | Test set: {len(test_paths)}")
 
-    kf = KFold(n_splits=fold_num, shuffle=True, random_state=42)
+    if use_k_fold:
+        train_paths, test_paths = train_test_split(tfr_paths, test_size=test_ratio, random_state=42)
 
-    for fold, (train_index, val_index) in enumerate(kf.split(train_paths)):
-        train_fold = train_paths[train_index]
-        val_fold = train_paths[val_index]
-        
-        print(f"*** Fold {fold + 1} ***")
-        print("Training Fold: ", len(train_fold))
-        print("Validation Fold: ", len(val_fold))
 
-        # check for any errors during k-fold splitting
-        for val_path in val_fold:
-            if val_path in train_fold:
-                print("WARNING: Duplicate path in train and val fold!")
+        print(f"total tfrs: {len(tfr_paths)}")
+        print(f"Training set: {len(train_paths)} | Test set: {len(test_paths)}")
 
-        # Data setup
-        train_data, val_data = read_data(train_fold, val_fold)
+        kf = KFold(n_splits=fold_num, shuffle=True, random_state=42)
 
-        # callbacks
-        callbacks = get_callbacks(fold + 1)
+        for fold, (train_index, val_index) in enumerate(kf.split(train_paths)):
+            train_fold = train_paths[train_index]
+            val_fold = train_paths[val_index]
+            
+            print(f"*** Fold {fold + 1} ***")
+            print("Training Fold: ", len(train_fold))
+            print("Validation Fold: ", len(val_fold))
 
-        model = build_resnet_model()
+            # check for any errors during k-fold splitting
+            for val_path in val_fold:
+                if val_path in train_fold:
+                    print("WARNING: Duplicate path in train and val fold!")
+
+            # Data setup
+            train_data, val_data = read_data(train_fold, val_fold)
+
+            # callbacks
+            callbacks = get_callbacks(fold + 1)
+
+            model = build_simple_model()
+            #model = build_resnet_model()
+            history = model.fit(
+                train_data,
+                validation_data = val_data,
+                epochs = epochs,
+                batch_size = batch_size,
+                callbacks = callbacks
+            )
+            
+            history_dict = history.history
+
+            # save history
+            history_file_name = f"history_{fold + 1}.npy"
+            path_to_np_file = path_to_callbacks / history_file_name
+            np.save(path_to_np_file, history_dict)
+    else:
+        train_paths, val_paths, test_paths = split_data(tfr_paths)
+
+        train_data, val_data, test_data = read_data(train_paths, val_paths, test_paths)
+
+        callbacks = get_callbacks(0)
+
+        model = build_simple_model()
+
         history = model.fit(
             train_data,
             validation_data = val_data,
@@ -83,13 +113,15 @@ def train_ai():
             batch_size = batch_size,
             callbacks = callbacks
         )
-        
+
         history_dict = history.history
 
         # save history
-        history_file_name = f"history_{fold + 1}.npy"
+        history_file_name = f"history.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
+
+    #train_paths, test_paths = train_test_split(tfr_paths, test_size=test_ratio, random_state=42)
 
 def tensorflow_setup():
 
@@ -134,7 +166,7 @@ def split_data(tfr_paths):
 
     train_size = int(len(tfr_paths) * train_ratio)
     val_size = int(len(tfr_paths) * val_ratio)
-    test_size = int(len(tfr_paths) * test_ratio)
+    #test_size = int(len(tfr_paths) * test_ratio)
 
     train_paths = tfr_paths[:train_size]
     val_paths = tfr_paths[train_size:train_size + val_size]
@@ -153,7 +185,7 @@ def split_data(tfr_paths):
 
     return train_paths, val_paths, test_paths
 
-def read_data(train_paths, val_paths):
+def read_data(train_paths, val_paths, test_paths = None):
 
     train_data = tf.data.Dataset.from_tensor_slices(train_paths)
     val_data = tf.data.Dataset.from_tensor_slices(val_paths)
@@ -183,6 +215,19 @@ def read_data(train_paths, val_paths):
 
     train_data = train_data.prefetch(buffer_size=1)
     val_data = val_data.prefetch(buffer_size=1)
+
+    if test_paths is not None:
+        test_data = tf.data.Dataset.from_tensor_slices(test_paths)
+        test_data = test_data.interleave(
+            lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
+            num_parallel_calls=tf.data.AUTOTUNE,
+            deterministic=False
+        )
+        test_data = test_data.map(partial(parse_record, labeled = True), num_parallel_calls=tf.data.AUTOTUNE)
+        test_data = test_data.batch(batch_size)
+        test_data = test_data.prefetch(buffer_size=1)
+
+        return train_data, val_data, test_data
 
     return train_data, val_data
 
@@ -226,6 +271,7 @@ def get_callbacks(fold_num):
 
     run_logdir = get_run_logdir()
 
+    # model checkpoint
     checkpoint_cb = tf.keras.callbacks.ModelCheckpoint(
         filepath = path_to_fold_callbacks / "saved_weights.weights.h5",
         monitor = "val_accuracy",
@@ -234,18 +280,23 @@ def get_callbacks(fold_num):
         save_weights_only = True,
     )
 
+    # early stopping
     early_stopping_cb = tf.keras.callbacks.EarlyStopping(
         patience = early_stopping_patience,
         restore_best_weights = True,
         verbose = 1
     )
 
+    # tensorboard, doesn't really work yet
     tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir = run_logdir,
                                                     histogram_freq = 1)
     
+    # csv logger
+    csv_logger_cb = tf.keras.callbacks.CSVLogger(path_to_fold_callbacks / "training.csv", separator = ",", append = True)
+
     print("get_callbacks successful")
 
-    return [checkpoint_cb, early_stopping_cb, tensorboard_cb]
+    return [checkpoint_cb, early_stopping_cb, tensorboard_cb, csv_logger_cb]
 
 # MCDropout
 # https://arxiv.org/abs/1506.02142
@@ -303,8 +354,8 @@ def build_simple_model():
     conv_3_layer = tf.keras.layers.Conv3D(filters = 128, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
     max_pool_3_layer = tf.keras.layers.MaxPooling3D(pool_size = (2,2,2))
     
-    conv_4_layer = tf.keras.layers.Conv3D(filters = 256, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    max_pool_4_layer = tf.keras.layers.MaxPooling3D(pool_size = (2,2,2))
+    # conv_4_layer = tf.keras.layers.Conv3D(filters = 256, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    # max_pool_4_layer = tf.keras.layers.MaxPooling3D(pool_size = (2,2,2))
 
     dense_1_layer = tf.keras.layers.Dense(100, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
     dropout_1_layer = tf.keras.layers.Dropout(0.5)
@@ -323,10 +374,10 @@ def build_simple_model():
     conv_3 = conv_3_layer(max_pool_2)
     max_pool_3 = max_pool_3_layer(conv_3)
 
-    conv_4 = conv_4_layer(max_pool_3)
-    max_pool_4 = max_pool_4_layer(conv_4)
+    # conv_4 = conv_4_layer(max_pool_3)
+    # max_pool_4 = max_pool_4_layer(conv_4)
 
-    flatten = tf.keras.layers.Flatten()(max_pool_4)
+    flatten = tf.keras.layers.Flatten()(max_pool_3)
 
     dense_1 = dense_1_layer(flatten)
     dropout_1 = dropout_1_layer(dense_1)
@@ -342,11 +393,11 @@ def build_simple_model():
     concatenated_inputs = tf.keras.layers.Concatenate()([flattened_images, age_input_reshaped, flattened_sex_input])
 
     x = MCDropout(0.4)(concatenated_inputs)
-    x = tf.keras.layers.Dense(200, activation="mish")(x)
+    x = tf.keras.layers.Dense(50, activation="mish")(x)
     x = MCDropout(0.4)(x)
-    x = tf.keras.layers.Dense(200, activation="mish")(x)
-    x = MCDropout(0.4)(x)
-    x = tf.keras.layers.Dense(200, activation="mish")(x)
+    x = tf.keras.layers.Dense(50, activation="mish")(x)
+    # x = MCDropout(0.4)(x)
+    # x = tf.keras.layers.Dense(200, activation="mish")(x)
 
     match num_classes:
         case 2:
@@ -368,7 +419,7 @@ def build_simple_model():
             print("Wrong num classes set in the buil_ai func, please pick a number between 2 and 6")
 
     model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output])
-    model.compile(loss="mse", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
     model.summary()
 
     return model
