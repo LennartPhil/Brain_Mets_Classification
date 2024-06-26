@@ -14,6 +14,8 @@ def save_paths_to_txt(paths, type, path_to_callbacks):
 
     f.close()
 
+    print(f"Saved {type} paths to txt file")
+
 def __initial_conv_block(input, weight_decay = 5e-4):
     ''' Adds an initial convolution block, with batch normalization and relu activation
     Args:
