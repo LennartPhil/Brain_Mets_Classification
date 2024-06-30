@@ -4,6 +4,8 @@
 
 # Import libraries
 import tensorflow as tf
+import keras_tuner as kt
+from keras import backend as backend
 import os
 import random
 import numpy as np
@@ -16,6 +18,8 @@ import helper_funcs as hf
 
 from functools import partial
 
+os.environ["TF_GPU_ALLOCATOR"] = "cuda_malloc_async"
+
 # Variables
 path_to_tfrs = "/tfrs"
 path_to_logs = "/logs"
@@ -23,6 +27,7 @@ path_to_logs = "/logs"
 num_classes = 2
 
 use_k_fold = False
+hyperparameter_tuning = True
 
 ## train / val / test split
 train_ratio = 0.8
@@ -30,7 +35,7 @@ val_ratio = 0.1
 test_ratio = 0.1
 fold_num = 10
 
-batch_size = 4
+batch_size = 2
 epochs = 1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
@@ -40,7 +45,10 @@ learning_rate = 0.001 #previously 0.0001
 activation_func = "mish"
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
-class_directory = f"{num_classes}_classes_{time}"
+if hyperparameter_tuning:
+    class_directory = f"hptuning_{num_classes}_classes_{time}"
+else:
+    class_directory = f"{num_classes}_classes_{time}"
 
 # create callbacks directory
 path_to_callbacks = Path(path_to_logs) / Path(class_directory)
@@ -97,6 +105,49 @@ def train_ai():
             history_file_name = f"history_{fold + 1}.npy"
             path_to_np_file = path_to_callbacks / history_file_name
             np.save(path_to_np_file, history_dict)
+
+    elif hyperparameter_tuning:
+        
+        train_paths, val_paths, test_paths = split_data(tfr_paths, fraction_to_use = 0.1)
+
+        train_data, val_data, test_data = read_data(train_paths, val_paths, test_paths)
+
+        callbacks = get_callbacks(0,
+                                  use_checkpoint=False,
+                                  early_stopping_patience=5,
+                                  use_csv_logger=False)
+        
+        # random_search_tuner = kt.RandomSearch(
+        #     hypermodel = build_hp_model,
+        #     objective = "val_accuracy",
+        #     max_trials = 10,
+        #     seed = 42
+        # )
+
+        # random_search_tuner.search(train_data,
+        #                             epochs=15,
+        #                             validation_data=val_data,
+        #                             callbacks=callbacks)
+
+        hyperband_tuner = kt.Hyperband(
+            hypermodel = build_hp_model,
+            objective = "val_accuracy",
+            max_epochs = 100,
+            factor = 3,
+            #hyperband_iterations = 2,
+            directory = path_to_callbacks,
+            project_name = "3D_CNN_hyperband",
+            overwrite = True,
+            seed = 42
+        )
+
+        hyperband_tuner.search(train_data,
+                               epochs=5,
+                               validation_data=val_data,
+                               callbacks=callbacks)
+
+
+
     else:
         train_paths, val_paths, test_paths = split_data(tfr_paths)
 
@@ -162,7 +213,14 @@ def get_tfr_paths():
 
     return tfr_paths
 
-def split_data(tfr_paths):
+def split_data(tfr_paths, fraction_to_use = 1):
+
+    random.shuffle(tfr_paths)
+
+    tfr_paths = tfr_paths[:int(len(tfr_paths) * fraction_to_use)]
+
+    if fraction_to_use != 1:
+        print(f"actual tfrs length: {len(tfr_paths)}")
 
     train_size = int(len(tfr_paths) * train_ratio)
     val_size = int(len(tfr_paths) * val_ratio)
@@ -262,7 +320,14 @@ def parse_record(record, labeled = False):
     else:
         return image
 
-def get_callbacks(fold_num):
+def get_callbacks(fold_num,
+                  use_checkpoint = True,
+                  use_early_stopping = True,
+                  early_stopping_patience = early_stopping_patience,
+                  use_tensorboard = True,
+                  use_csv_logger = True):
+
+    callbacks = []
 
     path_to_fold_callbacks = path_to_callbacks / f"fold_{fold_num}"
 
@@ -272,31 +337,39 @@ def get_callbacks(fold_num):
     run_logdir = get_run_logdir()
 
     # model checkpoint
-    checkpoint_cb = tf.keras.callbacks.ModelCheckpoint(
-        filepath = path_to_fold_callbacks / "saved_weights.weights.h5",
-        monitor = "val_accuracy",
-        mode = "max",
-        save_best_only = True,
-        save_weights_only = True,
-    )
+    if use_checkpoint:
+        checkpoint_cb = tf.keras.callbacks.ModelCheckpoint(
+            filepath = path_to_fold_callbacks / "saved_weights.weights.h5",
+            monitor = "val_accuracy",
+            mode = "max",
+            save_best_only = True,
+            save_weights_only = True,
+        )
+        callbacks.append(checkpoint_cb)
 
     # early stopping
-    early_stopping_cb = tf.keras.callbacks.EarlyStopping(
-        patience = early_stopping_patience,
-        restore_best_weights = True,
-        verbose = 1
-    )
+    if use_early_stopping:
+        early_stopping_cb = tf.keras.callbacks.EarlyStopping(
+            patience = early_stopping_patience,
+            restore_best_weights = True,
+            verbose = 1
+        )
+        callbacks.append(early_stopping_cb)
 
     # tensorboard, doesn't really work yet
-    tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir = run_logdir,
+    if use_tensorboard:
+        tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir = run_logdir,
                                                     histogram_freq = 1)
+        callbacks.append(tensorboard_cb)
     
     # csv logger
-    csv_logger_cb = tf.keras.callbacks.CSVLogger(path_to_fold_callbacks / "training.csv", separator = ",", append = True)
+    if use_csv_logger:
+        csv_logger_cb = tf.keras.callbacks.CSVLogger(path_to_fold_callbacks / "training.csv", separator = ",", append = True)
+        callbacks.append(csv_logger_cb)
 
     print("get_callbacks successful")
 
-    return [checkpoint_cb, early_stopping_cb, tensorboard_cb, csv_logger_cb]
+    return callbacks
 
 # MCDropout
 # https://arxiv.org/abs/1506.02142
@@ -334,6 +407,70 @@ class ResidualUnit(tf.keras.layers.Layer):
         for layer in self.skip_layers:
             skip_Z = layer(skip_Z)
         return self.activation(Z + skip_Z)
+
+def build_hp_model(hp):
+
+    backend.clear_session()
+
+    n_conv_levels = hp.Int("n_conv_levels", min_value=1, max_value=5, default=3)
+    n_kernel_size = hp.Int("n_kernel_size", min_value=2, max_value=7, default=3)
+    n_filters = hp.Int("n_filters", min_value=32, max_value=256, default=64, step=32)
+    n_pooling = hp.Int("n_pooling", min_value=1, max_value=4, default=2)
+    n_strides = hp.Int("n_strides", min_value=1, max_value=4, default=1)
+    n_img_dense_layers = hp.Int("n_img_dense_layers", min_value=1, max_value=3, default=2)
+    n_img_dense_neurons = hp.Int("n_img_dense_neurons", min_value=32, max_value=200, default=64)
+    n_end_dense_layers = hp.Int("n_end_dense_layers", min_value=1, max_value=3, default=2)
+    n_end_dense_neurons = hp.Int("n_end_dense_neurons", min_value=32, max_value=200, default=64)
+    img_dropout = hp.Boolean("img_dropout")
+    end_dropout = hp.Boolean("end_dropout")
+    dropout_rate = hp.Float("dropout_rate", min_value=0.0, max_value=0.5, default=0.3)
+    activation = hp.Choice("activation", values=["relu", "mish"], default="relu")
+    learning_rate = hp.Float("learning_rate", min_value=1e-5, max_value=1e-1, sampling="log")
+    optimizer = hp.Choice("optimizer", values=["adam", "sgd"], default="adam")
+
+    if optimizer == "adam":
+        optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate)
+    elif optimizer == "sgd":
+        optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
+    
+    # Define inputs
+    image_input = tf.keras.layers.Input(shape=(155, 240, 240, 4))
+    sex_input = tf.keras.layers.Input(shape=(2,))
+    age_input = tf.keras.layers.Input(shape=(1,))
+
+    x = tf.keras.layers.BatchNormalization()(image_input)
+
+    for _ in range(n_conv_levels):
+        if n_strides > 1:
+            x = tf.keras.layers.Conv3D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="same")(x)
+        else:
+            x = tf.keras.layers.Conv3D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="valid")(x)
+        x = tf.keras.layers.MaxPool3D(pool_size=n_pooling)(x)
+
+    x = tf.keras.layers.Flatten()(x)
+    for _ in range(n_img_dense_layers):
+        x = tf.keras.layers.Dense(n_img_dense_neurons, activation=activation)(x)
+        if img_dropout:
+            x = tf.keras.layers.Dropout(dropout_rate)(x)
+
+    flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
+    age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
+    x = tf.keras.layers.Concatenate()([x, age_input_reshaped, flattened_sex_input])
+
+    for _ in range(n_end_dense_layers):
+        x = tf.keras.layers.Dense(n_end_dense_neurons, activation=activation)(x)
+        if end_dropout:
+            x = tf.keras.layers.Dropout(dropout_rate)(x)
+
+    x = tf.keras.layers.Dense(1)(x)
+    output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
+
+    model = tf.keras.Model(inputs=[image_input, sex_input, age_input], outputs=output)
+
+    model.compile(optimizer=optimizer, loss="binary_crossentropy", metrics=["accuracy", "RootMeanSquaredError", "AUC"])
+
+    return model
+
 
 def build_simple_model():
 
