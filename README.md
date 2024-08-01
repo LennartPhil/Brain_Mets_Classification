@@ -28,16 +28,11 @@ Tensorflow
 ## Road Map
 
 ### Work in Progress
-- [ ] redo preprocessing with n4 bias correction (last time, I swear)
-- [ ] segmentation
-    - [ ] redo segmentation on n4 bias corrected files
+- [X] segmentation
+    - [X] redo segmentation on n4 bias corrected files
     - [ ] manually adjust segmentation
-- [ ] Build AIs (currently working on this)
-    - [ ] 3D CNN (entire brain)
-      - [X] Transfer ResNeXt architecture to 3D
-      - [ ] custom scheduler
-      - [ ] custom ai architecture (input: images, age, sex)
-    - [ ] 2D CNN (largest slice of metastasis)
+- [ ] Build AIs
+    - [ ] 2D CNN (only metastasis cutout)
     - [ ] 2D CNN* (transfer learning)
     - [ ] Vision Transformer (maybe)
 
@@ -63,3 +58,9 @@ Tensorflow
     - [X] Z-score normalization
     - [X] Merge images
 - [X] redo preprocessing using the brats-toolkit
+- [X] redo preprocessing with n4 bias correction (last time, I swear)
+- [ ] Build AIs (currently working on this)
+    - [X] 3D CNN (entire brain) -> unfortunately unsuccessfull :/
+        - [X] Transfer ResNeXt architecture to 3D
+        - [X] custom scheduler
+        - [X] custom ai architecture (input: images, age, sex)
