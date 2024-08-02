@@ -28,6 +28,7 @@ test_ratio = 0.1
 mode = "hp"
 
 use_k_fold = False
+hyperparameter_tuning = False
 
 batch_size = 4
 epochs = 500 #1000
@@ -39,8 +40,13 @@ starting_lr = 0.00001
 activation_func = "mish"
 optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=starting_lr, momentum=0.9, nesterov=True)
 
+training_codename = "001"
+
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
-class_directory = f"lr_{num_classes}_classes_{time}"
+if hyperparameter_tuning:
+    class_directory = f"hptuning_{num_classes}_classes_{time}"
+else:
+    class_directory = f"{training_codename}_{num_classes}_classes_{time}"
 
 # create callbacks directory
 path_to_callbacks = Path(path_to_logs) / Path(class_directory)
@@ -56,12 +62,39 @@ def train_ai():
     # then get the tfr paths for each split
 
     patients = get_patient_paths()
-    train_patients, val_patients, test_patients = split_patients(patients)
 
-    train_paths = get_tfr_paths_for_patients(train_patients)
-    val_paths = get_tfr_paths_for_patients(val_patients)
-    test_paths = get_tfr_paths_for_patients(test_patients)
-    train_data, val_data, test_data = read_data(train_paths, val_paths, test_paths)
+    if use_k_fold:
+        pass
+    elif hyperparameter_tuning:
+
+        train_patients, val_patients, test_patients = split_patients(patients, fraction_to_use = 0.1)
+
+        train_paths = get_tfr_paths_for_patients(train_patients)
+        val_paths = get_tfr_paths_for_patients(val_patients)
+        test_paths = get_tfr_paths_for_patients(test_patients)
+        train_data, val_data, test_data = read_data(train_paths, val_paths, test_paths)
+
+        callbacks = get_callbacks(
+            use_checkpoint = False,
+            early_stopping_patience = 5,
+            use_csv_logger = False
+        )
+
+        hyperband_tuner = kt.Hyperband(
+            hypermodel = build_hp_model,
+            objective = "val_accuracy",
+            max_epochs = 100,
+            factor = 4,
+            #hyperband_iterations = 2,
+            directory = path_to_callbacks,
+            project_name = "3D_CNN_hyperband",
+            overwrite = True,
+            seed = 42
+        )
+
+    else:
+        pass
+        # regular training
 
     # callbacks
     callbacks = get_callbacks()
@@ -69,17 +102,16 @@ def train_ai():
     #model = build_simple_model()
     #model = buil_resnext_model()
     #model = build_resnet_model()
-    model = build_simple_model_30_06_24()
-    history = model.fit(train_data,
-              validation_data = val_data,
-              epochs = epochs,
-              batch_size = batch_size,
-              callbacks = callbacks)
+    # history = model.fit(train_data,
+    #           validation_data = val_data,
+    #           epochs = epochs,
+    #           batch_size = batch_size,
+    #           callbacks = callbacks)
     
-    history_dict = history.history
+    # history_dict = history.history
 
-    path_to_np_file = path_to_callbacks / "history.npy"
-    np.save(path_to_np_file, history_dict)
+    # path_to_np_file = path_to_callbacks / "history.npy"
+    # np.save(path_to_np_file, history_dict)
 
 def tensorflow_setup():
 
@@ -297,6 +329,67 @@ def get_callbacks(fold_num = 0,
     print("get_callbacks successful")
 
     return callbacks
+
+def build_hp_model(hp):
+
+    n_conv_levels = hp.Int("n_conv_levels", min_value=1, max_value=5, default=3)
+    n_kernel_size = hp.Int("n_kernel_size", min_value=2, max_value=7, default=3)
+    n_filters = hp.Int("n_filters", min_value=32, max_value=256, default=64, step=32)
+    n_pooling = hp.Int("n_pooling", min_value=1, max_value=4, default=2)
+    n_strides = hp.Int("n_strides", min_value=1, max_value=4, default=1)
+    n_img_dense_layers = hp.Int("n_img_dense_layers", min_value=1, max_value=3, default=2)
+    n_img_dense_neurons = hp.Int("n_img_dense_neurons", min_value=32, max_value=200, default=64)
+    n_end_dense_layers = hp.Int("n_end_dense_layers", min_value=1, max_value=3, default=2)
+    n_end_dense_neurons = hp.Int("n_end_dense_neurons", min_value=32, max_value=200, default=64)
+    img_dropout = hp.Boolean("img_dropout")
+    end_dropout = hp.Boolean("end_dropout")
+    dropout_rate = hp.Float("dropout_rate", min_value=0.0, max_value=0.5, default=0.3)
+    activation = hp.Choice("activation", values=["relu", "mish"], default="relu")
+    learning_rate = hp.Float("learning_rate", min_value=1e-5, max_value=1e-1, sampling="log")
+    optimizer = hp.Choice("optimizer", values=["adam", "sgd"], default="adam")
+
+    if optimizer == "adam":
+        optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate)
+    elif optimizer == "sgd":
+        optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
+    
+    # Define inputs
+    image_input = tf.keras.layers.Input(shape=(240, 240, 4))
+    sex_input = tf.keras.layers.Input(shape=(2,))
+    age_input = tf.keras.layers.Input(shape=(1,))
+
+    x = tf.keras.layers.BatchNormalization()(image_input)
+
+    for _ in range(n_conv_levels):
+        if n_strides > 1:
+            x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="same")(x)
+        else:
+            x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="valid")(x)
+        x = tf.keras.layers.MaxPool3D(pool_size=n_pooling)(x)
+
+    x = tf.keras.layers.Flatten()(x)
+    for _ in range(n_img_dense_layers):
+        x = tf.keras.layers.Dense(n_img_dense_neurons, activation=activation)(x)
+        if img_dropout:
+            x = tf.keras.layers.Dropout(dropout_rate)(x)
+
+    flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
+    age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
+    x = tf.keras.layers.Concatenate()([x, age_input_reshaped, flattened_sex_input])
+
+    for _ in range(n_end_dense_layers):
+        x = tf.keras.layers.Dense(n_end_dense_neurons, activation=activation)(x)
+        if end_dropout:
+            x = tf.keras.layers.Dropout(dropout_rate)(x)
+
+    x = tf.keras.layers.Dense(1)(x)
+    output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
+
+    model = tf.keras.Model(inputs=[image_input, sex_input, age_input], outputs=output)
+
+    model.compile(optimizer=optimizer, loss="binary_crossentropy", metrics=["accuracy", "RootMeanSquaredError", "AUC"])
+
+    return model
 
 if __name__ == "__main__":
     train_ai()
