@@ -48,11 +48,11 @@ hyperparameter_tuning = False
 learning_rate_tuning = True
 
 batch_size = 50
-epochs = 500 #1000
+epochs = 200 #1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
 repeat_count = 1
-starting_lr = 0.00001
+starting_lr = 1e-8 #0.00001
 learning_rate = 0.0005
 
 activation_func = "mish"
@@ -89,7 +89,10 @@ def train_ai():
         test_paths = get_tfr_paths_for_patients(test_patients)
         train_data, val_data, test_data = read_data(train_paths, val_paths, test_paths)
         
-        callbacks = get_callbacks(0, use_lrscheduler=True)
+        callbacks = get_callbacks(
+            use_lrscheduler=True,
+            use_early_stopping=False
+        )
 
         model = build_simple_model()
 
@@ -414,7 +417,7 @@ def get_callbacks(fold_num = 0,
         callbacks.append(csv_logger_cb)
     
     if use_lrscheduler:
-        lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-5 * 10**(epoch / 83))
+        lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-8 * 10**(epoch * 0.025))
         callbacks.append(lr_schedule)
 
     print("get_callbacks successful")
