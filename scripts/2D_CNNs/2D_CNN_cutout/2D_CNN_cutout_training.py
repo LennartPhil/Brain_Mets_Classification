@@ -382,23 +382,26 @@ def build_simpler_hp_model(hp):
 
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))
-    x = tf.keras.layers.BatchNormalization()(image_input)
+
+    model = tf.keras.Sequential()
+    model.add(image_input)
+    model.add(tf.keras.layers.BatchNormalization())
 
     for i in range(n_conv_levels):
-        x = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=2, activation=activation_func, padding="same")(x)
+        model.add(tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=2, activation=activation_func, padding="same"))
         # if x.shape[1] >= n_pooling and x.shape[2] >= n_pooling:
         #     x = tf.keras.layers.MaxPool2D(pool_size=n_pooling)(x)
         #     print(f"Shape after conv and pool level {i+1}:", x.shape)
 
-    x = tf.keras.layers.Flatten()(x)
+    model.add(tf.keras.layers.Flatten())
     for i in range(4):
-        x = tf.keras.layers.Dense(20, activation=activation_func)(x)
-        x = tf.keras.layers.Dropout(0.4)(x)
-        print(f"Shape after dense layer {i+1}:", x.shape)
+        model.add(tf.keras.layers.Dense(20, activation=activation_func))
+        model.add(tf.keras.layers.Dropout(0.4))
+        #print(f"Shape after dense layer {i+1}:", x.shape)
 
-    output = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+    model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
 
-    model = tf.keras.Model(inputs=image_input, outputs=output)
+    #model = tf.keras.Model(inputs=image_input, outputs=output)
     model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 
     return model
