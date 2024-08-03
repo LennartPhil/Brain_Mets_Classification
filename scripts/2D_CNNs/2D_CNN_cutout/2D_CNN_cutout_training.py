@@ -44,7 +44,8 @@ test_ratio = 0.1
 mode = "hp"
 
 use_k_fold = False
-hyperparameter_tuning = True
+hyperparameter_tuning = False
+learning_rate_tuning = True
 
 batch_size = 50
 epochs = 500 #1000
@@ -80,7 +81,34 @@ def train_ai():
 
     patients = get_patient_paths()
 
-    if use_k_fold:
+    if learning_rate_tuning:
+        train_patients, val_patients, test_patients = split_patients(patients, fraction_to_use = 0.1)
+
+        train_paths = get_tfr_paths_for_patients(train_patients)
+        val_paths = get_tfr_paths_for_patients(val_patients)
+        test_paths = get_tfr_paths_for_patients(test_patients)
+        train_data, val_data, test_data = read_data(train_paths, val_paths, test_paths)
+        
+        callbacks = get_callbacks(0, use_lrscheduler=True)
+
+        model = build_simple_model()
+
+        history = model.fit(
+            train_data,
+            validation_data = val_data,
+            epochs = epochs,
+            batch_size = batch_size,
+            callbacks = callbacks
+        )
+
+        history_dict = history.history
+
+        # save history
+        history_file_name = f"history.npy"
+        path_to_np_file = path_to_callbacks / history_file_name
+        np.save(path_to_np_file, history_dict)
+
+    elif use_k_fold:
         pass
     elif hyperparameter_tuning:
 
@@ -342,7 +370,8 @@ def get_callbacks(fold_num = 0,
                   use_early_stopping = True,
                   early_stopping_patience = early_stopping_patience,
                   use_tensorboard = True,
-                  use_csv_logger = True):
+                  use_csv_logger = True,
+                  use_lrscheduler = False):
 
     callbacks = []
 
@@ -383,6 +412,10 @@ def get_callbacks(fold_num = 0,
     if use_csv_logger:
         csv_logger_cb = tf.keras.callbacks.CSVLogger(path_to_fold_callbacks / "training.csv", separator = ",", append = True)
         callbacks.append(csv_logger_cb)
+    
+    if use_lrscheduler:
+        lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-5 * 10**(epoch / 83))
+        callbacks.append(lr_schedule)
 
     print("get_callbacks successful")
 
