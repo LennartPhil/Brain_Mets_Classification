@@ -7,6 +7,21 @@ import numpy as np
 import glob
 from functools import partial
 
+gpus = tf.config.list_physical_devices('GPU')
+print(gpus)
+if gpus:
+    try:
+        # Currently, memory growth needs to be the same across GPUs
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        # Memory growth must be set before GPUs have been initialized
+        print(e)
+
+print("tensorflow_setup successful")
+
 from pathlib import Path
 
 import helper_funcs as hf
@@ -55,7 +70,7 @@ os.makedirs(path_to_callbacks, exist_ok=True)
 
 def train_ai():
 
-    tensorflow_setup()
+    #tensorflow_setup()
 
     # Data setup
     # get list of all patients
@@ -84,7 +99,6 @@ def train_ai():
         hyperband_tuner = kt.Hyperband(
             hypermodel = build_simpler_hp_model,
             objective = "val_accuracy",
-            max_trials = 10,
             max_epochs = 100,
             factor = 4,
             #hyperband_iterations = 2,
