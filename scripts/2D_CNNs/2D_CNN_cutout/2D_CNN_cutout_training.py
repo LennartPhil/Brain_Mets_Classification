@@ -28,9 +28,9 @@ test_ratio = 0.1
 mode = "hp"
 
 use_k_fold = False
-hyperparameter_tuning = False
+hyperparameter_tuning = True
 
-batch_size = 4
+batch_size = 50
 epochs = 500 #1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
@@ -402,7 +402,7 @@ def build_hp_model(hp):
     
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))
-    sex_input = tf.keras.layers.Input(shape=(2,))
+    sex_input = tf.keras.layers.Input(shape=(1,))
     age_input = tf.keras.layers.Input(shape=(1,))
 
     x = tf.keras.layers.BatchNormalization()(image_input)
