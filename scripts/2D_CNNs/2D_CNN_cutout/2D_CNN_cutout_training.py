@@ -82,7 +82,7 @@ def train_ai():
         )
 
         hyperband_tuner = kt.Hyperband(
-            hypermodel = build_hp_model,
+            hypermodel = build_simpler_hp_model,
             objective = "val_accuracy",
             max_epochs = 100,
             factor = 4,
@@ -377,6 +377,50 @@ class MCDropout(tf.keras.layers.Dropout):
     def call(self, inputs, training=False):
         return super().call(inputs, training=True)
 
+def build_simpler_hp_model(hp):
+    n_conv_levels = hp.Int("n_conv_levels", min_value=1, max_value=3, default=2)
+    n_kernel_size = hp.Int("n_kernel_size", min_value=2, max_value=5, default=3)
+    n_filters = hp.Int("n_filters", min_value=32, max_value=128, default=64, step=32)
+    n_pooling = hp.Int("n_pooling", min_value=2, max_value=4, default=2)
+    n_strides = hp.Int("n_strides", min_value=1, max_value=2, default=1)
+    n_img_dense_layers = hp.Int("n_img_dense_layers", min_value=1, max_value=2, default=1)
+    n_img_dense_neurons = hp.Int("n_img_dense_neurons", min_value=32, max_value=128, default=64)
+    img_dropout = hp.Boolean("img_dropout")
+    dropout_rate = hp.Float("dropout_rate", min_value=0.0, max_value=0.5, default=0.3)
+    activation = hp.Choice("activation", values=["relu", "mish"], default="relu")
+    learning_rate = hp.Float("learning_rate", min_value=1e-5, max_value=1e-2, sampling="log")
+    optimizer_choice = hp.Choice("optimizer", values=["adam", "sgd"], default="adam")
+
+    if optimizer_choice == "adam":
+        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    elif optimizer_choice == "sgd":
+        optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
+
+    # Define inputs
+    image_input = tf.keras.layers.Input(shape=(240, 240, 4))
+    x = tf.keras.layers.BatchNormalization()(image_input)
+
+    for i in range(n_conv_levels):
+        x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="same")(x)
+        if x.shape[1] >= n_pooling and x.shape[2] >= n_pooling:
+            x = tf.keras.layers.MaxPool2D(pool_size=n_pooling)(x)
+            print(f"Shape after conv and pool level {i+1}:", x.shape)
+
+    x = tf.keras.layers.Flatten()(x)
+    for i in range(n_img_dense_layers):
+        x = tf.keras.layers.Dense(n_img_dense_neurons, activation=activation)(x)
+        if img_dropout:
+            x = tf.keras.layers.Dropout(dropout_rate)(x)
+        print(f"Shape after dense layer {i+1}:", x.shape)
+
+    output = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
+
+    model = tf.keras.Model(inputs=image_input, outputs=output)
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+    return model
+
+
 def build_hp_model(hp):
 
     n_conv_levels = hp.Int("n_conv_levels", min_value=1, max_value=5, default=3)
@@ -413,7 +457,7 @@ def build_hp_model(hp):
             x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="same")(x)
         else:
             x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="valid")(x)
-            
+
         if x.shape[1] >= n_pooling and x.shape[2] >= n_pooling:
             x = tf.keras.layers.MaxPool2D(pool_size=n_pooling)(x)
             print(f"Shape after conv and pool level {i+1}:", x.shape)
