@@ -275,7 +275,7 @@ def parse_record(record, labeled = False):
 
     feature_description = {
         "image": tf.io.FixedLenFeature([240, 240, 4], tf.float32),
-        "sex": tf.io.FixedLenFeature([2], tf.int64, default_value=[0,0]),
+        "sex": tf.io.FixedLenFeature([], tf.int64, default_value=[0]),
         "age": tf.io.FixedLenFeature([], tf.int64, default_value=0),
         "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0),
     }
@@ -443,7 +443,7 @@ def build_simple_model():
 
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))
-    sex_input = tf.keras.layers.Input(shape=(2,))
+    sex_input = tf.keras.layers.Input(shape=(1,))
     age_input = tf.keras.layers.Input(shape=(1,))
 
     batch_norm_layer = tf.keras.layers.BatchNormalization()
