@@ -84,6 +84,7 @@ def train_ai():
         hyperband_tuner = kt.Hyperband(
             hypermodel = build_simpler_hp_model,
             objective = "val_accuracy",
+            max_trials = 10,
             max_epochs = 100,
             factor = 4,
             #hyperband_iterations = 2,
@@ -150,6 +151,7 @@ def tensorflow_setup():
 
     # copied directly from: https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
     gpus = tf.config.list_physical_devices('GPU')
+    print(gpus)
     if gpus:
         try:
             # Currently, memory growth needs to be the same across GPUs
