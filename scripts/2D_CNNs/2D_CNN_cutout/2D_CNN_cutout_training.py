@@ -447,14 +447,14 @@ def build_simple_model():
     age_input = tf.keras.layers.Input(shape=(1,))
 
     batch_norm_layer = tf.keras.layers.BatchNormalization()
-    conv_1_layer = tf.keras.layers.Conv2D(filters = 64, kernel_size = 3, input_shape = [240, 240, 4], strides=(2,2,2), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    max_pool_1_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
+    conv_1_layer = tf.keras.layers.Conv2D(filters = 64, kernel_size = 3, input_shape = [240, 240, 4], strides=(2,2), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    max_pool_1_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
 
-    conv_2_layer = tf.keras.layers.Conv2D(filters = 64, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    max_pool_2_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
+    conv_2_layer = tf.keras.layers.Conv2D(filters = 64, kernel_size = 3, strides=(1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    max_pool_2_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
 
-    conv_3_layer = tf.keras.layers.Conv2D(filters = 128, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    max_pool_3_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
+    conv_3_layer = tf.keras.layers.Conv2D(filters = 128, kernel_size = 3, strides=(1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    max_pool_3_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
     
     # conv_4_layer = tf.keras.layers.Conv2D(filters = 256, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
     # max_pool_4_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
