@@ -190,7 +190,7 @@ def get_tfr_paths_for_patients(patient_paths):
     tfr_paths = []
 
     for patient in patient_paths:
-        tfr_paths.extend(glob.glob(patient + "/*.tfrecords"))
+        tfr_paths.extend(glob.glob(patient + "/*.tfrecord"))
     
     for path in tfr_paths:
         verify_tfrecord(path)
@@ -380,7 +380,7 @@ def build_hp_model(hp):
             x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="same")(x)
         else:
             x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="valid")(x)
-        x = tf.keras.layers.MaxPool3D(pool_size=n_pooling)(x)
+        x = tf.keras.layers.MaxPool2D(pool_size=n_pooling)(x)
 
     x = tf.keras.layers.Flatten()(x)
     for _ in range(n_img_dense_layers):
