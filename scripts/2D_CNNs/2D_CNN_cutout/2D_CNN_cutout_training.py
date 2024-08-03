@@ -413,12 +413,14 @@ def build_hp_model(hp):
         else:
             x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="valid")(x)
         x = tf.keras.layers.MaxPool2D(pool_size=n_pooling)(x)
+        print(f"Shape after conv and pool level {i+1}:", x.shape)
 
     x = tf.keras.layers.Flatten()(x)
     for _ in range(n_img_dense_layers):
         x = tf.keras.layers.Dense(n_img_dense_neurons, activation=activation)(x)
         if img_dropout:
             x = tf.keras.layers.Dropout(dropout_rate)(x)
+        print(f"Shape after dense layer {i+1}:", x.shape)
 
     flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
     age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
@@ -428,6 +430,7 @@ def build_hp_model(hp):
         x = tf.keras.layers.Dense(n_end_dense_neurons, activation=activation)(x)
         if end_dropout:
             x = tf.keras.layers.Dropout(dropout_rate)(x)
+        print(f"Shape after end dense layer {i+1}:", x.shape)
 
     x = tf.keras.layers.Dense(1)(x)
     output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
