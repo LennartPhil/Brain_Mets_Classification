@@ -407,7 +407,7 @@ def build_hp_model(hp):
 
     x = tf.keras.layers.BatchNormalization()(image_input)
 
-    for _ in range(n_conv_levels):
+    for i in range(n_conv_levels):
         if n_strides > 1:
             x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="same")(x)
         else:
@@ -416,7 +416,7 @@ def build_hp_model(hp):
         print(f"Shape after conv and pool level {i+1}:", x.shape)
 
     x = tf.keras.layers.Flatten()(x)
-    for _ in range(n_img_dense_layers):
+    for i in range(n_img_dense_layers):
         x = tf.keras.layers.Dense(n_img_dense_neurons, activation=activation)(x)
         if img_dropout:
             x = tf.keras.layers.Dropout(dropout_rate)(x)
@@ -426,7 +426,7 @@ def build_hp_model(hp):
     age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
     x = tf.keras.layers.Concatenate()([x, age_input_reshaped, flattened_sex_input])
 
-    for _ in range(n_end_dense_layers):
+    for i in range(n_end_dense_layers):
         x = tf.keras.layers.Dense(n_end_dense_neurons, activation=activation)(x)
         if end_dropout:
             x = tf.keras.layers.Dropout(dropout_rate)(x)
