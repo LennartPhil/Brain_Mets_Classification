@@ -39,7 +39,7 @@ starting_lr = 0.00001
 learning_rate = 0.0005
 
 activation_func = "mish"
-optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=starting_lr, momentum=0.9, nesterov=True)
+#optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=starting_lr, momentum=0.9, nesterov=True)
 
 training_codename = "001"
 
@@ -413,10 +413,10 @@ def build_simpler_hp_model(hp):
             x = tf.keras.layers.Dropout(dropout_rate)(x)
         print(f"Shape after dense layer {i+1}:", x.shape)
 
-    output = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
+    output = tf.keras.layers.Dense(1, activation='sigmoid')(x)
 
     model = tf.keras.Model(inputs=image_input, outputs=output)
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
 
     return model
 
