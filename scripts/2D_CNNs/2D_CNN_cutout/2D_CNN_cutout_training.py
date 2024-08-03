@@ -92,6 +92,11 @@ def train_ai():
             seed = 42
         )
 
+        hyperband_tuner.search(train_data,
+                               epochs=5,
+                               validation_data=val_data,
+                               callbacks=callbacks)
+
     else:
         pass
         # regular training
@@ -115,7 +120,7 @@ def train_ai():
 
 def tensorflow_setup():
 
-    tf.keras.mixed_precision.set_global_policy('mixed_float16')
+    #tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
     # copied directly from: https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
     gpus = tf.config.list_physical_devices('GPU')
