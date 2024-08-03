@@ -28,7 +28,7 @@ test_ratio = 0.1
 mode = "hp"
 
 use_k_fold = False
-hyperparameter_tuning = True
+hyperparameter_tuning = False
 
 batch_size = 4
 epochs = 500 #1000
@@ -36,6 +36,7 @@ early_stopping_patience = 150
 shuffle_buffer_size = 100
 repeat_count = 1
 starting_lr = 0.00001
+learning_rate = 0.0005
 
 activation_func = "mish"
 optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=starting_lr, momentum=0.9, nesterov=True)
@@ -98,8 +99,33 @@ def train_ai():
                                callbacks=callbacks)
 
     else:
-        pass
         # regular training
+
+        train_patients, val_patients, test_patients = split_patients(patients, fraction_to_use = 0.1)
+
+        train_paths = get_tfr_paths_for_patients(train_patients)
+        val_paths = get_tfr_paths_for_patients(val_patients)
+        test_paths = get_tfr_paths_for_patients(test_patients)
+        train_data, val_data, test_data = read_data(train_paths, val_paths, test_paths)
+        
+        callbacks = get_callbacks(0)
+
+        model = build_simple_model()
+
+        history = model.fit(
+            train_data,
+            validation_data = val_data,
+            epochs = epochs,
+            batch_size = batch_size,
+            callbacks = callbacks
+        )
+
+        history_dict = history.history
+
+        # save history
+        history_file_name = f"history.npy"
+        path_to_np_file = path_to_callbacks / history_file_name
+        np.save(path_to_np_file, history_dict)
 
     # callbacks
     #callbacks = get_callbacks()
@@ -345,6 +371,12 @@ def get_callbacks(fold_num = 0,
 
     return callbacks
 
+# MCDropout
+# https://arxiv.org/abs/1506.02142
+class MCDropout(tf.keras.layers.Dropout):
+    def call(self, inputs, training=False):
+        return super().call(inputs, training=True)
+
 def build_hp_model(hp):
 
     n_conv_levels = hp.Int("n_conv_levels", min_value=1, max_value=5, default=3)
@@ -403,6 +435,94 @@ def build_hp_model(hp):
     model = tf.keras.Model(inputs=[image_input, sex_input, age_input], outputs=output)
 
     model.compile(optimizer=optimizer, loss="binary_crossentropy", metrics=["accuracy", "RootMeanSquaredError", "AUC"])
+
+    return model
+
+def build_simple_model():
+    optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
+
+    # Define inputs
+    image_input = tf.keras.layers.Input(shape=(240, 240, 4))
+    sex_input = tf.keras.layers.Input(shape=(2,))
+    age_input = tf.keras.layers.Input(shape=(1,))
+
+    batch_norm_layer = tf.keras.layers.BatchNormalization()
+    conv_1_layer = tf.keras.layers.Conv2D(filters = 64, kernel_size = 3, input_shape = [240, 240, 4], strides=(2,2,2), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    max_pool_1_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
+
+    conv_2_layer = tf.keras.layers.Conv2D(filters = 64, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    max_pool_2_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
+
+    conv_3_layer = tf.keras.layers.Conv2D(filters = 128, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    max_pool_3_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
+    
+    # conv_4_layer = tf.keras.layers.Conv2D(filters = 256, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    # max_pool_4_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
+
+    dense_1_layer = tf.keras.layers.Dense(100, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_1_layer = tf.keras.layers.Dropout(0.5)
+    dense_2_layer = tf.keras.layers.Dense(100, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_2_layer = tf.keras.layers.Dropout(0.5)
+    # output_layer = tf.keras.layers.Dense(2, activation="softmax")
+
+    batch_norm = batch_norm_layer(image_input)
+
+    conv_1 = conv_1_layer(batch_norm)
+    max_pool_1 = max_pool_1_layer(conv_1)
+
+    conv_2 = conv_2_layer(max_pool_1)
+    max_pool_2 = max_pool_2_layer(conv_2)
+
+    conv_3 = conv_3_layer(max_pool_2)
+    max_pool_3 = max_pool_3_layer(conv_3)
+
+    # conv_4 = conv_4_layer(max_pool_3)
+    # max_pool_4 = max_pool_4_layer(conv_4)
+
+    flatten = tf.keras.layers.Flatten()(max_pool_3)
+
+    # dense_1 = dense_1_layer(flatten)
+    # dropout_1 = dropout_1_layer(dense_1)
+
+    # dense_2 = dense_2_layer(dropout_1)
+    # dropout_2 = dropout_2_layer(dense_2)
+
+    # output = output_layer(dropout_2)
+
+    #flattened_images = tf.keras.layers.Flatten()(output)
+    flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
+    age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)  # Reshape age_input to have 2 dimensions
+    concatenated_inputs = tf.keras.layers.Concatenate()([flatten, age_input_reshaped, flattened_sex_input])
+
+    x = MCDropout(0.4)(concatenated_inputs)
+    x = dense_1_layer(x)
+    x = MCDropout(0.4)(x)
+    x = dense_2_layer(x)
+    # x = MCDropout(0.4)(x)
+    # x = tf.keras.layers.Dense(200, activation="mish")(x)
+
+    match num_classes:
+        case 2:
+            x = tf.keras.layers.Dense(1)(x)
+            output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
+        case 3:
+            x = tf.keras.layers.Dense(3)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        case 4:
+            x = tf.keras.layers.Dense(4)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        case 5:
+            x = tf.keras.layers.Dense(5)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        case 6:
+            x = tf.keras.layers.Dense(6)(x)
+            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        case _:
+            print("Wrong num classes set in the buil_ai func, please pick a number between 2 and 6")
+
+    model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output])
+    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+    model.summary()
 
     return model
 
