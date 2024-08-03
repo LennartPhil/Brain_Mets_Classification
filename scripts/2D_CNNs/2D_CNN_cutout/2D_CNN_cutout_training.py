@@ -28,7 +28,7 @@ test_ratio = 0.1
 mode = "hp"
 
 use_k_fold = False
-hyperparameter_tuning = False
+hyperparameter_tuning = True
 
 batch_size = 4
 epochs = 500 #1000
@@ -97,7 +97,7 @@ def train_ai():
         # regular training
 
     # callbacks
-    callbacks = get_callbacks()
+    #callbacks = get_callbacks()
 
     #model = build_simple_model()
     #model = buil_resnext_model()
