@@ -48,7 +48,7 @@ hyperparameter_tuning = False
 learning_rate_tuning = True
 
 batch_size = 50
-epochs = 200 #1000
+epochs = 400 #1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
 repeat_count = 1
@@ -417,7 +417,7 @@ def get_callbacks(fold_num = 0,
         callbacks.append(csv_logger_cb)
     
     if use_lrscheduler:
-        lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-8 * 10**(epoch * 0.025))
+        lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-8 * 10**(epoch * 0.0175))
         callbacks.append(lr_schedule)
 
     print("get_callbacks successful")
