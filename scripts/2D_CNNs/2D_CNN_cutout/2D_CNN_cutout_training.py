@@ -406,13 +406,20 @@ def build_hp_model(hp):
     age_input = tf.keras.layers.Input(shape=(1,))
 
     x = tf.keras.layers.BatchNormalization()(image_input)
+    print("Input shape:", x.shape)
 
     for i in range(n_conv_levels):
         if n_strides > 1:
             x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="same")(x)
         else:
             x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="valid")(x)
-        x = tf.keras.layers.MaxPool2D(pool_size=n_pooling)(x)
+            
+        if x.shape[1] >= n_pooling and x.shape[2] >= n_pooling:
+            x = tf.keras.layers.MaxPool2D(pool_size=n_pooling)(x)
+            print(f"Shape after conv and pool level {i+1}:", x.shape)
+        else:
+            print(f"Skipping pooling at level {i+1} due to small dimensions: {x.shape}")
+
         print(f"Shape after conv and pool level {i+1}:", x.shape)
 
     x = tf.keras.layers.Flatten()(x)
