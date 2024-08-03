@@ -139,6 +139,16 @@ def get_patient_paths():
 
     print(f"total patients: {len(patient_paths)}")
 
+    for path in patient_paths:
+        patient_not_empty = False
+        patient_files = os.listdir(path)
+        for file in patient_files:
+            if file.endswith(".tfrecord"):
+                patient_not_empty = True
+        
+        if patient_not_empty == False:
+            patient_paths.remove(path)
+
     return patient_paths
 
 def split_patients(patient_paths, fraction_to_use = 1):
