@@ -1,4 +1,5 @@
-FROM nvcr.io/nvidia/tensorflow:24.07-tf2-py3
+FROM tensorflow/tensorflow:latest-gpu
+#nvcr.io/nvidia/tensorflow:24.07-tf2-py3
 
 RUN apt-get update
 
