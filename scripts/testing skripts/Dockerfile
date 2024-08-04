@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorflow:23.12-tf2-py3
+FROM nvcr.io/nvidia/tensorflow:23.10-tf2-py3
 
 RUN apt-get -y update && \
     apt-get -y upgrade && \
