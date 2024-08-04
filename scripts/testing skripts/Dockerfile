@@ -1,11 +1,10 @@
-FROM tensorflow/tensorflow:latest-gpu
-#nvcr.io/nvidia/tensorflow:24.07-tf2-py3
+FROM nvcr.io/nvidia/tensorflow:24.07-tf2-py3-igpu
 
-RUN apt-get update
+RUN apt-get -y update && \
+    apt-get -y upgrade && \
+    apt-get install -y python3-pip
 
-RUN apt-get install -y nvidia-container-toolkit
-
-RUN apt-get install -y python3-pip
+#RUN apt-get install -y nvidia-container-toolkit
 
 COPY requirements.txt /requirements.txt
 
