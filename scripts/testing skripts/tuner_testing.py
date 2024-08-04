@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 import keras_tuner as kt
+import os
 
 gpus = tf.config.list_physical_devices('GPU')
 print(gpus)
@@ -17,7 +18,14 @@ if gpus:
 
 print("tensorflow_setup successful")
 
+path_to_logs = "/logs"
+
 def train_ai():
+
+    # create folder for logs
+    path_to_tuner_logs = path_to_logs + "/tuner"
+    os.makedirs(path_to_tuner_logs, exist_ok=True)
+
     (img_train, label_train), (img_test, label_test) = keras.datasets.fashion_mnist.load_data()
 
     # Normalize pixel values between 0 and 1
@@ -28,7 +36,7 @@ def train_ai():
                      objective='val_accuracy',
                      max_epochs=10,
                      factor=3,
-                     directory='my_dir',
+                     directory=path_to_tuner_logs,
                      project_name='intro_to_kt')
     
     stop_early = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5)
