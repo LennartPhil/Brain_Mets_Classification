@@ -17,5 +17,5 @@ COPY tuner_testing.py /skript.py
 
 #COPY helper_funcs.py /helper_funcs.py
 
-#ENTRYPOINT [ "python3", "/skript.py" ]
-CMD tail -f  /dev/null
+ENTRYPOINT [ "python3", "/skript.py" ]
+#CMD tail -f  /dev/null
