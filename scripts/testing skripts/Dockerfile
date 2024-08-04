@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorflow:24.07-tf2-py3-igpu
+FROM nvcr.io/nvidia/tensorflow:24.07-tf2-py3
 
 RUN apt-get -y update && \
     apt-get -y upgrade && \
@@ -17,4 +17,5 @@ COPY tuner_testing.py /skript.py
 
 #COPY helper_funcs.py /helper_funcs.py
 
-ENTRYPOINT [ "python3", "/skript.py" ]
+#ENTRYPOINT [ "python3", "/skript.py" ]
+CMD tail -f  /dev/null
