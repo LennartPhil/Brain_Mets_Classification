@@ -44,8 +44,8 @@ test_ratio = 0.1
 mode = "hp"
 
 use_k_fold = False
-hyperparameter_tuning = False
-learning_rate_tuning = True
+hyperparameter_tuning = True
+learning_rate_tuning = False
 
 batch_size = 50
 epochs = 400 #1000
@@ -129,7 +129,7 @@ def train_ai():
         )
 
         hyperband_tuner = kt.Hyperband(
-            hypermodel = build_simpler_hp_model,
+            hypermodel = build_hp_model,
             objective = "val_accuracy",
             max_epochs = 100,
             factor = 4,
