@@ -49,7 +49,7 @@ use_k_fold = False
 hyperparameter_tuning = True
 learning_rate_tuning = False
 
-batch_size = 20
+batch_size = 50
 epochs = 400 #1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
@@ -159,7 +159,8 @@ def train_ai():
         
         callbacks = get_callbacks(0)
 
-        model = build_simple_model()
+        #model = build_simple_model()
+        model = build_hypertuned_model()
 
         history = model.fit(
             train_data,
@@ -175,23 +176,6 @@ def train_ai():
         history_file_name = f"history.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
-
-    # callbacks
-    #callbacks = get_callbacks()
-
-    #model = build_simple_model()
-    #model = buil_resnext_model()
-    #model = build_resnet_model()
-    # history = model.fit(train_data,
-    #           validation_data = val_data,
-    #           epochs = epochs,
-    #           batch_size = batch_size,
-    #           callbacks = callbacks)
-    
-    # history_dict = history.history
-
-    # path_to_np_file = path_to_callbacks / "history.npy"
-    # np.save(path_to_np_file, history_dict)
 
 def tensorflow_setup():
 
@@ -291,8 +275,8 @@ def read_data(train_paths, val_paths, test_paths = None):
         deterministic=False
     )
 
-    train_data = train_data.map(partial(parse_record, labeled = True), num_parallel_calls=tf.data.AUTOTUNE)
-    val_data = val_data.map(partial(parse_record, labeled = True), num_parallel_calls=tf.data.AUTOTUNE)
+    train_data = train_data.map(partial(parse_record, labeled = True, num_classes = num_classes), num_parallel_calls=tf.data.AUTOTUNE)
+    val_data = val_data.map(partial(parse_record, labeled = True, num_classes = num_classes), num_parallel_calls=tf.data.AUTOTUNE)
 
     train_data = train_data.shuffle(buffer_size=shuffle_buffer_size)
     val_data = val_data.shuffle(buffer_size=shuffle_buffer_size)
@@ -313,7 +297,7 @@ def read_data(train_paths, val_paths, test_paths = None):
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=False
         )
-        test_data = test_data.map(partial(parse_record, labeled = True), num_parallel_calls=tf.data.AUTOTUNE)
+        test_data = test_data.map(partial(parse_record, labeled = True, num_classes = num_classes), num_parallel_calls=tf.data.AUTOTUNE)
         test_data = test_data.batch(batch_size)
         test_data = test_data.prefetch(buffer_size=1)
 
@@ -321,7 +305,7 @@ def read_data(train_paths, val_paths, test_paths = None):
 
     return train_data, val_data
 
-def parse_record(record, labeled = False):
+def parse_record(record, labeled = False, num_classes = 2):
 
     feature_description = {
         "image": tf.io.FixedLenFeature([240, 240, 4], tf.float32),
@@ -333,9 +317,42 @@ def parse_record(record, labeled = False):
     example = tf.io.parse_single_example(record, feature_description)
     image = example["image"]
     image = tf.reshape(image, [240, 240, 4])
-    image = data_augmentation(image)
+    #image = data_augmentation(image)
+    primary_to_return = tf.constant(0, dtype=tf.int64)
+
+    if num_classes == 2:
+        if example["primary"] == tf.constant(1, dtype=tf.int64):
+            primary_to_return = example["primary"]
+        else:
+            primary_to_return = tf.constant(0, dtype=tf.int64)
+    elif num_classes == 3:
+        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64):
+            primary_to_return = example["primary"]
+        else:
+            primary_to_return = tf.constant(0, dtype=tf.int64)
+    elif num_classes == 4:
+        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64):
+            primary_to_return = example["primary"]
+        else:
+            primary_to_return = tf.constant(0, dtype=tf.int64)
+    elif num_classes == 5:
+        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64) or example["primary"] == tf.constant(4, dtype=tf.int64):
+            primary_to_return = example["primary"]
+        else:
+            primary_to_return = tf.constant(0, dtype=tf.int64)
+    elif num_classes == 6:
+        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64) or example["primary"] == tf.constant(4, dtype=tf.int64) or example["primary"] == tf.constant(5, dtype=tf.int64):
+            primary_to_return = example["primary"]
+        else:
+            primary_to_return = tf.constant(0, dtype=tf.int64)
+    else:
+            print("ERROR")
+            print("num classes not supported")
+            print("Check parse_record function")
+            print("____________________________")
+
     if labeled:
-        return (image, example["sex"], example["age"]), example["primary"]
+        return (image, example["sex"], example["age"]), primary_to_return #example["primary"]
     else:
         return image
     
@@ -489,6 +506,73 @@ def build_hp_model(hp):
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))
     sex_input = tf.keras.layers.Input(shape=(1,))
     age_input = tf.keras.layers.Input(shape=(1,))
+
+    x = tf.keras.layers.BatchNormalization()(image_input)
+    print("Input shape:", x.shape)
+
+    for i in range(n_conv_levels):
+        if n_strides > 1:
+            x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="same")(x)
+        else:
+            x = tf.keras.layers.Conv2D(filters=n_filters, kernel_size=n_kernel_size, strides=n_strides, activation=activation, padding="valid")(x)
+
+        if x.shape[1] >= n_pooling and x.shape[2] >= n_pooling:
+            x = tf.keras.layers.MaxPool2D(pool_size=n_pooling)(x)
+            print(f"Shape after conv and pool level {i+1}:", x.shape)
+        else:
+            print(f"Skipping pooling at level {i+1} due to small dimensions: {x.shape}")
+
+        print(f"Shape after conv and pool level {i+1}:", x.shape)
+
+    x = tf.keras.layers.Flatten()(x)
+    for i in range(n_img_dense_layers):
+        x = tf.keras.layers.Dense(n_img_dense_neurons, activation=activation)(x)
+        if img_dropout:
+            x = tf.keras.layers.Dropout(dropout_rate)(x)
+        print(f"Shape after dense layer {i+1}:", x.shape)
+
+    flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
+    age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
+    x = tf.keras.layers.Concatenate()([x, age_input_reshaped, flattened_sex_input])
+
+    for i in range(n_end_dense_layers):
+        x = tf.keras.layers.Dense(n_end_dense_neurons, activation=activation)(x)
+        if end_dropout:
+            x = tf.keras.layers.Dropout(dropout_rate)(x)
+        print(f"Shape after end dense layer {i+1}:", x.shape)
+
+    x = tf.keras.layers.Dense(1)(x)
+    output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
+
+    model = tf.keras.Model(inputs=[image_input, sex_input, age_input], outputs=output)
+
+    model.compile(optimizer=optimizer, loss="binary_crossentropy", metrics=["accuracy", "RootMeanSquaredError", "AUC"])
+
+    return model
+
+def build_hypertuned_model():
+    # Define inputs
+    image_input = tf.keras.layers.Input(shape=(240, 240, 4))
+    sex_input = tf.keras.layers.Input(shape=(1,))
+    age_input = tf.keras.layers.Input(shape=(1,))
+
+    n_conv_levels = 4
+    n_kernel_size = 2
+    n_filters = 128
+    n_pooling = 2
+    n_strides = 4
+    n_img_dense_layers = 2
+    n_img_dense_neurons = 124
+    n_end_dense_layers = 1
+    n_end_dense_neurons = 116
+    img_dropout = False
+    end_dropout = True
+    dropout_rate = 0.3
+    activation = "mish"
+    learning_rate = 2e-5
+    optimizer = "sgd"
+
+    optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
 
     x = tf.keras.layers.BatchNormalization()(image_input)
     print("Input shape:", x.shape)
