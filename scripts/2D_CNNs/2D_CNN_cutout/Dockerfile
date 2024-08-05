@@ -1,8 +1,9 @@
-FROM nvcr.io/nvidia/tensorflow:24.07-tf2-py3
+FROM nvcr.io/nvidia/tensorflow:23.10-tf2-py3
+#nvcr.io/nvidia/tensorflow:24.07-tf2-py3
 
-RUN apt-get update
-
-RUN apt-get install -y python3-pip
+RUN apt-get -y update && \
+    apt-get -y upgrade && \
+    apt-get install -y python3-pip
 
 COPY requirements.txt /requirements.txt
 
