@@ -49,8 +49,8 @@ use_k_fold = False
 hyperparameter_tuning = False
 learning_rate_tuning = False
 
-batch_size = 50
-epochs = 400 #1000
+batch_size = 100
+epochs = 1000 #1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
 repeat_count = 1
@@ -60,7 +60,7 @@ learning_rate = 0.0005
 activation_func = "mish"
 optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=starting_lr, momentum=0.9, nesterov=True)
 
-training_codename = "001"
+training_codename = "002"
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
 if hyperparameter_tuning:
