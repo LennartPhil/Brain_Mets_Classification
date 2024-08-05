@@ -8,6 +8,8 @@ import numpy as np
 import glob
 from functools import partial
 
+os.environ['TF_ENABLE_GPU_GARBAGE_COLLECTION'] = "false"
+
 gpus = tf.config.list_physical_devices('GPU')
 print(gpus)
 if gpus:
