@@ -47,7 +47,7 @@ use_k_fold = False
 hyperparameter_tuning = True
 learning_rate_tuning = False
 
-batch_size = 50
+batch_size = 20
 epochs = 400 #1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
@@ -132,7 +132,7 @@ def train_ai():
             hypermodel = build_hp_model,
             objective = "val_accuracy",
             max_epochs = 100,
-            factor = 4,
+            factor = 3,
             #hyperband_iterations = 2,
             directory = path_to_callbacks,
             project_name = "3D_CNN_hyperband",
