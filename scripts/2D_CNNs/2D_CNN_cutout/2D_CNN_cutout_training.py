@@ -46,7 +46,7 @@ test_ratio = 0.1
 mode = "hp"
 
 use_k_fold = False
-hyperparameter_tuning = True
+hyperparameter_tuning = False
 learning_rate_tuning = False
 
 batch_size = 50
