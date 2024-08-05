@@ -150,7 +150,7 @@ def train_ai():
     else:
         # regular training
 
-        train_patients, val_patients, test_patients = split_patients(patients, fraction_to_use = 0.1)
+        train_patients, val_patients, test_patients = split_patients(patients, fraction_to_use = 1)
 
         train_paths = get_tfr_paths_for_patients(train_patients)
         val_paths = get_tfr_paths_for_patients(val_patients)
