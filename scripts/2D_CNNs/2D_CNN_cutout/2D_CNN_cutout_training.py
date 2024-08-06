@@ -50,7 +50,8 @@ hyperparameter_tuning = False
 learning_rate_tuning = False
 
 batch_size = 100
-epochs = 1000 #1000
+training_epochs = 10000 #1000
+learning_rate_epochs = 400
 early_stopping_patience = 150
 shuffle_buffer_size = 100
 repeat_count = 1
@@ -60,7 +61,7 @@ learning_rate = 0.0005
 activation_func = "mish"
 optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=starting_lr, momentum=0.9, nesterov=True)
 
-training_codename = "002"
+training_codename = "003lr"
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
 if hyperparameter_tuning:
@@ -96,12 +97,13 @@ def train_ai():
             use_early_stopping=False
         )
 
-        model = build_simple_model()
+        #model = build_simple_model()
+        model = build_hypertuned_model()
 
         history = model.fit(
             train_data,
             validation_data = val_data,
-            epochs = epochs,
+            epochs = learning_rate_epochs,
             batch_size = batch_size,
             callbacks = callbacks
         )
@@ -165,7 +167,7 @@ def train_ai():
         history = model.fit(
             train_data,
             validation_data = val_data,
-            epochs = epochs,
+            epochs = training_epochs,
             batch_size = batch_size,
             callbacks = callbacks
         )
