@@ -31,7 +31,7 @@ batch_size = 50
 training_epochs = 400 #1000
 learning_rate = 0.001
 
-training_codename = "004lr"
+training_codename = "convlr00"
 
 path_to_tfrs = "/tfrs"
 path_to_logs = "/logs"
