@@ -11,8 +11,7 @@ RUN pip install --upgrade pip
 
 RUN pip install -r /requirements.txt
 
-COPY 2D_CNN_cutout_training.py /skript.py
-#COPY 3D_CNN_test.py /skript.py
+COPY 2D_CNN_cutout_conv.py /skript.py
 
 COPY helper_funcs.py /helper_funcs.py
 
