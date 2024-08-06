@@ -16,7 +16,7 @@ test_ratio = 0.1
 shuffle_buffer_size = 200
 repeat_count = 1
 
-early_stopping_patience = 150
+early_stopping_patience = 200
 
 def setup_data(path_to_tfrs, path_to_callbacks, num_classes, batch_size, rgb = False):
     patients = get_patient_paths(path_to_tfrs)
