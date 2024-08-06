@@ -47,7 +47,7 @@ mode = "hp"
 
 use_k_fold = False
 hyperparameter_tuning = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 batch_size = 100
 training_epochs = 10000 #1000
