@@ -11,8 +11,14 @@ RUN pip install --upgrade pip
 
 RUN pip install -r /requirements.txt
 
-COPY 2D_CNN_cutout_conv.py /skript.py
+COPY 2D_CNN_cutout_conv.py /conv_skript.py
+COPY 2D_CNN_cutout_resnet34.py /resnet34_skript.py
+COPY 2D_CNN_cutout_resnet152.py /resnet152_skript.py
+COPY 2D_CNN_cutout_resnext50.py /resnext50_skript.py
+COPY 2D_CNN_cutout_resnext101.py /resnext101_skript.py
 
 COPY helper_funcs.py /helper_funcs.py
 
-ENTRYPOINT [ "python3", "/skript.py" ]
+ENTRYPOINT [ "sh", "-c", "python3 /conv_skript.py && python3 /resnet34_skript.py && python3 /resnet152_skript.py && python3 /resnext50_skript.py && python3 /resnext101_skript.py" ]
+
+#ENTRYPOINT [ "python3", "/skript.py" ]-
