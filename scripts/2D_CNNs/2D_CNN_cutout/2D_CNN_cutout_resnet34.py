@@ -97,6 +97,8 @@ def train_ai():
         history_file_name = f"history.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
+    
+    tf.keras.backend.clear_session(free_memory = True)
 
 
 def build_resnet34_model():
