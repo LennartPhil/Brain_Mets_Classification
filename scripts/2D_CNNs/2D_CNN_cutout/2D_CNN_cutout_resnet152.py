@@ -27,7 +27,7 @@ use_k_fold = False
 learning_rate_tuning = True
 
 
-batch_size = 50
+batch_size = 20 #50
 training_epochs = 400 #1000
 learning_rate = 0.000001
 
