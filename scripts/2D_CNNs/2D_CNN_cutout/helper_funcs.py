@@ -247,7 +247,8 @@ def get_callbacks(path_to_callbacks,
                   early_stopping_patience = early_stopping_patience,
                   use_tensorboard = True,
                   use_csv_logger = True,
-                  use_lrscheduler = False):
+                  use_lrscheduler = False,
+                  stop_training = False):
 
     callbacks = []
 
@@ -293,9 +294,44 @@ def get_callbacks(path_to_callbacks,
         lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-8 * 10**(epoch * 0.0175))
         callbacks.append(lr_schedule)
 
+    if stop_training:
+        unfreeze = UnfreezeCallback()
+        callbacks.append(unfreeze)
+
     print("get_callbacks successful")
 
     return callbacks
+
+class UnfreezeCallback(tf.keras.callbacks.Callback):
+    def __init__(self, patience=3, monitor='val_accuracy', min_delta=0.01):
+        super(UnfreezeCallback, self).__init__()
+        self.patience = patience
+        self.monitor = monitor
+        self.min_delta = min_delta
+        self.wait = 0
+        self.best = -float('inf')
+        self.unfreeze = False
+
+    def on_epoch_end(self, epoch, logs=None):
+        #print("Epoch ended")
+
+        current = logs.get(self.monitor)
+        if current is None:
+            raise ValueError(f"Monitor {self.monitor} is not available in logs.")
+        
+        if current > self.best + self.min_delta:
+            self.best = current
+            self.wait = 0
+            print("\nnot gonna unfreeze")
+        else:
+            self.wait += 1
+            if self.wait >= self.patience and not self.unfreeze:
+                print(f"\nStopping Tranining at epoch {epoch + 1}")
+
+                self.model.stop_training = True
+
+                self.unfreeze = True
+                self.wait = 0
 
 def __initial_conv_block(input, weight_decay = 5e-4):
     ''' Adds an initial convolution block, with batch normalization and relu activation
