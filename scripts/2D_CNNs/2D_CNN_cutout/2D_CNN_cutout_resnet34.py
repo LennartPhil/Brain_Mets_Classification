@@ -24,12 +24,13 @@ print("tensorflow_setup successful")
 rgb_images = False # using gray scale images as input
 num_classes = 4
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 
 batch_size = 50
-training_epochs = 400 #1000
-learning_rate = 0.000001
+training_epochs = 1000
+ # for learning rate set to training_epochs to 400
+learning_rate = 0.0001
 
 training_codename = "resnet34lr00"
 
@@ -99,6 +100,7 @@ def train_ai():
         np.save(path_to_np_file, history_dict)
     
     tf.keras.backend.clear_session(free_memory = True)
+    print("Clearing session...")
 
 
 def build_resnet34_model():
