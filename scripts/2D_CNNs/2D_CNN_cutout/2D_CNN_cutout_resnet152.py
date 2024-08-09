@@ -98,7 +98,7 @@ def train_ai():
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
     
-    tf.keras.backend.clear_session(free_memory = True)
+    tf.keras.backend.clear_session()
     print("Clearing session...")
 
 

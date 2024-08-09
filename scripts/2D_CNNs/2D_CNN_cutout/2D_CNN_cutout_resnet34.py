@@ -32,7 +32,7 @@ training_epochs = 1000
  # for learning rate set to training_epochs to 400
 learning_rate = 0.0001
 
-training_codename = "resnet34lr00"
+training_codename = "resnet34_00"
 
 path_to_tfrs = "/tfrs"
 path_to_logs = "/logs"
@@ -99,7 +99,7 @@ def train_ai():
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
     
-    tf.keras.backend.clear_session(free_memory = True)
+    tf.keras.backend.clear_session()
     print("Clearing session...")
 
 
