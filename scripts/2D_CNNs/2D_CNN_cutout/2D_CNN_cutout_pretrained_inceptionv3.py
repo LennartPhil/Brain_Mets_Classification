@@ -137,7 +137,7 @@ def train_ai():
         np.save(path_to_np_file, history_dict)
     
     tf.keras.backend.clear_session(free_memory = True)
-
+    print("Clearing session...")
 
 def build_pt_inceptionv3_model():
 
