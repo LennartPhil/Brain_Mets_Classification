@@ -62,8 +62,9 @@ def train_ai():
     elif train_upper_layers:
         
         callbacks = hf.get_callbacks(path_to_callbacks, 0,
-                                     use_early_stopping = False,
-                                     stop_training = True)
+                                     use_early_stopping = True,
+                                     stop_training = False,
+                                     early_stopping_patience = 20)
         
         model = build_pt_inceptionv3_model()
 
