@@ -30,11 +30,11 @@ learning_rate_tuning = False
 batch_size = 50
 training_epochs = 1000
  # for learning rate set to training_epochs to 400
-learning_rate = 0.0001
+learning_rate = 0.001 #0.0001
 
-training_codename = "resnet34_00"
+training_codename = "resnet34_01"
 
-path_to_tfrs = "/tfrs"
+path_to_tfrs = "/tfrs/all_pats_single_gray"
 path_to_logs = "/logs"
 
 activation_func = "mish"
