@@ -33,7 +33,7 @@ learning_rate = 0.000001
 
 training_codename = "resnext101lr00"
 
-path_to_tfrs = "/tfrs"
+path_to_tfrs = "/tfrs/all_pats_single_gray"
 path_to_logs = "/logs"
 
 activation_func = "mish"
