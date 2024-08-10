@@ -40,7 +40,7 @@ learning_rate = 0.01 #0.000001
 
 image_size = 224
 
-training_codename = "transfer_resnet50_upperlayer00"
+training_codename = "transfer_resnet50v2_upperlayer00"
 
 path_to_tfrs = "/tfrs"
 path_to_logs = "/logs"
