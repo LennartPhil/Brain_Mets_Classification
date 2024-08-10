@@ -38,9 +38,9 @@ batch_size = 50
 training_epochs = 400 #1000
 learning_rate = 0.01 #0.000001
 
-image_size = 224
+image_size = 299
 
-training_codename = "PT_resnet50_upperlayer00"
+training_codename = "transfer_inceptionv3_upperlayer00"
 
 path_to_tfrs = "/tfrs"
 path_to_logs = "/logs"
@@ -55,7 +55,7 @@ os.makedirs(path_to_callbacks, exist_ok=True)
 
 def train_ai():
 
-    train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, num_classes, batch_size = batch_size,rgb = rgb_images)
+    train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, num_classes, batch_size = batch_size, rgb = rgb_images)
 
     if use_k_fold:
         pass
@@ -66,7 +66,7 @@ def train_ai():
                                      stop_training = False,
                                      early_stopping_patience = 20)
         
-        model = build_pt_resnet50_model()
+        model = build_transfer_inceptionv3_model()
 
         # traing model
         history = model.fit(
@@ -90,7 +90,7 @@ def train_ai():
                                      use_early_stopping=False)
 
         # build model
-        model = build_pt_resnet50_model()
+        model = build_transfer_inceptionv3_model()
 
         # load weights
         model.load_weights(path_to_weights)
@@ -117,7 +117,7 @@ def train_ai():
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
 
         # build model
-        model = build_pt_resnet50_model()
+        model = build_transfer_inceptionv3_model()
 
         # load weights
         model.load_weights(path_to_weights)
@@ -140,8 +140,7 @@ def train_ai():
     tf.keras.backend.clear_session()
     print("Clearing session...")
 
-
-def build_pt_resnet50_model():
+def build_transfer_inceptionv3_model():
 
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
 
@@ -155,7 +154,7 @@ def build_pt_resnet50_model():
     tf.print("Augmented shape:", augmented.shape)
 
     # Use the pretrained base model
-    x = tf.keras.applications.ResNet50V2(include_top = False)(augmented)
+    x = tf.keras.applications.InceptionV3(include_top = False)(augmented)
     x = tf.keras.layers.GlobalMaxPool2D()(x)
 
     output = tf.keras.layers.Flatten()(x)
