@@ -187,7 +187,7 @@ def build_transfer_inceptionv3_model():
         case _:
             raise ValueError("num_classes must be 2, 3, 4, 5 or 6.")
 
-    model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output], name = "resnet34_model")
+    model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output], name = "transfer_inceptionv3_model")
 
     if num_classes > 2:
         model.compile(loss="sparse_categorical_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
