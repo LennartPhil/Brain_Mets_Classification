@@ -64,7 +64,7 @@ def train_ai():
         callbacks = hf.get_callbacks(path_to_callbacks, 0,
                                      use_early_stopping = True,
                                      stop_training = False,
-x                                     early_stopping_patience = 20)
+                                     early_stopping_patience = 20)
         
         model = build_pt_inceptionv3_model()
 
