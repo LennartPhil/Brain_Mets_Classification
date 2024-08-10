@@ -16,8 +16,8 @@ RUN pip install -r /requirements.txt
 COPY 2D_CNN_cutout_resnet152.py /resnet152_skript.py
 COPY 2D_CNN_cutout_resnext50.py /resnext50_skript.py
 COPY 2D_CNN_cutout_resnext101.py /resnext101_skript.py
-COPY 2D_CNN_cutout_pretrained_inceptionv3.py /inceptionv3_skript.py
-COPY 2D_CNN_cutout_pretrained_resnet50v2.py /resnet50v2_skript.py
+COPY 2D_CNN_cutout_transfer_inceptionv3.py /inceptionv3_skript.py
+COPY 2D_CNN_cutout_transfer_resnet50v2.py /resnet50v2_skript.py
 
 COPY helper_funcs.py /helper_funcs.py
 
