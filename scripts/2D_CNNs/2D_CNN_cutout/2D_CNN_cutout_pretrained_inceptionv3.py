@@ -55,7 +55,7 @@ os.makedirs(path_to_callbacks, exist_ok=True)
 
 def train_ai():
 
-    train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, num_classes, batch_size = batch_size,rgb = rgb_images)
+    train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, num_classes, batch_size = batch_size, rgb = rgb_images)
 
     if use_k_fold:
         pass
@@ -64,7 +64,7 @@ def train_ai():
         callbacks = hf.get_callbacks(path_to_callbacks, 0,
                                      use_early_stopping = True,
                                      stop_training = False,
-                                     early_stopping_patience = 20)
+x                                     early_stopping_patience = 20)
         
         model = build_pt_inceptionv3_model()
 
