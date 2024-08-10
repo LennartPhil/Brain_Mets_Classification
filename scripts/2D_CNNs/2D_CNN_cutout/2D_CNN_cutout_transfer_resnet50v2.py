@@ -42,7 +42,7 @@ image_size = 224
 
 training_codename = "transfer_resnet50v2_upperlayer00"
 
-path_to_tfrs = "/tfrs"
+path_to_tfrs = "/tfrs/all_pats_single_rgb"
 path_to_logs = "/logs"
 
 activation_func = "mish"
