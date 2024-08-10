@@ -31,7 +31,7 @@ batch_size = 20 #50
 training_epochs = 400 #1000
 learning_rate = 0.000001
 
-training_codename = "resnext50lr00"
+training_codename = "resnext101lr00"
 
 path_to_tfrs = "/tfrs"
 path_to_logs = "/logs"
