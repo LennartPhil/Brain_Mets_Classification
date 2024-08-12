@@ -2,3 +2,9 @@
 /Rgb_Brain_Mets_Dataset/
 .DS_Store
 get-pip.py
+bin
+etc
+lib
+include
+pyvenv.cfg
+share
