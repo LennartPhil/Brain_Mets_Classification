@@ -160,7 +160,7 @@ def build_transfer_bit_model(trainable = True):
 
     # Use the pretrained base model
     x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable)(augmented)
-    x = tf.keras.layers.GlobalMaxPool2D()(x)
+    #x = tf.keras.layers.GlobalMaxPool2D()(x)
 
     output = tf.keras.layers.Flatten()(x)
 
