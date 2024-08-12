@@ -5,7 +5,8 @@ RUN apt-get -y update && \
     apt-get -y upgrade && \
     apt-get install -y python3-pip
 
-COPY requirements.txt /requirements.txt
+#COPY regular_requirements.txt /requirements.txt
+COPY hub_requirements.txt /requirements.txt
 
 RUN pip install --upgrade pip
 
