@@ -31,15 +31,15 @@ rgb_images = True # using gray scale images as input
 num_classes = 4
 train_upper_layers = False
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 batch_size = 50
-training_epochs = 400 #1000
-learning_rate = 0.000001
+training_epochs = 1000 #400
+learning_rate = 0.05
 
 image_size = 224
 
-training_codename = "transfer_resnet50v2_upperlayer00"
+training_codename = "transfer_resnet50v2_00"
 
 path_to_tfrs = "/tfrs/all_pats_single_rgb"
 path_to_logs = "/logs"
