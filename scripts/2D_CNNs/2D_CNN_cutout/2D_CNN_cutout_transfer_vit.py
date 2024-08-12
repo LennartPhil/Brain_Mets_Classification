@@ -160,7 +160,7 @@ def build_transfer_vit_model(trainable = True):
 
     # Use the pretrained base model
     x = hub.KerasLayer("https://www.kaggle.com/models/spsayakpaul/vision-transformer/TensorFlow2/vit-b16-fe/1", trainable=trainable)(augmented)
-    x = tf.keras.layers.GlobalMaxPool2D()(x)
+    #x = tf.keras.layers.GlobalMaxPool2D()(x)
 
     output = tf.keras.layers.Flatten()(x)
 
