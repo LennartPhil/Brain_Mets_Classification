@@ -29,7 +29,7 @@ learning_rate_tuning = False
 
 batch_size = 20 #50
 training_epochs = 1000
-learning_rate = 0.001
+learning_rate = 0.0001
 
 training_codename = "resnet152_00"
 
