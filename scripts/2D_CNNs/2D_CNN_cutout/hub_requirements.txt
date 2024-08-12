@@ -1,0 +1,5 @@
+tensorflow==2.14
+tensorflow-hub==0.15
+numpy==1.26
+pathlib
+scikit-learn
