@@ -160,7 +160,7 @@ def build_transfer_efficientv2_model(trainable = True):
 
     # Use the pretrained base model
     x = hub.KerasLayer("https://www.kaggle.com/models/google/efficientnet-v2/TensorFlow2/imagenet21k-xl-feature-vector/1", trainable=trainable)(augmented)
-    x = tf.keras.layers.GlobalMaxPool2D()(x)
+    #x = tf.keras.layers.GlobalMaxPool2D()(x)
 
     output = tf.keras.layers.Flatten()(x)
 
