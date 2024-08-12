@@ -69,6 +69,8 @@ def train_ai():
         
         model = build_transfer_resnet50_model()
 
+        model.get_layer("resnet50v2").trainable = False
+
         # traing model
         history = model.fit(
             train_data,
@@ -92,6 +94,8 @@ def train_ai():
 
         # build model
         model = build_transfer_resnet50_model()
+
+        model.get_layer("resnet50v2").trainable = True
 
         # load weights
         model.load_weights(path_to_weights)
@@ -119,6 +123,8 @@ def train_ai():
 
         # build model
         model = build_transfer_resnet50_model()
+
+        model.get_layer("resnet50v2").trainable = True
 
         # load weights
         model.load_weights(path_to_weights)
