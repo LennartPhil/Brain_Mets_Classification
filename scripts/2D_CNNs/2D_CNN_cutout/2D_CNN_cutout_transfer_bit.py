@@ -34,7 +34,7 @@ train_upper_layers = True
 use_k_fold = False
 learning_rate_tuning = False
 
-batch_size = 50
+batch_size = 20
 training_epochs = 1000 #500
 learning_rate = 0.001
 
