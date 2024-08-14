@@ -1,3 +1,4 @@
+#FROM nvcr.io/nvidia/tensorflow:23.10-tf2-py3
 FROM nvcr.io/nvidia/tensorflow:23.10-tf2-py3
 #nvcr.io/nvidia/tensorflow:24.07-tf2-py3
 
@@ -26,6 +27,6 @@ COPY 2D_CNN_cutout_transfer_efficientv2.py /efficientv2_skript.py
 COPY helper_funcs.py /helper_funcs.py
 
 #ENTRYPOINT [ "sh", "-c", "python3 /conv_skript.py && python3 /resnet34_skript.py && python3 /resnet152_skript.py && python3 /resnext50_skript.py && python3 /resnext101_skript.py && python3 /inceptionv3_skript.py && python3 /resnet50v2_skript.py" ]
-ENTRYPOINT [ "sh", "-c", "python3 /vit_skript.py && python3 /efficientv2_skript.py" ]
+ENTRYPOINT [ "sh", "-c", "python3 /bit_skript.py && python3 /vit_skript.py && python3 /efficientv2_skript.py" ]
 
 #ENTRYPOINT [ "python3", "/skript.py" ]-
