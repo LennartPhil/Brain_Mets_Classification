@@ -4,3 +4,4 @@ numpy
 keras-tuner
 keras
 tensorflow
+tensorflow-hub==0.15
