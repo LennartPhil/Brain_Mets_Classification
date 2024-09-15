@@ -22,9 +22,9 @@ if gpus:
 print("tensorflow_setup successful")
 
 rgb_images = False # using gray scale images as input
-num_classes = 4
+num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 50
@@ -70,7 +70,7 @@ def train_ai():
 
         # save history
         history_dict = history.history
-        history_file_name = f"history.npy"
+        history_file_name = "history.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
 
@@ -125,10 +125,10 @@ def build_conv_model():
     # conv_4_layer = tf.keras.layers.Conv2D(filters = 256, kernel_size = 3, strides=(1,1,1), activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
     # max_pool_4_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
 
-    dense_1_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_1_layer = tf.keras.layers.Dropout(0.5)
-    dense_2_layer = tf.keras.layers.Dense(128, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_2_layer = tf.keras.layers.Dropout(0.5)
+    dense_1_layer = tf.keras.layers.Dense(512, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_1_layer = tf.keras.layers.Dropout(0.4)
+    dense_2_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_2_layer = tf.keras.layers.Dropout(0.4)
 
     augment = data_augmentation(image_input)
     batch_norm = batch_norm_layer(augment)
