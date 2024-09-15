@@ -302,6 +302,23 @@ def get_callbacks(path_to_callbacks,
 
     return callbacks
 
+
+# Custom Weighted Cross Entropy Loss
+class WeightedCrossEntropyLoss(tf.keras.losses.Loss):
+    def __init__(self, class_weights):
+        super().__init__()
+        self.class_weights = tf.constant(class_weights, dtype=tf.float32)
+
+    def call(self, y_true, y_pred):
+        y_true = tf.cast(y_true, tf.int64)
+        y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
+        y_true_one_hot = tf.one_hot(y_true, depth=tf.shape(y_pred)[1])
+        cross_entropy = -tf.reduce_sum(y_true_one_hot * tf.math.log(y_pred), axis=-1)
+        weights = tf.gather(self.class_weights, y_true)
+        weighted_cross_entropy = weights * cross_entropy
+        return tf.reduce_mean(weighted_cross_entropy)
+        
+
 class UnfreezeCallback(tf.keras.callbacks.Callback):
     def __init__(self, patience=3, monitor='val_accuracy', min_delta=0.01):
         super(UnfreezeCallback, self).__init__()
