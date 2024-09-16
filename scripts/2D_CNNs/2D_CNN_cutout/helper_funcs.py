@@ -18,10 +18,14 @@ repeat_count = 1
 
 early_stopping_patience = 200
 
-def setup_data(path_to_tfrs, path_to_callbacks, num_classes, batch_size, rgb = False):
-    patients = get_patient_paths(path_to_tfrs)
+two_class_weights = {1: 0.92156863, 0 :1.09302326}
 
-    train_paths, val_paths, test_paths = split_patients(patients, path_to_callbacks=path_to_callbacks, fraction_to_use=1)
+def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, rgb = False):
+    #patients = get_patient_paths(path_to_tfrs)
+
+    #train_paths, val_paths, test_paths = split_patients(patients, path_to_callbacks=path_to_callbacks, fraction_to_use=1)
+    train_paths, val_paths = get_patient_paths_for_fold(0, path_to_splits, path_to_tfrs)
+    test_paths = get_test_paths(path_to_splits, path_to_tfrs)
     train_paths = get_tfr_paths_for_patients(train_paths)
     val_paths = get_tfr_paths_for_patients(val_paths)
     test_paths = get_tfr_paths_for_patients(test_paths)
@@ -30,6 +34,30 @@ def setup_data(path_to_tfrs, path_to_callbacks, num_classes, batch_size, rgb = F
 
     return train_data, val_data, test_data
 
+def get_patient_paths_for_fold(fold, path_to_splits, path_to_tfrs):
+    # read .txt file
+    txt_train_file_name = f"fold_{fold}_train_ids.txt"
+    txt_val_file_name = f"fold_{fold}_val_ids.txt"
+
+    with open(f"{path_to_splits}/{txt_train_file_name}", "r") as f:
+        train_patients = [line.strip() for line in f]
+        train_patients = [f"{path_to_tfrs}/{pat}" for pat in train_patients]
+
+    with open(f"{path_to_splits}/{txt_val_file_name}", "r") as f:
+        val_patients = [line.strip() for line in f]
+        val_patients = [f"{path_to_tfrs}/{pat}" for pat in val_patients]
+
+    return train_patients, val_patients
+
+def get_test_paths(path_to_splits, path_to_tfrs):
+    # read .txt file
+    txt_test_file_name = f"test_ids.txt"
+
+    with open(f"{path_to_splits}/{txt_test_file_name}", "r") as f:
+        test_patients = [line.strip() for line in f]
+        test_patients = [f"{path_to_tfrs}/{pat}" for pat in test_patients]
+
+    return test_patients
 
 def save_paths_to_txt(paths, type, path_to_callbacks):
     f = open(f"{path_to_callbacks}/{type}.txt", "w")
