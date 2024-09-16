@@ -30,12 +30,12 @@ print("tensorflow_setup successful")
 
 rgb_images = True # using gray scale images as input
 num_classes = 4
-train_upper_layers = True
+train_upper_layers = False
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 batch_size = 20
-training_epochs = 1000 #500
+training_epochs = 400 #1000 #500
 learning_rate = 0.001
 
 image_size = 384
@@ -44,6 +44,7 @@ training_codename = "transfer_bit_upperlayer_00"
 
 path_to_tfrs = "/tfrs/all_pats_single_rgb"
 path_to_logs = "/logs"
+path_to_splits = "/tfrs/split_text_files"
 
 activation_func = "mish"
 
@@ -60,7 +61,7 @@ def train_ai():
     print(f"Starting {training_codename} with {num_classes} classes at {time}")
     print(tf.__version__)
 
-    train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, num_classes, batch_size = batch_size, rgb = rgb_images)
+    train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
 
     if use_k_fold:
         pass
@@ -79,7 +80,8 @@ def train_ai():
             validation_data = val_data,
             epochs = training_epochs,
             batch_size = batch_size,
-            callbacks = callbacks
+            callbacks = callbacks,
+            class_weight = hf.two_class_weights
         )        
 
         # save history
@@ -106,7 +108,8 @@ def train_ai():
             validation_data = val_data,
             epochs = training_epochs,
             batch_size = batch_size,
-            callbacks = callbacks
+            callbacks = callbacks,
+            class_weight = hf.two_class_weights
         )        
 
         # save history
