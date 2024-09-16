@@ -29,7 +29,7 @@ if gpus:
 print("tensorflow_setup successful")
 
 rgb_images = True # using gray scale images as input
-num_classes = 4
+num_classes = 2
 train_upper_layers = False
 use_k_fold = False
 learning_rate_tuning = True
