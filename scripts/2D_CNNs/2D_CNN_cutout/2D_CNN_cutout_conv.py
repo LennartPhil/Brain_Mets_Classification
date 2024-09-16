@@ -67,7 +67,7 @@ def train_ai():
             epochs = training_epochs,
             batch_size = batch_size,
             callbacks = callbacks,
-            class_weight = hf.two_class_weights
+            # class_weight = hf.two_class_weights
         )        
 
         # save history
