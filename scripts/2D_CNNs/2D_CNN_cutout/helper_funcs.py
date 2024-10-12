@@ -18,12 +18,14 @@ repeat_count = 1
 
 early_stopping_patience = 200
 
-two_class_weights = {1: 0.92156863, 0 :1.09302326}
+#two_class_weights = {1: 0.92156863, 0 :1.09302326}
+two_class_weights = {0: 1.09302326, 1: 0.92156863}
 
 def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, rgb = False):
     #patients = get_patient_paths(path_to_tfrs)
 
     #train_paths, val_paths, test_paths = split_patients(patients, path_to_callbacks=path_to_callbacks, fraction_to_use=1)
+
     train_paths, val_paths = get_patient_paths_for_fold(0, path_to_splits, path_to_tfrs)
     test_paths = get_test_paths(path_to_splits, path_to_tfrs)
     train_paths = get_tfr_paths_for_patients(train_paths)
@@ -332,19 +334,19 @@ def get_callbacks(path_to_callbacks,
 
 
 # Custom Weighted Cross Entropy Loss
-class WeightedCrossEntropyLoss(tf.keras.losses.Loss):
-    def __init__(self, class_weights):
-        super().__init__()
-        self.class_weights = tf.constant(class_weights, dtype=tf.float32)
+# class WeightedCrossEntropyLoss(tf.keras.losses.Loss):
+#     def __init__(self, class_weights):
+#         super().__init__()
+#         self.class_weights = tf.constant(class_weights, dtype=tf.float32)
 
-    def call(self, y_true, y_pred):
-        y_true = tf.cast(y_true, tf.int64)
-        y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
-        y_true_one_hot = tf.one_hot(y_true, depth=tf.shape(y_pred)[1])
-        cross_entropy = -tf.reduce_sum(y_true_one_hot * tf.math.log(y_pred), axis=-1)
-        weights = tf.gather(self.class_weights, y_true)
-        weighted_cross_entropy = weights * cross_entropy
-        return tf.reduce_mean(weighted_cross_entropy)
+#     def call(self, y_true, y_pred):
+#         y_true = tf.cast(y_true, tf.int64)
+#         y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
+#         y_true_one_hot = tf.one_hot(y_true, depth=tf.shape(y_pred)[1])
+#         cross_entropy = -tf.reduce_sum(y_true_one_hot * tf.math.log(y_pred), axis=-1)
+#         weights = tf.gather(self.class_weights, y_true)
+#         weighted_cross_entropy = weights * cross_entropy
+#         return tf.reduce_mean(weighted_cross_entropy)
         
 
 class UnfreezeCallback(tf.keras.callbacks.Callback):
