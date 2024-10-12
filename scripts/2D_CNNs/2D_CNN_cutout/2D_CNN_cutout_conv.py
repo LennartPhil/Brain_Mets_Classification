@@ -24,7 +24,7 @@ print("tensorflow_setup successful")
 rgb_images = False # using gray scale images as input
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 50
@@ -61,20 +61,20 @@ def train_ai():
         model = build_conv_model()
 
         # traing model
-        history = model.fit(
-            train_data,
-            validation_data = val_data,
-            epochs = training_epochs,
-            batch_size = batch_size,
-            callbacks = callbacks,
-            # class_weight = hf.two_class_weights
-        )        
+        # history = model.fit(
+        #     train_data,
+        #     validation_data = val_data,
+        #     epochs = training_epochs,
+        #     batch_size = batch_size,
+        #     callbacks = callbacks,
+        #     # class_weight = hf.two_class_weights
+        # )        
 
-        # save history
-        history_dict = history.history
-        history_file_name = "history.npy"
-        path_to_np_file = path_to_callbacks / history_file_name
-        np.save(path_to_np_file, history_dict)
+        # # save history
+        # history_dict = history.history
+        # history_file_name = "history.npy"
+        # path_to_np_file = path_to_callbacks / history_file_name
+        # np.save(path_to_np_file, history_dict)
 
     else:
         # regular training
