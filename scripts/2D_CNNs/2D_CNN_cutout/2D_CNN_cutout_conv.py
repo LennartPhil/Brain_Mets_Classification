@@ -33,7 +33,7 @@ learning_rate = 0.000001 #0.001
 
 training_codename = "conv_01"
 
-path_to_tfrs = "/tfrs/all_pats_single_gray"
+path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
 path_to_logs = "/logs"
 path_to_splits = "/tfrs/split_text_files"
 
