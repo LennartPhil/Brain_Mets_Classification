@@ -61,7 +61,7 @@ def train_ai():
         model = build_conv_model()
 
         test_image = train_data.take(1)
-        for image, sex, age, primary in test_image:
+        for (image, sex, age), primary in test_image:
             print(sex.numpy())
             print(age.numpy())
             print(primary.numpy())
