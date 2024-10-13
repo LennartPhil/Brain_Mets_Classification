@@ -31,9 +31,11 @@ batch_size = 20 #50
 training_epochs = 400 #1000
 learning_rate = 0.001
 
+dropout_rate = 0.4
+
 training_codename = "resnext50_01"
 
-path_to_tfrs = "/tfrs/all_pats_single_gray"
+path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
 path_to_logs = "/logs"
 path_to_splits = "/tfrs/split_text_files"
 
@@ -185,10 +187,10 @@ def build_resnext_model(architecture="ResNeXt50"):
     age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
     concatenated_inputs = tf.keras.layers.Concatenate()([resnext, age_input_reshaped, flattened_sex_input])
 
-    dense_1_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_1_layer = tf.keras.layers.Dropout(0.5)
-    dense_2_layer = tf.keras.layers.Dense(128, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_2_layer = tf.keras.layers.Dropout(0.5)
+    dense_1_layer = tf.keras.layers.Dense(512, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
+    dense_2_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
 
     x = dense_1_layer(concatenated_inputs)
     x = dropout_1_layer(x)

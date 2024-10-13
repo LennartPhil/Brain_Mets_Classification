@@ -31,9 +31,11 @@ batch_size = 20 #50
 training_epochs = 400 #1000
 learning_rate = 0.0001
 
+dropout_rate = 0.4
+
 training_codename = "resnet152_01"
 
-path_to_tfrs = "/tfrs/all_pats_single_gray"
+path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
 path_to_logs = "/logs"
 path_to_splits = "/tfrs/split_text_files"
 
@@ -156,10 +158,10 @@ def build_resnet152_model():
 
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
 
-    dense_1_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_1_layer = tf.keras.layers.Dropout(0.5)
-    dense_2_layer = tf.keras.layers.Dense(128, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_2_layer = tf.keras.layers.Dropout(0.5)
+    dense_1_layer = tf.keras.layers.Dense(512, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
+    dense_2_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
 
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))

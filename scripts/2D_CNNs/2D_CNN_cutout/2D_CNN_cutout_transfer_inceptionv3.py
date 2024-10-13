@@ -37,11 +37,13 @@ batch_size = 50
 training_epochs = 400 #1000 #500
 learning_rate = 0.001
 
+dropout_rate = 0.4
+
 image_size = 299
 
 training_codename = "transfer_inceptionv3_00"
 
-path_to_tfrs = "/tfrs/all_pats_single_rgb"
+path_to_tfrs = "/tfrs/all_pats_single_cutout_rgb"
 path_to_logs = "/logs"
 path_to_splits = "/tfrs/split_text_files"
 
@@ -175,10 +177,10 @@ def build_transfer_inceptionv3_model():
     concatenated_inputs = tf.keras.layers.Concatenate()([output, age_input_reshaped, flattened_sex_input])
 
     # Define dense and dropout layers
-    dense_1_layer = tf.keras.layers.Dense(256, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_1_layer = tf.keras.layers.Dropout(0.5)
-    dense_2_layer = tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_2_layer = tf.keras.layers.Dropout(0.5)
+    dense_1_layer = tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
+    dense_2_layer = tf.keras.layers.Dense(256, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal())
+    dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
 
     # Fully connected layers
     x = dense_1_layer(concatenated_inputs)
