@@ -24,7 +24,7 @@ print("tensorflow_setup successful")
 rgb_images = False # using gray scale images as input
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 20 #50
