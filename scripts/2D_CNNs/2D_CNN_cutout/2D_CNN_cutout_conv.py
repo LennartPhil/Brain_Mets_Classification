@@ -60,21 +60,15 @@ def train_ai():
         # build model
         model = build_conv_model()
 
-        test_image = train_data.take(1)
-        for (image, sex, age), primary in test_image:
-            print(sex.numpy())
-            print(age.numpy())
-            print(primary.numpy())
-
-        # traing model
-        # history = model.fit(
-        #     train_data,
-        #     validation_data = val_data,
-        #     epochs = training_epochs,
-        #     batch_size = batch_size,
-        #     callbacks = callbacks,
-        #     # class_weight = hf.two_class_weights
-        # )        
+        #training model
+        history = model.fit(
+            train_data,
+            validation_data = val_data,
+            epochs = training_epochs,
+            batch_size = batch_size,
+            callbacks = callbacks,
+            class_weight = hf.two_class_weights
+        )        
 
         # # save history
         # history_dict = history.history
