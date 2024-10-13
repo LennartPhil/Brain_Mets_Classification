@@ -31,6 +31,8 @@ batch_size = 50
 training_epochs = 400 #1000
 learning_rate = 0.000001 #0.001
 
+dropout_rate = 0.4
+
 training_codename = "conv_01"
 
 path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
@@ -128,9 +130,9 @@ def build_conv_model():
     # max_pool_4_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2,2))
 
     dense_1_layer = tf.keras.layers.Dense(512, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_1_layer = tf.keras.layers.Dropout(0.4)
+    dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
     dense_2_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_2_layer = tf.keras.layers.Dropout(0.4)
+    dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
 
     augment = data_augmentation(image_input)
     batch_norm = batch_norm_layer(augment)
