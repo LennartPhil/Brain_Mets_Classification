@@ -35,6 +35,16 @@ dropout_rate = 0.4
 
 training_codename = "conv_01"
 
+if learning_rate_tuning:
+    training_codename = training_codename + "_lr"
+
+training_codename += f"_{num_classes}_cls"
+
+if rgb_images:
+    training_codename += "_rgb"
+else:
+    training_codename += "_gray"
+
 path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
 path_to_logs = "/logs"
 path_to_splits = "/tfrs/split_text_files"
@@ -43,11 +53,13 @@ activation_func = "mish"
 
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
-class_directory = f"{training_codename}_{num_classes}_classes_{time}"
+class_directory = f"{training_codename}_{time}"
 path_to_callbacks = Path(path_to_logs) / Path(class_directory)
 os.makedirs(path_to_callbacks, exist_ok=True)
 
 def train_ai():
+
+    hf.print_training_timestamps(isStart = True, training_codename = training_codename)
 
     train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size,rgb = rgb_images)
 
@@ -72,11 +84,11 @@ def train_ai():
             class_weight = hf.two_class_weights
         )        
 
-        # # save history
-        # history_dict = history.history
-        # history_file_name = "history.npy"
-        # path_to_np_file = path_to_callbacks / history_file_name
-        # np.save(path_to_np_file, history_dict)
+        # save history
+        history_dict = history.history
+        history_file_name = f"history_{training_codename}.npy"
+        path_to_np_file = path_to_callbacks / history_file_name
+        np.save(path_to_np_file, history_dict)
 
     else:
         # regular training
@@ -98,10 +110,11 @@ def train_ai():
 
         # save history
         history_dict = history.history
-        history_file_name = f"history.npy"
+        history_file_name = f"history_{training_codename}.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
 
+    hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
 def build_conv_model():
 

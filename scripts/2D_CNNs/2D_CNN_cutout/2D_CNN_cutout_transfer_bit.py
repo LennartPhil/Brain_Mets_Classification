@@ -42,7 +42,19 @@ dropout_rate = 0.4
 
 image_size = 384
 
-training_codename = "transfer_bit_upperlayer_00"
+training_codename = "transfer_bit_00"
+
+if learning_rate_tuning:
+    training_codename = training_codename + "_lr"
+elif train_upper_layers:
+    training_codename = training_codename + "_upperlayer"
+
+training_codename += f"_{num_classes}_cls"
+
+if rgb_images:
+    training_codename += "_rgb"
+else:
+    training_codename += "_gray"
 
 path_to_tfrs = "/tfrs/all_pats_single_cutout_rgb"
 path_to_logs = "/logs"
@@ -54,14 +66,13 @@ path_to_weights = path_to_logs + "/transfer_inceptionv3_upperlayer00_4_classes_r
 
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
-class_directory = f"{training_codename}_{num_classes}_classes_{time}"
+class_directory = f"{training_codename}_{time}"
 path_to_callbacks = Path(path_to_logs) / Path(class_directory)
 os.makedirs(path_to_callbacks, exist_ok=True)
 
 def train_ai():
 
-    print(f"Starting {training_codename} with {num_classes} classes at {time}")
-    print(tf.__version__)
+    hf.print_training_timestamps(isStart = True, training_codename = training_codename)
 
     train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
 
@@ -88,7 +99,7 @@ def train_ai():
 
         # save history
         history_dict = history.history
-        history_file_name = f"history.npy"
+        history_file_name = f"history_{training_codename}.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
 
@@ -116,7 +127,7 @@ def train_ai():
 
         # save history
         history_dict = history.history
-        history_file_name = f"history.npy"
+        history_file_name = f"history_{training_codename}.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
 
@@ -143,12 +154,14 @@ def train_ai():
 
         # save history
         history_dict = history.history
-        history_file_name = f"history.npy"
+        history_file_name = f"history_{training_codename}.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
     
     tf.keras.backend.clear_session()
     print("Clearing session...")
+
+    hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
 def build_transfer_bit_model(trainable = True):
 
