@@ -615,3 +615,17 @@ def get_path_to_tfrs(is_cutout, is_rgb_images):
             path_to_tfrs = "/tfrs/all_pats_single_slice_gray"
     
     return path_to_tfrs
+
+def clear_tf_session():
+    tf.keras.backend.clear_session()
+    print("Clearing session...")
+
+def print_fold_info(fold, is_start):
+    if is_start:
+        print()
+        print("Starting fold: " + str(fold))
+        print("at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    else:
+        print()
+        print("Finishing fold: " + str(fold))
+        print("at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
