@@ -22,12 +22,12 @@ early_stopping_patience = 200
 #two_class_weights = {1: 0.92156863, 0 :1.09302326}
 two_class_weights = {0: 1.09302326, 1: 0.92156863}
 
-def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, rgb = False):
+def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, rgb = False, current_fold = 0):
     #patients = get_patient_paths(path_to_tfrs)
 
     #train_paths, val_paths, test_paths = split_patients(patients, path_to_callbacks=path_to_callbacks, fraction_to_use=1)
 
-    train_paths, val_paths = get_patient_paths_for_fold(0, path_to_splits, path_to_tfrs)
+    train_paths, val_paths = get_patient_paths_for_fold(current_fold, path_to_splits, path_to_tfrs)
     test_paths = get_test_paths(path_to_splits, path_to_tfrs)
     train_paths = get_tfr_paths_for_patients(train_paths)
     val_paths = get_tfr_paths_for_patients(val_paths)
