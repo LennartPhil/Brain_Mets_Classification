@@ -89,11 +89,11 @@ def train_ai():
 
     hf.print_training_timestamps(isStart = True, training_codename = training_codename)
 
-    train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size,rgb = rgb_images)
-
     if use_k_fold:
         
         for fold in range(10):
+
+            hf.print_fold_info(fold, is_start = True)
 
             train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images, current_fold = fold)
 
@@ -118,7 +118,14 @@ def train_ai():
             path_to_np_file = path_to_callbacks / history_file_name
             np.save(path_to_np_file, history_dict)
 
+            hf.clear_tf_session()
+
+            hf.print_fold_info(fold, is_start = False)
+
     elif learning_rate_tuning:
+
+        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size,rgb = rgb_images)
+
         
         callbacks = hf.get_callbacks(path_to_callbacks, 0,
                                      use_lrscheduler=True,
@@ -145,6 +152,8 @@ def train_ai():
 
     else:
         # regular training
+        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size,rgb = rgb_images)
+
 
         # get callbacks
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
@@ -166,6 +175,8 @@ def train_ai():
         history_file_name = f"history_{training_codename}.npy"
         path_to_np_file = path_to_callbacks / history_file_name
         np.save(path_to_np_file, history_dict)
+
+    hf.clear_tf_session()
 
     hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
