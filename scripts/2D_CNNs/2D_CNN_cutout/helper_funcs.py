@@ -613,3 +613,5 @@ def get_path_to_tfrs(is_cutout, is_rgb_images):
         else:
             # is brain slice with gray images
             path_to_tfrs = "/tfrs/all_pats_single_slice_gray"
+    
+    return path_to_tfrs
