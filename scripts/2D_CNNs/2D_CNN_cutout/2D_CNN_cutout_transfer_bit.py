@@ -13,6 +13,9 @@ import numpy as np
 # 2. Run: find best learning rate with exported weights
 # 3. Run: train of the best learning rate
 
+# QUESTION?:
+# Do I need to freeze the pretrained model? Probably right?
+
 gpus = tf.config.list_physical_devices('GPU')
 print(gpus)
 if gpus:
@@ -88,7 +91,35 @@ def train_ai():
     train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
 
     if use_k_fold:
-        pass
+        
+        for fold in range(10):
+
+            train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images, current_fold = fold)
+
+            callbacks = hf.get_callbacks(path_to_callbacks, fold)
+            
+            # build model
+            model = build_transfer_bit_model()
+
+            # load weights
+            model.load_weights(path_to_weights)
+
+            #training model
+            history = model.fit(
+                train_data,
+                validation_data = val_data,
+                epochs = training_epochs,
+                batch_size = batch_size,
+                callbacks = callbacks,
+                class_weight = hf.two_class_weights
+            )
+
+            # save history
+            history_dict = history.history
+            history_file_name = f"history_{training_codename}_fold_{fold}.npy"
+            path_to_np_file = path_to_callbacks / history_file_name
+            np.save(path_to_np_file, history_dict)
+
     elif train_upper_layers:
         
         callbacks = hf.get_callbacks(path_to_callbacks, 0,
