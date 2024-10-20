@@ -18,15 +18,15 @@ COPY 2D_CNN_cutout_resnet34.py /resnet34_skript.py
 COPY 2D_CNN_cutout_resnet152.py /resnet152_skript.py
 COPY 2D_CNN_cutout_resnext50.py /resnext50_skript.py
 COPY 2D_CNN_cutout_resnext101.py /resnext101_skript.py
+COPY 2D_CNN_cutout_transfer_bit.py /bit_skript.py
+COPY 2D_CNN_cutout_transfer_efficientv2.py /efficientv2_skript.py
 COPY 2D_CNN_cutout_transfer_inceptionv3.py /inceptionv3_skript.py
 COPY 2D_CNN_cutout_transfer_resnet50v2.py /resnet50v2_skript.py
-COPY 2D_CNN_cutout_transfer_bit.py /bit_skript.py
 COPY 2D_CNN_cutout_transfer_vit.py /vit_skript.py
-COPY 2D_CNN_cutout_transfer_efficientv2.py /efficientv2_skript.py
 
 COPY helper_funcs.py /helper_funcs.py
 
 #ENTRYPOINT [ "sh", "-c", "python3 /conv_skript.py && python3 /resnet34_skript.py && python3 /resnet152_skript.py && python3 /resnext50_skript.py && python3 /resnext101_skript.py && python3 /inceptionv3_skript.py && python3 /resnet50v2_skript.py && python3 /bit_skript.py && python3 /vit_skript.py && python3 /efficientv2_skript.py" ]
-ENTRYPOINT [ "sh", "-c", "python3 /inceptionv3_skript.py && python3 /resnet50v2_skript.py && python3 /bit_skript.py && python3 /vit_skript.py && python3 /efficientv2_skript.py" ]
+ENTRYPOINT [ "sh", "-c", "python3 /conv_skrip.pyt && python3 /resnet34_skript.py && python3 /resnet152_skript.py && python3 /resnext50_skript.py && python3 /resnext101_skript.py && python3 /bit_skript.py && python3 /vit_skript.py && python3 /efficientv2_skript.py" ]
 
 #ENTRYPOINT [ "python3", "/skript.py" ]-
