@@ -21,6 +21,7 @@ if gpus:
 
 print("tensorflow_setup successful")
 
+cutout = True
 rgb_images = False # using gray scale images as input
 num_classes = 2
 use_k_fold = False
@@ -33,19 +34,46 @@ learning_rate = 0.000001 #0.001
 
 dropout_rate = 0.4
 
-training_codename = "conv_01"
+codename = "conv_01"
+training_codename = hf.get_training_codename(
+    code_name = codename,
+    num_classes = num_classes,
+    is_cutout = cutout,
+    is_rgb_images = rgb_images,
+    is_learning_rate_tuning = learning_rate_tuning,
+    is_k_fold = use_k_fold,
+)
+# cutout = True #if true, the metastasis is simpley cutout, if false the entire slice of the brain is used
 
-if learning_rate_tuning:
-    training_codename = training_codename + "_lr"
+# if learning_rate_tuning:
+#     training_codename = training_codename + "_lr"
 
-training_codename += f"_{num_classes}_cls"
+# training_codename += f"_{num_classes}_cls"
 
-if rgb_images:
-    training_codename += "_rgb"
-else:
-    training_codename += "_gray"
+# if rgb_images:
+#     training_codename += "_rgb"
+# else:
+#     training_codename += "_gray"
 
-path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
+# if cutout:
+#     training_codename = training_codename + "_cutout"
+# else:
+#     training_codename = training_codename + "_slice"
+
+
+
+# if cutout:
+#     if rgb_images:
+#         # is cuout color images
+#         path_to_tfrs = ""
+#     else:
+#         # is cutout, gray images
+#         path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
+# else:
+#     # is brain slice
+#     if rgb_images
+#     path_to_tfrs = ""
+path_to_tfrs = hf.get_path_to_tfrs(cutout, rgb_images)
 path_to_logs = "/logs"
 path_to_splits = "/tfrs/split_text_files"
 
