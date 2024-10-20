@@ -24,14 +24,14 @@ print("tensorflow_setup successful")
 cutout = True #if true, the metastasis is simply cutout, if false the entire slice of the brain is used
 rgb_images = False # using gray scale images as input
 num_classes = 2
-use_k_fold = False
-learning_rate_tuning = True
+use_k_fold = True
+learning_rate_tuning = False
 
 
 batch_size = 50
 training_epochs = 400 #1000 
  # for learning rate set to training_epochs to 400
-learning_rate = 0.001 #0.0001
+learning_rate = 0.01 #0.0001
 
 dropout_rate = 0.4
 

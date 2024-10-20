@@ -24,13 +24,13 @@ print("tensorflow_setup successful")
 cutout = True
 rgb_images = False # using gray scale images as input
 num_classes = 2
-use_k_fold = False
-learning_rate_tuning = True
+use_k_fold = True
+learning_rate_tuning = False
 
 
 batch_size = 20 #50
 training_epochs = 400 #1000
-learning_rate = 0.0001
+learning_rate = 0.01
 
 dropout_rate = 0.4
 
