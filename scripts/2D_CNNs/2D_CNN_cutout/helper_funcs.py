@@ -570,3 +570,46 @@ def print_training_timestamps(isStart, training_codename):
         print()
         print("_______________________________________________________________________________")
         print()
+
+
+
+def get_training_codename(code_name, num_classes, is_cutout, is_rgb_images, is_learning_rate_tuning, is_k_fold, is_upper_layer_training = False):
+
+    training_codename = code_name
+
+    training_codename += f"_{num_classes}_cls"
+
+    if is_cutout:
+        training_codename = training_codename + "_cutout"
+    else:
+        training_codename = training_codename + "_slice"
+
+    if is_rgb_images:
+        training_codename += "_rgb"
+    else:
+        training_codename += "_gray"
+
+    if is_learning_rate_tuning:
+        training_codename = training_codename + "_lr"
+    elif is_upper_layer_training:
+        training_codename = training_codename + "_upper_layer"
+    elif is_k_fold:
+        training_codename = training_codename + "_kfold"
+
+    return training_codename
+
+def get_path_to_tfrs(is_cutout, is_rgb_images):
+    if is_cutout:
+        if is_rgb_images:
+            # is cutout with color images
+            path_to_tfrs = "/tfrs/all_pats_single_cutout_rgb"
+        else:
+            # is cutout with gray images
+            path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
+    else:
+        if is_rgb_images:
+            # is brain slice with color images
+            path_to_tfrs = "/tfrs/all_pats_single_slice_rgb"
+        else:
+            # is brain slice with gray images
+            path_to_tfrs = "/tfrs/all_pats_single_slice_gray"
