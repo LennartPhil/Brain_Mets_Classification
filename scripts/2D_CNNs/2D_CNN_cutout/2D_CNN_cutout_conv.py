@@ -30,7 +30,7 @@ learning_rate_tuning = False
 
 batch_size = 50
 training_epochs = 400 #1000
-learning_rate = 0.01 #0.001
+learning_rate = 0.001 #0.01 is apparently too large
 
 dropout_rate = 0.4
 
