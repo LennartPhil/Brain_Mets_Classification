@@ -219,7 +219,9 @@ def build_transfer_bit_model(trainable = True):
     tf.print("Augmented shape:", augmented.shape)
 
     # Use the pretrained base model
-    x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable)(augmented)
+    # this is the R152x4 architecture, which unfortunately doesn't fit into memory, so I went down with the size
+    # x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable)(augmented)
+    x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r101x3/1", trainable=trainable)(augmented)
     #x = tf.keras.layers.GlobalMaxPool2D()(x)
 
     output = tf.keras.layers.Flatten()(x)
