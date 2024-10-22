@@ -595,6 +595,8 @@ def get_training_codename(code_name, num_classes, is_cutout, is_rgb_images, is_l
         training_codename = training_codename + "_upper_layer"
     elif is_k_fold:
         training_codename = training_codename + "_kfold"
+    else:
+        training_codename = training_codename + "_normal"
 
     return training_codename
 
