@@ -28,7 +28,7 @@ use_k_fold = False
 learning_rate_tuning = False
 
 
-batch_size = 50
+batch_size = 75 #50
 training_epochs = 1000 #1000
 learning_rate = 0.001 #0.01 is apparently too large
 
