@@ -30,7 +30,7 @@ learning_rate_tuning = False
 
 batch_size = 10 #50
 training_epochs = 1000
-learning_rate = 0.001
+learning_rate = 0.0001
 
 dropout_rate = 0.4
 
