@@ -34,9 +34,9 @@ print("tensorflow_setup successful")
 cutout = True
 rgb_images = True # using gray scale images as input
 num_classes = 2
-train_upper_layers = False
+train_upper_layers = True
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 batch_size = 20
 training_epochs = 400 #1000 #500
