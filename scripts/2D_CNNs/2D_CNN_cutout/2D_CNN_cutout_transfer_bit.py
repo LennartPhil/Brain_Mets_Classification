@@ -183,7 +183,7 @@ def train_ai():
 
     else:
         # regular training
-        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images, current_fold = fold)
+        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
 
         # get callbacks
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
