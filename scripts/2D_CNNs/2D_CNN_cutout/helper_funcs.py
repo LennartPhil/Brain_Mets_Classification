@@ -573,7 +573,7 @@ def print_training_timestamps(isStart, training_codename):
 
 
 
-def get_training_codename(code_name, num_classes, is_cutout, is_rgb_images, is_learning_rate_tuning, is_k_fold, is_upper_layer_training = False):
+def get_training_codename(code_name, num_classes, is_cutout, is_rgb_images, contrast_DA, is_learning_rate_tuning, is_k_fold, is_upper_layer_training = False):
 
     training_codename = code_name
 
@@ -588,6 +588,11 @@ def get_training_codename(code_name, num_classes, is_cutout, is_rgb_images, is_l
         training_codename += "_rgb"
     else:
         training_codename += "_gray"
+
+    if contrast_DA:
+        training_codename = training_codename + "_contrast_DA"
+    else:
+        training_codename = training_codename + "_normal_DA"
 
     if is_learning_rate_tuning:
         training_codename = training_codename + "_lr"
