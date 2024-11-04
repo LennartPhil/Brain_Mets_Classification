@@ -29,7 +29,7 @@ print("tensorflow_setup successful")
 
 cutout = True
 rgb_images = True # using gray scale images as input
-contrast_DA = True
+contrast_DA = False
 num_classes = 2
 train_upper_layers = False
 use_k_fold = False

@@ -23,7 +23,7 @@ print("tensorflow_setup successful")
 
 cutout = True
 rgb_images = False # using gray scale images as input
-contrast_DA = True # data augmentation with contrast
+contrast_DA = False # data augmentation with contrast
 num_classes = 2
 use_k_fold = False
 learning_rate_tuning = False
