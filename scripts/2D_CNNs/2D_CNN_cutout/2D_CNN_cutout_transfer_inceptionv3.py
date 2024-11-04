@@ -31,7 +31,7 @@ cutout = True
 rgb_images = True # using gray scale images as input
 contrast_DA = False
 num_classes = 2
-train_upper_layers = False
+train_upper_layers = True
 use_k_fold = False
 learning_rate_tuning = False
 
