@@ -33,6 +33,7 @@ print("tensorflow_setup successful")
 
 cutout = True
 rgb_images = True # using gray scale images as input
+contrast_DA = True
 num_classes = 2
 train_upper_layers = False
 use_k_fold = False
@@ -288,21 +289,36 @@ class NormalizeToRange(tf.keras.layers.Layer):
             normalized = 2 * (inputs - min_val) / (max_val - min_val) - 1
         return normalized
     
-data_augmentation = tf.keras.Sequential([
-    tf.keras.layers.RandomFlip(mode = "horizontal"),
-    #tf.keras.layers.Rescaling(1/255),
-    tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
-    tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
-    tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
-    NormalizeToRange(zero_to_one=False),
-    tf.keras.layers.RandomTranslation(
-        height_factor = 0.05,
-        width_factor = 0.05,
-        fill_mode = "nearest",
-        interpolation = "bilinear"
-    ),
-    tf.keras.layers.Resizing(image_size, image_size)
-])
+if contrast_DA:
+    data_augmentation = tf.keras.Sequential([
+        tf.keras.layers.RandomFlip(mode = "horizontal"),
+        #tf.keras.layers.Rescaling(1/255),
+        tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
+        tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
+        tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
+        NormalizeToRange(zero_to_one=True),
+        tf.keras.layers.RandomTranslation(
+            height_factor = 0.05,
+            width_factor = 0.05,
+            fill_mode = "nearest",
+            interpolation = "bilinear"
+        ),
+    ])
+else:
+    data_augmentation = tf.keras.Sequential([
+        tf.keras.layers.RandomFlip(mode = "horizontal"),
+        #tf.keras.layers.Rescaling(1/255),
+        #tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
+        #tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
+        tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
+        NormalizeToRange(zero_to_one=True),
+        tf.keras.layers.RandomTranslation(
+            height_factor = 0.05,
+            width_factor = 0.05,
+            fill_mode = "nearest",
+            interpolation = "bilinear"
+        ),
+    ])
 
 if __name__ == "__main__":
     train_ai()
