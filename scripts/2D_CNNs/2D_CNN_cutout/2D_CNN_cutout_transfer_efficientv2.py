@@ -53,6 +53,7 @@ training_codename = hf.get_training_codename(
     num_classes = num_classes,
     is_cutout = cutout,
     is_rgb_images = rgb_images,
+    contrast_DA = contrast_DA,
     is_learning_rate_tuning = learning_rate_tuning,
     is_k_fold = use_k_fold,
     is_upper_layer_training = train_upper_layers
