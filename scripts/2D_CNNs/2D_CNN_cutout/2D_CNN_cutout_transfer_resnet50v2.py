@@ -74,7 +74,7 @@ path_to_splits = "/tfrs/split_text_files"
 
 activation_func = "mish"
 
-path_to_weights = path_to_logs + "/transfer_resnet50v2_00_2_cls_cutout_rgb_normal_DA_upper_layer_run_2024_11_05_06_12_03/fold_0/saved_weights.weights.h5"
+path_to_weights = path_to_logs + "/transfer_resnet50v2_00_2_cls_cutout_rgb_normal_DA_upper_layer_run_2024_11_05_06_16_55/fold_0/saved_weights.weights.h5"
 
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
