@@ -6,6 +6,7 @@ from pathlib import Path
 from time import strftime
 import glob
 import datetime
+import numpy as np
 
 kernel_initializer = "he_normal"
 activation_func = "mish"
@@ -636,3 +637,15 @@ def print_fold_info(fold, is_start):
         print()
         print("Finishing fold: " + str(fold))
         print("at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+
+def save_training_history(history, training_codename, time, path_to_callbacks, fold = -1):
+    history_dict = history.history
+
+    if fold == -1:
+        history_file_name = f"history_{training_codename}_{time}.npy"
+    else:
+        history_file_name = f"history_{training_codename}_fold_{fold}_{time}.npy"
+
+    path_to_np_file = path_to_callbacks / history_file_name
+    np.save(path_to_np_file, history_dict)
