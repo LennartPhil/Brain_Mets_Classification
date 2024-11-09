@@ -97,10 +97,17 @@ def train_ai():
             )
 
             # save history
-            history_dict = history.history
-            history_file_name = f"history_{training_codename}_fold_{fold}.npy"
-            path_to_np_file = path_to_callbacks / history_file_name
-            np.save(path_to_np_file, history_dict)
+            # history_dict = history.history
+            # history_file_name = f"history_{training_codename}_fold_{fold}.npy"
+            # path_to_np_file = path_to_callbacks / history_file_name
+            # np.save(path_to_np_file, history_dict)
+            hf.save_training_history(
+                history = history,
+                training_codename = training_codename,
+                path_to_callbacks = path_to_callbacks,
+                time = time,
+                fold = fold
+            )
 
             hf.clear_tf_session()
 
@@ -128,10 +135,16 @@ def train_ai():
         )        
 
         # save history
-        history_dict = history.history
-        history_file_name = f"history_{training_codename}.npy"
-        path_to_np_file = path_to_callbacks / history_file_name
-        np.save(path_to_np_file, history_dict)
+        # history_dict = history.history
+        # history_file_name = f"history_{training_codename}.npy"
+        # path_to_np_file = path_to_callbacks / history_file_name
+        # np.save(path_to_np_file, history_dict)
+        hf.save_training_history(
+            history = history,
+            training_codename = training_codename,
+            time = time,
+            path_to_callbacks = path_to_callbacks
+        )
 
     else:
         # regular training
@@ -153,10 +166,16 @@ def train_ai():
         )        
 
         # save history
-        history_dict = history.history
-        history_file_name = f"history_{training_codename}.npy"
-        path_to_np_file = path_to_callbacks / history_file_name
-        np.save(path_to_np_file, history_dict)
+        # history_dict = history.history
+        # history_file_name = f"history_{training_codename}.npy"
+        # path_to_np_file = path_to_callbacks / history_file_name
+        # np.save(path_to_np_file, history_dict)
+        hf.save_training_history(
+            history = history,
+            training_codename = training_codename,
+            time = time,
+            path_to_callbacks = path_to_callbacks
+        )
     
     hf.clear_tf_session()
 
