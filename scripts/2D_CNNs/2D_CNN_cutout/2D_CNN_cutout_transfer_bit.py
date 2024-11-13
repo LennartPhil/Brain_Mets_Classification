@@ -235,6 +235,7 @@ def train_ai():
         hf.save_training_history(
             history = history,
             training_codename = training_codename,
+            time = time,
             path_to_callbacks = path_to_callbacks
         )
     
