@@ -42,11 +42,11 @@ else:
     training_epochs = 1000
 learning_rate = 0.0001
 
-dropout_rate = 0.5 #0.4
+dropout_rate = 0.6 #0.4
 
 image_size = 299
 
-codename = "transfer_inceptionv3_00"
+codename = "transfer_inceptionv3_01"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,

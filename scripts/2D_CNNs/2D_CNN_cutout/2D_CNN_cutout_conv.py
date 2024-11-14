@@ -36,9 +36,9 @@ else:
     training_epochs = 1000
 learning_rate = 0.001 #0.01 is apparently too large
 
-dropout_rate = 0.5 #0.4
+dropout_rate = 0.6 #0.4
 
-codename = "conv_00"
+codename = "conv_01"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
