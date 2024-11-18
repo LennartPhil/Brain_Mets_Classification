@@ -21,12 +21,12 @@ if gpus:
 
 print("tensorflow_setup successful")
 
-cutout = True
+cutout = False
 rgb_images = False # using gray scale images as input
-contrast_DA = False
+contrast_DA = True
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 10 #20 #50

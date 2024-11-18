@@ -21,12 +21,12 @@ if gpus:
 
 print("tensorflow_setup successful")
 
-cutout = True #if true, the metastasis is simply cutout, if false the entire slice of the brain is used
+cutout = False #if true, the metastasis is simply cutout, if false the entire slice of the brain is used
 rgb_images = False # using gray scale images as input
-contrast_DA = False
+contrast_DA = True
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 20 #50

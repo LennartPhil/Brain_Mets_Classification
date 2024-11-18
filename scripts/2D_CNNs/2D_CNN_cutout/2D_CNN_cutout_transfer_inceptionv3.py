@@ -27,11 +27,11 @@ if gpus:
 
 print("tensorflow_setup successful")
 
-cutout = True
+cutout = False
 rgb_images = True # using gray scale images as input
-contrast_DA = False
+contrast_DA = True
 num_classes = 2
-train_upper_layers = False
+train_upper_layers = True
 use_k_fold = False
 learning_rate_tuning = False
 
@@ -42,7 +42,7 @@ else:
     training_epochs = 1000
 learning_rate = 0.0001
 
-dropout_rate = 0.6 #0.4
+dropout_rate = 0.4
 
 image_size = 299
 
