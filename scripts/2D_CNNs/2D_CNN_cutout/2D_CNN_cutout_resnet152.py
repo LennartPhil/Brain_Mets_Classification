@@ -26,7 +26,7 @@ rgb_images = False # using gray scale images as input
 contrast_DA = True
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 
 batch_size = 10 #20 #50
@@ -34,7 +34,7 @@ if learning_rate_tuning:
     training_epochs = 400
 else:
     training_epochs = 1000
-learning_rate = 0.0001
+learning_rate = 0.001
 
 dropout_rate = 0.4
 
