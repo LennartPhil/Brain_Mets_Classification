@@ -31,9 +31,9 @@ cutout = False
 rgb_images = True # using gray scale images as input
 contrast_DA = True
 num_classes = 2
-train_upper_layers = True
+train_upper_layers = False
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 batch_size = 20
 if learning_rate_tuning:
@@ -77,7 +77,7 @@ path_to_splits = "/tfrs/split_text_files"
 
 activation_func = "mish"
 
-path_to_weights = path_to_logs + "/transfer_inceptionv3_00_2_cls_cutout_rgb_normal_DA_upper_layer_run_2024_11_05_06_12_03/fold_0/saved_weights.weights.h5"
+path_to_weights = path_to_logs + "/transfer_inceptionv3_01_2_cls_slice_rgb_contrast_DA_upper_layer_run_2024_11_18_10_29_59/fold_0/saved_weights.weights.h5"
 
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
