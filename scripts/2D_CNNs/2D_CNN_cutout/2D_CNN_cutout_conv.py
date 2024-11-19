@@ -26,7 +26,7 @@ rgb_images = False # using gray scale images as input
 contrast_DA = True # data augmentation with contrast
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 
 batch_size = 75 #50
@@ -36,7 +36,7 @@ else:
     training_epochs = 1000
 learning_rate = 0.001 #0.01 is apparently too large
 
-dropout_rate = 0.6 #0.4
+dropout_rate = 0.4
 
 codename = "conv_01"
 training_codename = hf.get_training_codename(
