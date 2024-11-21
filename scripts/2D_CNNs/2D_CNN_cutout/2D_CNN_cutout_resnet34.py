@@ -37,7 +37,7 @@ else:
  # for learning rate set to training_epochs to 400
 learning_rate = 0.001 #0.0001
 
-dropout_rate = 0.5
+dropout_rate = 0.6
 
 codename = "resnet34_00"
 training_codename = hf.get_training_codename(
