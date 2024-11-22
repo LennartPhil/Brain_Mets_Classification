@@ -42,7 +42,7 @@ else:
     training_epochs = 1000
 learning_rate = 0.001
 
-dropout_rate = 0.6
+dropout_rate = 0.7
 
 image_size = 299
 
