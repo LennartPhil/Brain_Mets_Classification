@@ -23,10 +23,10 @@ print("tensorflow_setup successful")
 
 cutout = False #if true, the metastasis is simply cutout, if false the entire slice of the brain is used
 rgb_images = False # using gray scale images as input
-contrast_DA = True # data augmentation with contrast
+contrast_DA = False # data augmentation with contrast
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 50
@@ -37,7 +37,7 @@ else:
  # for learning rate set to training_epochs to 400
 learning_rate = 0.001 #0.0001
 
-dropout_rate = 0.6
+dropout_rate = 0.4 #0.6
 
 codename = "resnet34_00"
 training_codename = hf.get_training_codename(

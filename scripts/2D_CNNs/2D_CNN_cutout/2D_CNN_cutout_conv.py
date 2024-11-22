@@ -23,10 +23,10 @@ print("tensorflow_setup successful")
 
 cutout = False
 rgb_images = False # using gray scale images as input
-contrast_DA = True # data augmentation with contrast
+contrast_DA = False # data augmentation with contrast
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 75 #50
@@ -36,9 +36,9 @@ else:
     training_epochs = 1000
 learning_rate = 0.001 #0.01 is apparently too large
 
-dropout_rate = 0.6
+dropout_rate = 0.4
 
-codename = "conv_01"
+codename = "conv_00"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
