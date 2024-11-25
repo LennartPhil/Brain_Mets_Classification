@@ -35,9 +35,9 @@ cutout = False
 rgb_images = True # using gray scale images as input
 contrast_DA = False
 num_classes = 2
-train_upper_layers = True
+train_upper_layers = False
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 batch_size = 20
 if learning_rate_tuning:
@@ -84,7 +84,8 @@ activation_func = "mish"
 # slice + clinical data + contrast weights:
 #path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_slice_rgb_contrast_DA_upper_layer_run_2024_11_18_23_23_54/fold_0/saved_weights.weights.h5"
 
-path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_slice_rgb_contrast_DA_upper_layer_run_2024_11_18_23_23_54/fold_0/saved_weights.weights.h5"
+# slice + clinical data - contrast weights:
+path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_slice_rgb_normal_DA_upper_layer_run_2024_11_22_21_34_15/fold_0/saved_weights.weights.h5"
 
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
