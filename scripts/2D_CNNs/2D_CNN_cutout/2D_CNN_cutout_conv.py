@@ -33,10 +33,10 @@ batch_size = 75 #50
 if learning_rate_tuning:
     training_epochs = 400
 else:
-    training_epochs = 1000
+    training_epochs = 1500
 learning_rate = 0.0005
 
-dropout_rate = 0.4
+dropout_rate = 0.5
 
 codename = "conv_00"
 training_codename = hf.get_training_codename(
