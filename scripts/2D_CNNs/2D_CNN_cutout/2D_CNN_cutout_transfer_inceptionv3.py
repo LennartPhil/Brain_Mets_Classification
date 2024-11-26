@@ -33,7 +33,7 @@ contrast_DA = False
 num_classes = 2
 train_upper_layers = False
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 batch_size = 20
 if learning_rate_tuning:
