@@ -33,10 +33,10 @@ batch_size = 20 #50
 if learning_rate_tuning:
     training_epochs = 400
 else:
-    training_epochs = 1000
+    training_epochs = 1500
 learning_rate = 0.001
 
-dropout_rate = 0.4 #0.5
+dropout_rate = 0.5 #0.5
 
 codename = "resnext101_00"
 training_codename = hf.get_training_codename(
