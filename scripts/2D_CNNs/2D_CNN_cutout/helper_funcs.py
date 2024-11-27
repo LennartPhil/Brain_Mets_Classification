@@ -18,7 +18,7 @@ test_ratio = 0.1
 shuffle_buffer_size = 200
 repeat_count = 1
 
-early_stopping_patience = 200
+early_stopping_patience = 300 #200
 
 #two_class_weights = {1: 0.92156863, 0 :1.09302326}
 two_class_weights = {0: 1.09302326, 1: 0.92156863}
