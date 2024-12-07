@@ -30,6 +30,7 @@ print("tensorflow_setup successful")
 cutout = False
 rgb_images = True # using gray scale images as input
 contrast_DA = False
+clinical_data = False
 num_classes = 2
 train_upper_layers = False
 use_k_fold = False
@@ -50,6 +51,7 @@ codename = "transfer_resnet50v2_00"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
+    clinical_data = clinical_data,
     is_cutout = cutout,
     is_rgb_images = rgb_images,
     contrast_DA = contrast_DA,
@@ -58,19 +60,7 @@ training_codename = hf.get_training_codename(
     is_upper_layer_training = train_upper_layers
 )
 
-# if learning_rate_tuning:
-#     training_codename = training_codename + "_lr"
-# elif train_upper_layers:
-#     training_codename = training_codename + "_upperlayer"
 
-# training_codename += f"_{num_classes}_cls"
-
-# if rgb_images:
-#     training_codename += "_rgb"
-# else:
-#     training_codename += "_gray"
-
-# path_to_tfrs = "/tfrs/all_pats_single_cutout_rgb"
 path_to_tfrs = hf.get_path_to_tfrs(cutout, rgb_images)
 path_to_logs = "/logs"
 path_to_splits = "/tfrs/split_text_files"
@@ -105,7 +95,7 @@ def train_ai():
             callbacks = hf.get_callbacks(path_to_callbacks, fold)
             
             # build model
-            model = build_transfer_resnet50_model()
+            model = build_transfer_resnet50_model(clinical_data = clinical_data)
             model.get_layer("resnet50v2").trainable = True
 
             # load weights
@@ -122,10 +112,6 @@ def train_ai():
             )
 
             # save history
-            # history_dict = history.history
-            # history_file_name = f"history_{training_codename}_fold_{fold}.npy"
-            # path_to_np_file = path_to_callbacks / history_file_name
-            # np.save(path_to_np_file, history_dict)
             hf.save_training_history(
                 history = history,
                 training_codename = training_codename,
@@ -147,7 +133,7 @@ def train_ai():
                                      stop_training = False,
                                      early_stopping_patience = 20)
         
-        model = build_transfer_resnet50_model()
+        model = build_transfer_resnet50_model(clinical_data = clinical_data)
 
         model.get_layer("resnet50v2").trainable = False
 
@@ -161,10 +147,6 @@ def train_ai():
         )        
 
         # save history
-        # history_dict = history.history
-        # history_file_name = f"history_{training_codename}.npy"
-        # path_to_np_file = path_to_callbacks / history_file_name
-        # np.save(path_to_np_file, history_dict)
         hf.save_training_history(
             history = history,
             training_codename = training_codename,
@@ -181,7 +163,7 @@ def train_ai():
                                      use_early_stopping=False)
 
         # build model
-        model = build_transfer_resnet50_model()
+        model = build_transfer_resnet50_model(clinical_data = clinical_data)
 
         model.get_layer("resnet50v2").trainable = True
 
@@ -199,10 +181,6 @@ def train_ai():
         )        
 
         # save history
-        # history_dict = history.history
-        # history_file_name = f"history_{training_codename}.npy"
-        # path_to_np_file = path_to_callbacks / history_file_name
-        # np.save(path_to_np_file, history_dict)
         hf.save_training_history(
             history = history,
             training_codename = training_codename,
@@ -218,7 +196,7 @@ def train_ai():
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
 
         # build model
-        model = build_transfer_resnet50_model()
+        model = build_transfer_resnet50_model(clinical_data = clinical_data)
 
         model.get_layer("resnet50v2").trainable = True
 
@@ -235,10 +213,6 @@ def train_ai():
         )        
 
         # save history
-        # history_dict = history.history
-        # history_file_name = f"history_{training_codename}.npy"
-        # path_to_np_file = path_to_callbacks / history_file_name
-        # np.save(path_to_np_file, history_dict)
         hf.save_training_history(
             history = history,
             training_codename = training_codename,
@@ -270,10 +244,14 @@ def build_transfer_resnet50_model():
 
     output = tf.keras.layers.Flatten()(x)
 
-    # Process sex and age inputs
-    flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
-    age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
-    concatenated_inputs = tf.keras.layers.Concatenate()([output, age_input_reshaped, flattened_sex_input])
+    # Clinical Data Usage
+    if clinical_data == True:
+        # Process sex and age inputs
+        flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
+        age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
+        concatenated_inputs = tf.keras.layers.Concatenate()([output, age_input_reshaped, flattened_sex_input])
+    else:
+        concatenated_inputs = output
 
     # Define dense and dropout layers
     dense_1_layer = tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal())

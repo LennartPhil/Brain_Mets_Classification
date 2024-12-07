@@ -13,9 +13,6 @@ import numpy as np
 # 2. Run: find best learning rate with exported weights
 # 3. Run: train of the best learning rate
 
-# QUESTION?:
-# Do I need to freeze the pretrained model? Probably right?
-
 gpus = tf.config.list_physical_devices('GPU')
 print(gpus)
 if gpus:
@@ -34,6 +31,7 @@ print("tensorflow_setup successful")
 cutout = True
 rgb_images = True # using gray scale images as input
 contrast_DA = False
+clinical_data = False
 num_classes = 2
 train_upper_layers = True
 use_k_fold = False
@@ -54,6 +52,7 @@ codename = "transfer_efficientv2_00"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
+    clinical_data = clinical_data,
     is_cutout = cutout,
     is_rgb_images = rgb_images,
     contrast_DA = contrast_DA,
@@ -62,19 +61,7 @@ training_codename = hf.get_training_codename(
     is_upper_layer_training = train_upper_layers
 )
 
-# if learning_rate_tuning:
-#     training_codename = training_codename + "_lr"
-# elif train_upper_layers:
-#     training_codename = training_codename + "_upperlayer"
 
-# training_codename += f"_{num_classes}_cls"
-
-# if rgb_images:
-#     training_codename += "_rgb"
-# else:
-#     training_codename += "_gray"
-
-# path_to_tfrs = "/tfrs/all_pats_single_cutout_rgb"
 path_to_tfrs = hf.get_path_to_tfrs(cutout, rgb_images)
 path_to_logs = "/logs"
 path_to_splits = "/tfrs/split_text_files"
@@ -104,7 +91,7 @@ def train_ai():
             callbacks = hf.get_callbacks(path_to_callbacks, fold)
             
             # build model
-            model = build_transfer_efficientv2_model()
+            model = build_transfer_efficientv2_model(clinical_data = clinical_data)
 
             # load weights
             model.load_weights(path_to_weights)
@@ -120,10 +107,6 @@ def train_ai():
             )
 
             # save history
-            # history_dict = history.history
-            # history_file_name = f"history_{training_codename}_fold_{fold}.npy"
-            # path_to_np_file = path_to_callbacks / history_file_name
-            # np.save(path_to_np_file, history_dict)
             hf.save_training_history(
                 history = history,
                 training_codename = training_codename,
@@ -145,7 +128,7 @@ def train_ai():
                                      stop_training = False,
                                      early_stopping_patience = 20)
         
-        model = build_transfer_efficientv2_model(trainable = False)
+        model = build_transfer_efficientv2_model(clinical_data = clinical_data, trainable = False)
 
         # traing model
         history = model.fit(
@@ -158,10 +141,6 @@ def train_ai():
         )        
 
         # save history
-        # history_dict = history.history
-        # history_file_name = f"history_{training_codename}.npy"
-        # path_to_np_file = path_to_callbacks / history_file_name
-        # np.save(path_to_np_file, history_dict)
         hf.save_training_history(
             history = history,
             training_codename = training_codename,
@@ -178,7 +157,7 @@ def train_ai():
                                      use_early_stopping=False)
 
         # build model
-        model = build_transfer_efficientv2_model()
+        model = build_transfer_efficientv2_model(clinical_data = clinical_data)
 
         # load weights
         model.load_weights(path_to_weights)
@@ -194,10 +173,6 @@ def train_ai():
         )        
 
         # save history
-        # history_dict = history.history
-        # history_file_name = f"history_{training_codename}.npy"
-        # path_to_np_file = path_to_callbacks / history_file_name
-        # np.save(path_to_np_file, history_dict)
         hf.save_training_history(
             history = history,
             training_codename = training_codename,
@@ -213,7 +188,7 @@ def train_ai():
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
 
         # build model
-        model = build_transfer_efficientv2_model()
+        model = build_transfer_efficientv2_model(clinical_data = clinical_data)
 
         # load weights
         model.load_weights(path_to_weights)
@@ -228,10 +203,6 @@ def train_ai():
         )        
 
         # save history
-        # history_dict = history.history
-        # history_file_name = f"history_{training_codename}.npy"
-        # path_to_np_file = path_to_callbacks / history_file_name
-        # np.save(path_to_np_file, history_dict)
         hf.save_training_history(
             history = history,
             training_codename = training_codename,
@@ -243,7 +214,7 @@ def train_ai():
 
     hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
-def build_transfer_efficientv2_model(trainable = True):
+def build_transfer_efficientv2_model(clinical_data, trainable = True):
 
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
 
@@ -262,10 +233,14 @@ def build_transfer_efficientv2_model(trainable = True):
 
     output = tf.keras.layers.Flatten()(x)
 
-    # Process sex and age inputs
-    flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
-    age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
-    concatenated_inputs = tf.keras.layers.Concatenate()([output, age_input_reshaped, flattened_sex_input])
+    # Clinical Data Usage
+    if clinical_data == True:
+        # Process sex and age inputs
+        flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
+        age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
+        concatenated_inputs = tf.keras.layers.Concatenate()([output, age_input_reshaped, flattened_sex_input])
+    else:
+        concatenated_inputs = output
 
     # Define dense and dropout layers
     dense_1_layer = tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal())
