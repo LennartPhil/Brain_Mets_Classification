@@ -27,7 +27,7 @@ contrast_DA = False
 clinical_data = False
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 10 #20 #50
