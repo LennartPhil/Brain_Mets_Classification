@@ -574,11 +574,16 @@ def print_training_timestamps(isStart, training_codename):
 
 
 
-def get_training_codename(code_name, num_classes, is_cutout, is_rgb_images, contrast_DA, is_learning_rate_tuning, is_k_fold, is_upper_layer_training = False):
+def get_training_codename(code_name, num_classes, with_clinical_data, is_cutout, is_rgb_images, contrast_DA, is_learning_rate_tuning, is_k_fold, is_upper_layer_training = False):
 
     training_codename = code_name
 
     training_codename += f"_{num_classes}_cls"
+
+    if with_clinical_data:
+        training_codename = training_codename + "_with_clin"
+    else:
+        training_codename = training_codename + "_no_clin"
 
     if is_cutout:
         training_codename = training_codename + "_cutout"
