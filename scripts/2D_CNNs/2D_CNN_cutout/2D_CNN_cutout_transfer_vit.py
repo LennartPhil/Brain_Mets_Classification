@@ -42,7 +42,10 @@ if learning_rate_tuning:
     training_epochs = 400
 else:
     training_epochs = 1000
+
 learning_rate = 0.001
+if train_upper_layers:
+    learning_rate = 0.001
 
 dropout_rate = 0.4
 

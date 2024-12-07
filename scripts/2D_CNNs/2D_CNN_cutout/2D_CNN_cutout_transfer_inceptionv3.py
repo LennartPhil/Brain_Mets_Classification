@@ -32,7 +32,7 @@ rgb_images = True # using gray scale images as input
 contrast_DA = False
 clinical_data = False
 num_classes = 2
-train_upper_layers = False
+train_upper_layers = True
 use_k_fold = False
 learning_rate_tuning = False
 
@@ -41,7 +41,10 @@ if learning_rate_tuning:
     training_epochs = 400
 else:
     training_epochs = 1500
-learning_rate = 0.0008
+
+learning_rate = 0.0005    
+if train_upper_layers:
+    learning_rate = 0.001
 
 dropout_rate = 0.7 #0.8
 
