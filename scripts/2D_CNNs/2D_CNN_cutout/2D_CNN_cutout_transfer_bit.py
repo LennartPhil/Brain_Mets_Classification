@@ -33,9 +33,9 @@ rgb_images = True # using gray scale images as input
 contrast_DA = False
 clinical_data = False
 num_classes = 2
-train_upper_layers = True
+train_upper_layers = False
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 batch_size = 20
 if learning_rate_tuning:
@@ -43,11 +43,11 @@ if learning_rate_tuning:
 else:
     training_epochs = 1500
 
-learning_rate = 0.0005    
+learning_rate = 0.001
 if train_upper_layers:
     learning_rate = 0.001
 
-dropout_rate = 0.75 #0.6
+dropout_rate = 0.4 #0.6
 
 image_size = 384
 
@@ -75,7 +75,10 @@ activation_func = "mish"
 #path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_slice_rgb_contrast_DA_upper_layer_run_2024_11_18_23_23_54/fold_0/saved_weights.weights.h5"
 
 # slice + clinical data - contrast weights:
-path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_slice_rgb_normal_DA_upper_layer_run_2024_11_22_21_34_15/fold_0/saved_weights.weights.h5"
+#path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_slice_rgb_normal_DA_upper_layer_run_2024_11_22_21_34_15/fold_0/saved_weights.weights.h5"
+
+# slice - cinical data - contrast weights:
+path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_no_clin_slice_rgb_normal_DA_upper_layer_run_2024_12_08_03_16_11/fold_0/saved_weights.weights.h5"
 
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
