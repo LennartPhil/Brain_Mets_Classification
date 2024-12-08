@@ -46,7 +46,7 @@ learning_rate = 0.001
 if train_upper_layers:
     learning_rate = 0.001
 
-dropout_rate = 0.7 #0.6
+dropout_rate = 0.4 #0.6
 
 image_size = 224
 
@@ -75,8 +75,10 @@ activation_func = "mish"
 #path_to_weights = path_to_logs + "/transfer_resnet50v2_00_2_cls_slice_rgb_contrast_DA_upper_layer_run_2024_11_18_23_31_41/fold_0/saved_weights.weights.h5"
 
 # slice + clinical data - contrast weights:
-path_to_weights = path_to_logs + "/transfer_resnet50v2_00_2_cls_slice_rgb_normal_DA_upper_layer_run_2024_11_22_21_50_51/fold_0/saved_weights.weights.h5"
+#path_to_weights = path_to_logs + "/transfer_resnet50v2_00_2_cls_slice_rgb_normal_DA_upper_layer_run_2024_11_22_21_50_51/fold_0/saved_weights.weights.h5"
 
+# slice - clinical data - contrast weights:
+path_to_weights = path_to_logs + ""
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
 class_directory = f"{training_codename}_{time}"
@@ -228,7 +230,16 @@ def train_ai():
     hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
 
-def build_transfer_resnet50_model():
+def build_transfer_resnet50_model(clinical_data):
+    """
+    Builds a transfer learning model on top of ResNet50V2.
+
+    Parameters:
+    clinical_data (bool): Whether to use clinical data (like age and sex of the patients) or not.
+
+    Returns:
+    model (tf.keras.Model): The built model.
+    """
 
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
 
