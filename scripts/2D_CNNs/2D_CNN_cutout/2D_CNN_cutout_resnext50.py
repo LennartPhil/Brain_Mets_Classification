@@ -27,7 +27,7 @@ contrast_DA = False
 clinical_data = False
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 
 batch_size = 20 #50
@@ -35,9 +35,9 @@ if learning_rate_tuning:
     training_epochs = 400
 else:
     training_epochs = 1500
-learning_rate = 0.0005
+learning_rate = 0.001
 
-dropout_rate = 0.45 #0.5
+dropout_rate = 0.4 #0.5
 
 codename = "resnext50_00"
 training_codename = hf.get_training_codename(

@@ -27,7 +27,7 @@ contrast_DA = False # data augmentation with contrast
 clinical_data = False
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 
 batch_size = 50
@@ -38,7 +38,7 @@ else:
  # for learning rate set to training_epochs to 400
 learning_rate = 0.001 #0.0001
 
-dropout_rate = 0.6 #0.6
+dropout_rate = 0.4 #0.6
 
 codename = "resnet34_00"
 training_codename = hf.get_training_codename(

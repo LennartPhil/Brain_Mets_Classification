@@ -27,7 +27,7 @@ contrast_DA = False # data augmentation with contrast
 clinical_data = False
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 
 batch_size = 75 #50
@@ -35,9 +35,9 @@ if learning_rate_tuning:
     training_epochs = 400
 else:
     training_epochs = 1500
-learning_rate = 0.0005
+learning_rate = 0.001
 
-dropout_rate = 0.65
+dropout_rate = 0.4
 
 codename = "conv_00"
 training_codename = hf.get_training_codename(
