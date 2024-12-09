@@ -34,7 +34,7 @@ clinical_data = False
 num_classes = 2
 train_upper_layers = False
 use_k_fold = False
-learning_rate_tuning = True
+learning_rate_tuning = False
 
 batch_size = 20
 if learning_rate_tuning:
@@ -42,7 +42,7 @@ if learning_rate_tuning:
 else:
     training_epochs = 1500
 
-learning_rate = 0.001 
+learning_rate = 0.004
 if train_upper_layers:
     learning_rate = 0.001
 
