@@ -32,9 +32,9 @@ rgb_images = True # using gray scale images as input
 contrast_DA = False
 clinical_data = False
 num_classes = 2
-train_upper_layers = True
+train_upper_layers = False
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 batch_size = 20
 if learning_rate_tuning:
@@ -78,7 +78,7 @@ activation_func = "mish"
 #path_to_weights = path_to_logs + "/transfer_resnet50v2_00_2_cls_slice_rgb_normal_DA_upper_layer_run_2024_11_22_21_50_51/fold_0/saved_weights.weights.h5"
 
 # slice - clinical data - contrast weights:
-path_to_weights = path_to_logs + ""
+path_to_weights = path_to_logs + "/transfer_resnet50v2_00_2_cls_no_clin_slice_rgb_normal_DA_upper_layer_run_2024_12_09_06_27_15/fold_0/saved_weights.weights.h5"
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
 class_directory = f"{training_codename}_{time}"
