@@ -46,7 +46,7 @@ learning_rate = 0.004
 if train_upper_layers:
     learning_rate = 0.001
 
-dropout_rate = 0.55 #0.8
+dropout_rate = 0.6 #0.8
 
 image_size = 299
 
