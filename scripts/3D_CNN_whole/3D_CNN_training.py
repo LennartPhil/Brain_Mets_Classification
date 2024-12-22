@@ -27,7 +27,7 @@ path_to_logs = "/logs"
 num_classes = 2
 
 use_k_fold = False
-hyperparameter_tuning = True
+hyperparameter_tuning = False
 
 ## train / val / test split
 train_ratio = 0.8
@@ -40,15 +40,17 @@ epochs = 1000
 early_stopping_patience = 150
 shuffle_buffer_size = 100
 repeat_count = 1
-learning_rate = 0.001 #previously 0.0001
+learning_rate = 0.0005 #previously 0.0001
 
 activation_func = "mish"
+
+training_codename = "001"
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
 if hyperparameter_tuning:
     class_directory = f"hptuning_{num_classes}_classes_{time}"
 else:
-    class_directory = f"{num_classes}_classes_{time}"
+    class_directory = f"{training_codename}_{num_classes}_classes_{time}"
 
 # create callbacks directory
 path_to_callbacks = Path(path_to_logs) / Path(class_directory)
@@ -133,7 +135,7 @@ def train_ai():
             hypermodel = build_hp_model,
             objective = "val_accuracy",
             max_epochs = 100,
-            factor = 3,
+            factor = 4,
             #hyperband_iterations = 2,
             directory = path_to_callbacks,
             project_name = "3D_CNN_hyperband",
@@ -498,7 +500,7 @@ def build_simple_model():
     dropout_1_layer = tf.keras.layers.Dropout(0.5)
     dense_2_layer = tf.keras.layers.Dense(100, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
     dropout_2_layer = tf.keras.layers.Dropout(0.5)
-    output_layer = tf.keras.layers.Dense(2, activation="softmax")
+    # output_layer = tf.keras.layers.Dense(2, activation="softmax")
 
     batch_norm = batch_norm_layer(image_input)
 
@@ -516,23 +518,23 @@ def build_simple_model():
 
     flatten = tf.keras.layers.Flatten()(max_pool_3)
 
-    dense_1 = dense_1_layer(flatten)
-    dropout_1 = dropout_1_layer(dense_1)
+    # dense_1 = dense_1_layer(flatten)
+    # dropout_1 = dropout_1_layer(dense_1)
 
-    dense_2 = dense_2_layer(dropout_1)
-    dropout_2 = dropout_2_layer(dense_2)
+    # dense_2 = dense_2_layer(dropout_1)
+    # dropout_2 = dropout_2_layer(dense_2)
 
-    output = output_layer(dropout_2)
+    # output = output_layer(dropout_2)
 
-    flattened_images = tf.keras.layers.Flatten()(output)
+    #flattened_images = tf.keras.layers.Flatten()(output)
     flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
     age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)  # Reshape age_input to have 2 dimensions
-    concatenated_inputs = tf.keras.layers.Concatenate()([flattened_images, age_input_reshaped, flattened_sex_input])
+    concatenated_inputs = tf.keras.layers.Concatenate()([flatten, age_input_reshaped, flattened_sex_input])
 
     x = MCDropout(0.4)(concatenated_inputs)
-    x = tf.keras.layers.Dense(50, activation="mish")(x)
+    x = dense_1_layer(x)
     x = MCDropout(0.4)(x)
-    x = tf.keras.layers.Dense(50, activation="mish")(x)
+    x = dense_2_layer(x)
     # x = MCDropout(0.4)(x)
     # x = tf.keras.layers.Dense(200, activation="mish")(x)
 
