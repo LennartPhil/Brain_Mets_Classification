@@ -352,6 +352,23 @@ def get_callbacks(path_to_callbacks,
     return callbacks
 
 
+class NormalizeToRange(tf.keras.layers.Layer):
+    def __init__(self, zero_to_one=True):
+        super(NormalizeToRange, self).__init__()
+        self.zero_to_one = zero_to_one
+
+    def call(self, inputs):
+        min_val = tf.reduce_min(inputs)
+        max_val = tf.reduce_max(inputs)
+        if self.zero_to_one:
+            # Normalize to [0, 1]
+            normalized = (inputs - min_val) / (max_val - min_val)
+        else:
+            # Normalize to [-1, 1]
+            normalized = 2 * (inputs - min_val) / (max_val - min_val) - 1
+        return normalized
+
+
 #Custom Weighted Cross Entropy Loss
 class WeightedCrossEntropyLoss(tf.keras.losses.Loss):
     def __init__(self, class_weights):
