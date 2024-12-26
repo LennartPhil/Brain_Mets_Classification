@@ -156,8 +156,8 @@ def read_data(train_paths, val_paths, num_classes, batch_size, test_paths = None
         deterministic=False
     )
 
-    train_data = train_data.map(partial(parse_record, image_only = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
-    val_data = val_data.map(partial(parse_record, image_only = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+    train_data = train_data.map(partial(parse_record, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+    val_data = val_data.map(partial(parse_record, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
 
     train_data = train_data.shuffle(buffer_size=shuffle_buffer_size)
     val_data = val_data.shuffle(buffer_size=shuffle_buffer_size)
@@ -178,7 +178,7 @@ def read_data(train_paths, val_paths, num_classes, batch_size, test_paths = None
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=False
         )
-        test_data = test_data.map(partial(parse_record, image_only = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+        test_data = test_data.map(partial(parse_record, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
         test_data = test_data.batch(batch_size)
         test_data = test_data.prefetch(buffer_size=1)
 
@@ -186,7 +186,7 @@ def read_data(train_paths, val_paths, num_classes, batch_size, test_paths = None
 
     return train_data, val_data
 
-def parse_record(record, image_only = False, labeled = False, num_classes = 2, rgb = False, sequence = "t1c"):
+def parse_record(record, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False, sequence = "t1c"):
 
     image_shape = []
 
@@ -199,6 +199,7 @@ def parse_record(record, image_only = False, labeled = False, num_classes = 2, r
         "image": tf.io.FixedLenFeature(image_shape, tf.float32),
         "sex": tf.io.FixedLenFeature([], tf.int64, default_value=[0]),
         "age": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+        "layer": tf.io.FixedLenFeature([], tf.int64, default_value=0),
         "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0),
     }
 
@@ -257,10 +258,26 @@ def parse_record(record, image_only = False, labeled = False, num_classes = 2, r
         elif sequence == "flair":
             image = image[:, :, :, 3]
 
-    if image_only:
+    # if use_clinical_data is False and use_layer is False, return only the image and the primary
+    if use_clinical_data == False and use_layer == False:
         return image, primary_to_return
-    elif labeled:
+    
+    # if use_clinical_data is False and use_layer is True, return only the image, the layer and the primary
+    elif use_clinical_data == False and use_layer:
+        return (image, example["layer"]), primary_to_return
+    
+    # if use_clinical_data is True and use_layer is False, return the image, the sex, the age and the primary
+    elif use_clinical_data and use_layer == False and labeled:
         return (image, example["sex"], example["age"]), primary_to_return #example["primary"]
+    
+    # if use_clinical_data is True and use_layer is True and labeled, return the image, the sex, the age, the layer and the primary
+    elif use_clinical_data and use_layer and labeled:
+        return (image, example["sex"], example["age"], example["layer"]), primary_to_return
+
+    # if use_clinical_data is True and use_layer is True and not labeled, return the image, the sex, the age and the layer, not the primary!
+    elif use_clinical_data and use_layer and not labeled:
+        return image, example["sex"], example["age"], example["layer"]
+
     else:
         return image
     
@@ -574,21 +591,57 @@ def print_training_timestamps(isStart, training_codename):
 
 
 
-def get_training_codename(code_name, num_classes, clinical_data, is_cutout, is_rgb_images, contrast_DA, is_learning_rate_tuning, is_k_fold, is_upper_layer_training = False):
+def get_training_codename(code_name, num_classes, clinical_data, use_layer, is_cutout, is_rgb_images, contrast_DA, is_learning_rate_tuning, is_k_fold, is_upper_layer_training = False):
+    """
+    Generates a unique codename for a training run based on the inputs.
 
+    Parameters
+    ----------
+    code_name : str
+        Base name for the training run.
+    num_classes : int
+        Number of classes for the classification task.
+    clinical_data : bool
+        Whether to include clinical data in the model.
+    use_layer : bool
+        Whether to use a layer for the model.
+    is_cutout : bool
+        Whether to use cutout for the model.
+    is_rgb_images : bool
+        Whether to use RGB images.
+    contrast_DA : bool
+        Whether to use contrast data augmentation.
+    is_learning_rate_tuning : bool
+        Whether to tune the learning rate.
+    is_k_fold : bool
+        Whether to use k-fold cross-validation.
+    is_upper_layer_training : bool, optional
+        Whether to train the upper layer of the model.
+
+    Returns
+    -------
+    training_codename : str
+        Unique codename for the training run.
+    """
+    
     training_codename = code_name
 
     training_codename += f"_{num_classes}_cls"
+
+    if is_cutout:
+        training_codename = training_codename + "_cutout"
+    else:
+        training_codename = training_codename + "_slice"
 
     if clinical_data:
         training_codename = training_codename + "_with_clin"
     else:
         training_codename = training_codename + "_no_clin"
 
-    if is_cutout:
-        training_codename = training_codename + "_cutout"
+    if use_layer:
+        training_codename = training_codename + "_with_layer"
     else:
-        training_codename = training_codename + "_slice"
+        training_codename = training_codename + "_no_layer"
 
     if is_rgb_images:
         training_codename += "_rgb"
