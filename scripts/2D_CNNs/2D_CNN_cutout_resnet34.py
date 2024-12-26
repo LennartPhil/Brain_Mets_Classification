@@ -23,11 +23,12 @@ print("tensorflow_setup successful")
 
 cutout = False #if true, the metastasis is simply cutout, if false the entire slice of the brain is used
 rgb_images = False # using gray scale images as input
-contrast_DA = False # data augmentation with contrast
-clinical_data = False
+contrast_DA = True # data augmentation with contrast
+clinical_data = True
+use_layer = True
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 50
@@ -38,13 +39,15 @@ else:
  # for learning rate set to training_epochs to 400
 learning_rate = 0.001 #0.0001
 
-dropout_rate = 0.6
+dropout_rate = 0.4
+l2_regularization = 0.0001
 
 codename = "resnet34_00"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
     clinical_data = clinical_data,
+    use_layer = use_layer,
     is_cutout = cutout,
     is_rgb_images = rgb_images,
     contrast_DA = contrast_DA,
@@ -81,7 +84,7 @@ def train_ai():
             callbacks = hf.get_callbacks(path_to_callbacks, fold)
             
             # build model
-            model = build_resnet34_model(clinical_data = clinical_data)
+            model = build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer)
 
             #training model
             history = model.fit(
@@ -115,7 +118,7 @@ def train_ai():
                                      use_early_stopping=False)
 
         # build model
-        model = build_resnet34_model(clinical_data = clinical_data)
+        model = build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer)
 
         # traing model
         history = model.fit(
@@ -143,7 +146,7 @@ def train_ai():
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
 
         # build model
-        model = build_resnet34_model(clinical_data = clinical_data)
+        model = build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer)
 
         # traing model
         history = model.fit(
@@ -167,7 +170,7 @@ def train_ai():
     hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
 
-def build_resnet34_model(clinical_data = clinical_data):
+def build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer):
     """
     Builds a ResNet34 model for image classification.
 
@@ -185,6 +188,13 @@ def build_resnet34_model(clinical_data = clinical_data):
                             activation = activation_func,
                             kernel_initializer="he_normal",
                             use_bias=False)
+    
+    DefaultDenseLayer = partial(
+        tf.keras.layers.Dense,
+        activation = activation_func,
+        kernel_initializer = "he_normal",
+        kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+    )
     
     class ResidualUnit(tf.keras.layers.Layer):
         def __init__(self, filters, strides=1, activation="relu", **kwargs):
