@@ -247,9 +247,9 @@ def build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer):
     dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
 
     augment = data_augmentation(image_input)
-    batch_norm_1 = tf.keras.layers.BatchNormalization(augment)
+    batch_normed_augment = tf.keras.layers.BatchNormalization(augment)
 
-    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2, input_shape = [240, 240, 4])(batch_norm_1)
+    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2, input_shape = [240, 240, 4])(batch_normed_augment)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation(activation_func)(x)
     x = tf.keras.layers.MaxPool2D(pool_size = 3, strides = 2, padding = "same")(x)
@@ -287,7 +287,7 @@ def build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer):
         concatenated_inputs = resnet
 
     x = tf.keras.layers.BatchNormalization()(concatenated_inputs)
-    x = dense_1_layer(concatenated_inputs)
+    x = dense_1_layer(x)
     x = dropout_1_layer(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = dense_2_layer(x)
@@ -309,32 +309,18 @@ def build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer):
         model.compile(
             loss = "sparse_categorical_crossentropy",
             optimizer = optimizer,
-            metrics = ["RootMeanSquaredError", "accuracy"])
+            metrics = ["RootMeanSquaredError", "accuracy"]
+        )
     else:
         model.compile(
             loss = "binary_crossentropy",
             optimizer = optimizer,
-            metrics = ["RootMeanSquaredError", "accuracy"])
+            metrics = ["RootMeanSquaredError", "accuracy"]
+        )
     model.summary()
 
     return model
 
-
-class NormalizeToRange(tf.keras.layers.Layer):
-    def __init__(self, zero_to_one=True):
-        super(NormalizeToRange, self).__init__()
-        self.zero_to_one = zero_to_one
-
-    def call(self, inputs):
-        min_val = tf.reduce_min(inputs)
-        max_val = tf.reduce_max(inputs)
-        if self.zero_to_one:
-            # Normalize to [0, 1]
-            normalized = (inputs - min_val) / (max_val - min_val)
-        else:
-            # Normalize to [-1, 1]
-            normalized = 2 * (inputs - min_val) / (max_val - min_val) - 1
-        return normalized
     
 if contrast_DA:
     data_augmentation = tf.keras.Sequential([
@@ -343,7 +329,7 @@ if contrast_DA:
         tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
         tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
         tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
-        NormalizeToRange(zero_to_one=True),
+        hf.NormalizeToRange(zero_to_one=True),
         tf.keras.layers.RandomTranslation(
             height_factor = 0.05,
             width_factor = 0.05,
@@ -358,7 +344,7 @@ else:
         #tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
         #tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
         tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
-        NormalizeToRange(zero_to_one=True),
+        hf.NormalizeToRange(zero_to_one=True),
         tf.keras.layers.RandomTranslation(
             height_factor = 0.05,
             width_factor = 0.05,
