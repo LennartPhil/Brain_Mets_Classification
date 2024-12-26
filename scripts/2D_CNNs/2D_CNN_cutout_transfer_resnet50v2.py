@@ -29,10 +29,11 @@ print("tensorflow_setup successful")
 
 cutout = False
 rgb_images = True # using gray scale images as input
-contrast_DA = False
-clinical_data = False
+contrast_DA = True
+clinical_data = True
+use_layer = True
 num_classes = 2
-train_upper_layers = False
+train_upper_layers = True
 use_k_fold = False
 learning_rate_tuning = False
 
@@ -46,7 +47,9 @@ learning_rate = 0.001
 if train_upper_layers:
     learning_rate = 0.001
 
-dropout_rate = 0.6 #0.6
+# Regularization
+dropout_rate = 0.4
+l2_regularization = 0.0001
 
 image_size = 224
 
@@ -55,6 +58,7 @@ training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
     clinical_data = clinical_data,
+    use_layer = use_layer,
     is_cutout = cutout,
     is_rgb_images = rgb_images,
     contrast_DA = contrast_DA,
@@ -100,7 +104,7 @@ def train_ai():
             callbacks = hf.get_callbacks(path_to_callbacks, fold)
             
             # build model
-            model = build_transfer_resnet50_model(clinical_data = clinical_data)
+            model = build_transfer_resnet50_model(clinical_data = clinical_data, use_layer = use_layer)
             model.get_layer("resnet50v2").trainable = True
 
             # load weights
@@ -138,7 +142,7 @@ def train_ai():
                                      stop_training = False,
                                      early_stopping_patience = 20)
         
-        model = build_transfer_resnet50_model(clinical_data = clinical_data)
+        model = build_transfer_resnet50_model(clinical_data = clinical_data, use_layer = use_layer)
 
         model.get_layer("resnet50v2").trainable = False
 
@@ -168,7 +172,7 @@ def train_ai():
                                      use_early_stopping=False)
 
         # build model
-        model = build_transfer_resnet50_model(clinical_data = clinical_data)
+        model = build_transfer_resnet50_model(clinical_data = clinical_data, use_layer = use_layer)
 
         model.get_layer("resnet50v2").trainable = True
 
@@ -201,7 +205,7 @@ def train_ai():
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
 
         # build model
-        model = build_transfer_resnet50_model(clinical_data = clinical_data)
+        model = build_transfer_resnet50_model(clinical_data = clinical_data, use_layer = use_layer)
 
         model.get_layer("resnet50v2").trainable = True
 
@@ -230,7 +234,7 @@ def train_ai():
     hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
 
-def build_transfer_resnet50_model(clinical_data):
+def build_transfer_resnet50_model(clinical_data, use_layer):
     """
     Builds a transfer learning model on top of ResNet50V2.
 
@@ -241,41 +245,70 @@ def build_transfer_resnet50_model(clinical_data):
     model (tf.keras.Model): The built model.
     """
 
+    DefaultDenseLayer = partial(
+        tf.keras.layers.Dense,
+        activation = activation_func,
+        kernel_initializer = "he_normal",
+        kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+    )
+
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
 
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 3))
     sex_input = tf.keras.layers.Input(shape=(1,))
     age_input = tf.keras.layers.Input(shape=(1,))
+    layer_input = tf.keras.layers.Input(shape=(1,))
+
+    batch_normed_sex_input = tf.keras.layers.BatchNormalization()(sex_input)
+    batch_normed_age_input = tf.keras.layers.BatchNormalization()(age_input)
+    batch_normed_layer_input = tf.keras.layers.BatchNormalization()(layer_input)
 
     augmented = data_augmentation(image_input)
+    batch_normed_augmented = tf.keras.layers.BatchNormalization()(augmented)
     
-    tf.print("Augmented shape:", augmented.shape)
+    #tf.print("Augmented shape:", augmented.shape)
 
     # Use the pretrained base model
-    x = tf.keras.applications.ResNet50V2(include_top = False)(augmented)
+    x = tf.keras.applications.ResNet50V2(include_top = False)(batch_normed_augmented)
     x = tf.keras.layers.GlobalMaxPool2D()(x)
 
-    output = tf.keras.layers.Flatten()(x)
+    resnet50 = tf.keras.layers.Flatten()(x)
 
     # Clinical Data Usage
-    if clinical_data == True:
-        # Process sex and age inputs
-        flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
-        age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)
-        concatenated_inputs = tf.keras.layers.Concatenate()([output, age_input_reshaped, flattened_sex_input])
+    if clinical_data == True and use_layer == True:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet50,
+            batch_normed_sex_input,
+            batch_normed_age_input,
+            batch_normed_layer_input
+        ])
+    elif clinical_data == True and use_layer == False:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet50,
+            batch_normed_sex_input,
+            batch_normed_age_input
+        ])
+    elif clinical_data == False and use_layer == True:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet50,
+            batch_normed_layer_input
+        ])
     else:
-        concatenated_inputs = output
+        # if clinical data is not wanted, then only the image is used
+        concatenated_inputs = resnet50
 
     # Define dense and dropout layers
-    dense_1_layer = tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal())
+    dense_1_layer = DefaultDenseLayer(units = 512)
     dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
-    dense_2_layer = tf.keras.layers.Dense(256, activation='relu', kernel_initializer=tf.keras.initializers.HeNormal())
+    dense_2_layer = DefaultDenseLayer(units = 256)
     dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
 
     # Fully connected layers
-    x = dense_1_layer(concatenated_inputs)
+    x = tf.keras.layers.BatchNormalization()(concatenated_inputs)
+    x = dense_1_layer(x)
     x = dropout_1_layer(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = dense_2_layer(x)
     x = dropout_2_layer(x)
 
@@ -293,30 +326,22 @@ def build_transfer_resnet50_model(clinical_data):
     model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output], name = "transfer_resnet50v2_model")
 
     if num_classes > 2:
-        model.compile(loss="sparse_categorical_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+        model.compile(
+            loss = "sparse_categorical_crossentropy",
+            optimizer = optimizer,
+            metrics = ["RootMeanSquaredError", "accuracy"]
+        )
     else:
-        model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+        model.compile(
+            loss = "binary_crossentropy",
+            optimizer = optimizer,
+            metrics = ["RootMeanSquaredError", "accuracy"]
+        )
     
     model.summary()
 
     return model
 
-
-class NormalizeToRange(tf.keras.layers.Layer):
-    def __init__(self, zero_to_one=True):
-        super(NormalizeToRange, self).__init__()
-        self.zero_to_one = zero_to_one
-
-    def call(self, inputs):
-        min_val = tf.reduce_min(inputs)
-        max_val = tf.reduce_max(inputs)
-        if self.zero_to_one:
-            # Normalize to [0, 1]
-            normalized = (inputs - min_val) / (max_val - min_val)
-        else:
-            # Normalize to [-1, 1]
-            normalized = 2 * (inputs - min_val) / (max_val - min_val) - 1
-        return normalized
     
 if contrast_DA:
     data_augmentation = tf.keras.Sequential([
@@ -325,7 +350,7 @@ if contrast_DA:
         tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
         tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
         tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
-        NormalizeToRange(zero_to_one=True),
+        hf.NormalizeToRange(zero_to_one=True),
         tf.keras.layers.RandomTranslation(
             height_factor = 0.05,
             width_factor = 0.05,
@@ -340,7 +365,7 @@ else:
         #tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
         #tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
         tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
-        NormalizeToRange(zero_to_one=True),
+        hf.NormalizeToRange(zero_to_one=True),
         tf.keras.layers.RandomTranslation(
             height_factor = 0.05,
             width_factor = 0.05,
