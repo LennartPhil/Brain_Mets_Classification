@@ -28,16 +28,9 @@ Tensorflow
 ## Road Map
 
 ### Work in Progress
-- [X] segmentation
-    - [X] redo segmentation on n4 bias corrected files
-    - [X] manually adjust segmentation
-- [ ] Train AIs
-    - [ ] 2D CNN (only metastasis cutout)
-    - [ ] 2D CNN* (transfer learning)
-    - [ ] Vision Transformer (pretrained)
+- [ ] Train AIs (2D)
 
 ### To-do
-- [ ] Train ai
 - [ ] Explore results
 
 ### Done
@@ -59,8 +52,15 @@ Tensorflow
     - [X] Merge images
 - [X] redo preprocessing using the brats-toolkit
 - [X] redo preprocessing with n4 bias correction (last time, I swear)
-- [ ] Build AIs (currently working on this)
+- [X] segmentation
+    - [X] redo segmentation on n4 bias corrected files
+    - [X] manually adjust segmentation
+- [X] Build AIs
     - [X] 3D CNN (entire brain) -> unfortunately unsuccessfull :/
         - [X] Transfer ResNeXt architecture to 3D
         - [X] custom scheduler
         - [X] custom ai architecture (input: images, age, sex)
+    - [X] 2D CNNs
+        - [X] 2D CNN (only metastasis cutout)
+        - [X] 2D CNN* (transfer learning)
+        - [X] Vision Transformer (pretrained)
