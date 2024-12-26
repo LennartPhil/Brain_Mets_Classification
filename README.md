@@ -30,11 +30,11 @@ Tensorflow
 ### Work in Progress
 - [X] segmentation
     - [X] redo segmentation on n4 bias corrected files
-    - [ ] manually adjust segmentation
-- [ ] Build AIs
+    - [X] manually adjust segmentation
+- [ ] Train AIs
     - [ ] 2D CNN (only metastasis cutout)
     - [ ] 2D CNN* (transfer learning)
-    - [ ] Vision Transformer (maybe)
+    - [ ] Vision Transformer (pretrained)
 
 ### To-do
 - [ ] Train ai
