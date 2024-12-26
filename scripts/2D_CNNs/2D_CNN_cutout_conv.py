@@ -174,11 +174,11 @@ def build_conv_model(clinical_data, use_layer):
   
     DefaultConv2D = partial(
         tf.keras.layers.Conv2D,
-        kernel_size=3,
-        padding="same",
-        activation=activation_func,
-        kernel_initializer="he_normal",
-        kernel_regularizer=tf.keras.regularizers.l2(l2_regularization)  # L2 Regularization
+        kernel_size = 3,
+        padding = "same",
+        activation = activation_func,
+        kernel_initializer = "he_normal",
+        kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)  # L2 Regularization
     )
 
     DefaultDenseLayer = partial(
