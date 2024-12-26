@@ -38,6 +38,7 @@ else:
     training_epochs = 1500
 learning_rate = 0.001
 
+# Regularization
 dropout_rate = 0.4
 l2_regularization = 0.0001
 
@@ -187,7 +188,7 @@ def build_conv_model(clinical_data, use_layer):
         kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
     )
 
-    optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
+    optimizer = tf.keras.optimizers.legacy.SGD(learning_rate = learning_rate, momentum = 0.9, nesterov = True)
 
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))
@@ -272,17 +273,8 @@ def build_conv_model(clinical_data, use_layer):
         case 2:
             x = tf.keras.layers.Dense(1)(x)
             output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
-        case 3:
-            x = tf.keras.layers.Dense(3)(x)
-            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
-        case 4:
-            x = tf.keras.layers.Dense(4)(x)
-            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
-        case 5:
-            x = tf.keras.layers.Dense(5)(x)
-            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
-        case 6:
-            x = tf.keras.layers.Dense(6)(x)
+        case 3 | 4 | 5 | 6:
+            x = tf.keras.layers.Dense(num_classes)(x)
             output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         case _:
             print("Wrong num classes set in the build_conv_model func, please pick a number between 2 and 6")
