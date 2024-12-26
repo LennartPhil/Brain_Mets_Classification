@@ -23,11 +23,12 @@ print("tensorflow_setup successful")
 
 cutout = False
 rgb_images = False # using gray scale images as input
-contrast_DA = False
-clinical_data = False
+contrast_DA = True
+clinical_data = True
+use_layer = True
 num_classes = 2
 use_k_fold = False
-learning_rate_tuning = False
+learning_rate_tuning = True
 
 
 batch_size = 10 #20 #50
@@ -37,13 +38,16 @@ else:
     training_epochs = 1000
 learning_rate = 0.001
 
+# Regularization
 dropout_rate = 0.4 #0.5
+l2_regularization = 0.0001
 
 codename = "resnet152_00"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
     clinical_data = clinical_data,
+    use_layer = use_layer,
     is_cutout = cutout,
     is_rgb_images = rgb_images,
     contrast_DA = contrast_DA,
@@ -79,7 +83,7 @@ def train_ai():
             callbacks = hf.get_callbacks(path_to_callbacks, fold)
             
             # build model
-            model = build_resnet152_model(clinical_data = clinical_data)
+            model = build_resnet152_model(clinical_data = clinical_data, use_layer = use_layer)
 
             #training model
             history = model.fit(
@@ -109,11 +113,11 @@ def train_ai():
         train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size,rgb = rgb_images)
         
         callbacks = hf.get_callbacks(path_to_callbacks, 0,
-                                     use_lrscheduler=True,
-                                     use_early_stopping=False)
+                                     use_lrscheduler = True,
+                                     use_early_stopping = False)
 
         # build model
-        model = build_resnet152_model(clinical_data = clinical_data)
+        model = build_resnet152_model(clinical_data = clinical_data, use_layer = use_layer)
 
         # traing model
         history = model.fit(
@@ -141,7 +145,7 @@ def train_ai():
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
 
         # build model
-        model = build_resnet152_model(clinical_data = clinical_data)
+        model = build_resnet152_model(clinical_data = clinical_data, use_layer = use_layer)
 
         # traing model
         history = model.fit(
@@ -164,15 +168,25 @@ def train_ai():
 
     hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
-def build_resnet152_model(clinical_data = clinical_data):
+def build_resnet152_model(clinical_data = clinical_data, use_layer = use_layer):
 
-    DefaultConv2D = partial(tf.keras.layers.Conv2D,
-                            kernel_size=3,
-                            strides = 1,
-                            padding="same",
-                            activation = activation_func,
-                            kernel_initializer="he_normal",
-                            use_bias=False)
+    DefaultConv2D = partial(
+        tf.keras.layers.Conv2D,
+        kernel_size = 3,
+        strides = 1,
+        padding="same",
+        activation = activation_func,
+        kernel_initializer = "he_normal",
+        use_bias = False,
+        kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+    )
+
+    DefaultDenseLayer = partial(
+        tf.keras.layers.Dense,
+        activation = activation_func,
+        kernel_initializer = "he_normal",
+        kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+    )
     
     class BottleneckResidualUnit(tf.keras.layers.Layer):
         def __init__(self, filters, strides=1, activation="relu", **kwargs):
@@ -182,25 +196,65 @@ def build_resnet152_model(clinical_data = clinical_data):
             self.filters = filters
 
             self.main_layers = [
-                tf.keras.layers.Conv2D(filters, kernel_size=1, strides=strides, padding="same", kernel_initializer="he_normal", use_bias=False),
+                tf.keras.layers.Conv2D(
+                    filters,
+                    kernel_size = 1,
+                    strides = strides,
+                    padding = "same",
+                    kernel_initializer = "he_normal",
+                    use_bias = False,
+                    kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+                ),
                 tf.keras.layers.BatchNormalization(),
                 self.activation,
-                tf.keras.layers.Conv2D(filters, kernel_size=3, strides=1, padding="same", kernel_initializer="he_normal", use_bias=False),
+                tf.keras.layers.Conv2D(
+                    filters,
+                    kernel_size = 3,
+                    strides = 1,
+                    padding = "same",
+                    kernel_initializer = "he_normal",
+                    use_bias = False,
+                    kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+                ),
                 tf.keras.layers.BatchNormalization(),
                 self.activation,
-                tf.keras.layers.Conv2D(filters * 4, kernel_size=1, strides=1, padding="same", kernel_initializer="he_normal", use_bias=False),
+                tf.keras.layers.Conv2D(
+                    filters * 4,
+                    kernel_size = 1,
+                    strides = 1,
+                    padding = "same",
+                    kernel_initializer = "he_normal",
+                    use_bias=False,
+                    kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+                ),
                 tf.keras.layers.BatchNormalization()
             ]
 
-            self.skip_conv = tf.keras.layers.Conv2D(filters * 4, kernel_size=1, strides=strides, padding="same", kernel_initializer="he_normal", use_bias=False)
+            self.skip_conv = tf.keras.layers.Conv2D(
+                filters * 4,
+                kernel_size = 1,
+                strides = strides,
+                padding = "same",
+                kernel_initializer = "he_normal",
+                use_bias = False,
+                kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+            )
             #self.skip_layers = None
             self.skip_bn = tf.keras.layers.BatchNormalization()
 
 
-        def buil(self, input_shape):
+        def build(self, input_shape):
             if self.strides > 1 or input_shape[-1] != self.filters * 4:
                 self.skip_layers = [
-                    tf.keras.layers.Conv2D(self.filters * 4, kernel_size=1, strides=self.strides, padding="same", kernel_initializer="he_normal", use_bias=False),
+                    tf.keras.layers.Conv2D(
+                        self.filters * 4,
+                        kernel_size = 1,
+                        strides = self.strides,
+                        padding = "same",
+                        kernel_initializer = "he_normal",
+                        use_bias = False,
+                        kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+                    ),
                     tf.keras.layers.BatchNormalization()
                 ]
 
@@ -215,20 +269,27 @@ def build_resnet152_model(clinical_data = clinical_data):
 
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
 
-    dense_1_layer = tf.keras.layers.Dense(512, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
-    dense_2_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
-    dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
-
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))
     sex_input = tf.keras.layers.Input(shape=(1,))
     age_input = tf.keras.layers.Input(shape=(1,))
+    layer_input = tf.keras.layers.Input(shape=(1,))
 
+    batch_normed_sex_input = tf.keras.layers.BatchNormalization()(sex_input)
+    batch_normed_age_input = tf.keras.layers.BatchNormalization()(age_input)
+    batch_normed_layer_input = tf.keras.layers.BatchNormalization()(layer_input)
+
+    dense_1_layer = DefaultDenseLayer(units = 512)
+    dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
+    dense_2_layer = DefaultDenseLayer(units = 256)
+    dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
+
+    # Data Augmentation
     augment = data_augmentation(image_input)
+    batch_normed_augment = tf.keras.layers.BatchNormalization()(augment)
 
 
-    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2)(augment)
+    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2)(batch_normed_augment)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation(activation_func)(x)
     x = tf.keras.layers.MaxPool2D(pool_size = 3, strides = 2, padding = "same")(x)
@@ -252,15 +313,32 @@ def build_resnet152_model(clinical_data = clinical_data):
     resnet = tf.keras.layers.Flatten()(x)
 
     # Clinical Data Usage
-    if clinical_data == True:
-        flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
-        age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)  # Reshape age_input to have 2 dimensions
-        concatenated_inputs = tf.keras.layers.Concatenate()([resnet, age_input_reshaped, flattened_sex_input])
+    if clinical_data == True and use_layer == True:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet,
+            batch_normed_sex_input,
+            batch_normed_age_input,
+            batch_normed_layer_input
+        ])
+    elif clinical_data == True and use_layer == False:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet,
+            batch_normed_sex_input,
+            batch_normed_age_input
+        ])
+    elif clinical_data == False and use_layer == True:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet,
+            batch_normed_layer_input
+        ])
     else:
+        # if clinical data is not wanted, then only the image is used
         concatenated_inputs = resnet
 
+    x = tf.keras.layers.BatchNormalization()(concatenated_inputs)
     x = dense_1_layer(concatenated_inputs)
     x = dropout_1_layer(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = dense_2_layer(x)
     x = dropout_2_layer(x)
 
@@ -274,12 +352,18 @@ def build_resnet152_model(clinical_data = clinical_data):
         case _:
             raise ValueError("num_classes must be 2, 3, 4, 5 or 6.")
 
-    model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output], name = "resnet152_model")
+    model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output], name = "resnet152_model")
 
     if num_classes > 2:
-        model.compile(loss="sparse_categorical_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+        model.compile(
+            loss = "sparse_categorical_crossentropy",
+            optimizer = optimizer,
+            metrics = ["RootMeanSquaredError", "accuracy"])
     else:
-        model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+        model.compile(
+            loss = "binary_crossentropy",
+            optimizer = optimizer,
+            metrics = ["RootMeanSquaredError", "accuracy"])
     model.summary()
 
     return model
