@@ -39,6 +39,7 @@ else:
  # for learning rate set to training_epochs to 400
 learning_rate = 0.001 #0.0001
 
+# Regularization
 dropout_rate = 0.4
 l2_regularization = 0.0001
 
@@ -181,13 +182,16 @@ def build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer):
         ValueError: If num_classes is not one of the allowed values (2, 3, 4, 5, or 6).
     """
 
-    DefaultConv2D = partial(tf.keras.layers.Conv2D,
-                            kernel_size=3,
-                            strides = 1,
-                            padding="same",
-                            activation = activation_func,
-                            kernel_initializer="he_normal",
-                            use_bias=False)
+    DefaultConv2D = partial(
+        tf.keras.layers.Conv2D,
+        kernel_size = 3,
+        strides = 1,
+        padding="same",
+        activation = activation_func,
+        kernel_initializer = "he_normal",
+        use_bias = False,
+        kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
+    )
     
     DefaultDenseLayer = partial(
         tf.keras.layers.Dense,
@@ -225,22 +229,27 @@ def build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer):
     
 
 
-    optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
+    optimizer = tf.keras.optimizers.legacy.SGD(learning_rate = learning_rate, momentum = 0.9, nesterov = True)
 
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))
     sex_input = tf.keras.layers.Input(shape=(1,))
     age_input = tf.keras.layers.Input(shape=(1,))
+    layer_input = tf.keras.layers.Input(shape=(1,))
+    
+    batch_normed_sex_input = tf.keras.layers.BatchNormalization()(sex_input)
+    batch_normed_age_input = tf.keras.layers.BatchNormalization()(age_input)
+    batch_normed_layer_input = tf.keras.layers.BatchNormalization()(layer_input)
 
-
-    dense_1_layer = tf.keras.layers.Dense(512, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dense_1_layer = DefaultDenseLayer(units = 512)
     dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
-    dense_2_layer = tf.keras.layers.Dense(256, activation=activation_func, kernel_initializer=tf.keras.initializers.HeNormal())
+    dense_2_layer = DefaultDenseLayer(units = 256)
     dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
 
     augment = data_augmentation(image_input)
+    batch_norm_1 = tf.keras.layers.BatchNormalization(augment)
 
-    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2, input_shape = [240, 240, 4])(augment)
+    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2, input_shape = [240, 240, 4])(batch_norm_1)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation(activation_func)(x)
     x = tf.keras.layers.MaxPool2D(pool_size = 3, strides = 2, padding = "same")(x)
@@ -255,15 +264,32 @@ def build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer):
     resnet = tf.keras.layers.Flatten()(x)
 
     # Clinical Data Usage
-    if clinical_data == True:
-        flattened_sex_input = tf.keras.layers.Flatten()(sex_input)
-        age_input_reshaped = tf.keras.layers.Reshape((1,))(age_input)  # Reshape age_input to have 2 dimensions
-        concatenated_inputs = tf.keras.layers.Concatenate()([resnet, age_input_reshaped, flattened_sex_input])
+    if clinical_data == True and use_layer == True:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet,
+            batch_normed_sex_input,
+            batch_normed_age_input,
+            batch_normed_layer_input
+        ])
+    elif clinical_data == True and use_layer == False:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet,
+            batch_normed_sex_input,
+            batch_normed_age_input
+        ])
+    elif clinical_data == False and use_layer == True:
+        concatenated_inputs = tf.keras.layers.Concatenate()([
+            resnet,
+            batch_normed_layer_input
+        ])
     else:
+        # if clinical data is not wanted, then only the image is used
         concatenated_inputs = resnet
 
+    x = tf.keras.layers.BatchNormalization()(concatenated_inputs)
     x = dense_1_layer(concatenated_inputs)
     x = dropout_1_layer(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = dense_2_layer(x)
     x = dropout_2_layer(x)
 
@@ -277,12 +303,18 @@ def build_resnet34_model(clinical_data = clinical_data, use_layer = use_layer):
         case _:
             raise ValueError("num_classes must be 2, 3, 4, 5 or 6.")
 
-    model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output], name = "resnet34_model")
+    model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output], name = "resnet34_model")
 
     if num_classes > 2:
-        model.compile(loss="sparse_categorical_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+        model.compile(
+            loss = "sparse_categorical_crossentropy",
+            optimizer = optimizer,
+            metrics = ["RootMeanSquaredError", "accuracy"])
     else:
-        model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics = ["RootMeanSquaredError", "accuracy"])
+        model.compile(
+            loss = "binary_crossentropy",
+            optimizer = optimizer,
+            metrics = ["RootMeanSquaredError", "accuracy"])
     model.summary()
 
     return model
