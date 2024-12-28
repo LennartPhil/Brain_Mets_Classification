@@ -193,11 +193,8 @@ def build_conv_model(clinical_data, use_layer):
     # Define inputs
     image_input = tf.keras.layers.Input(shape=(240, 240, 4))
     sex_input = tf.keras.layers.Input(shape=(1,))
-    batch_normed_sex_input = tf.keras.layers.BatchNormalization()(sex_input)
     age_input = tf.keras.layers.Input(shape=(1,))
-    batch_normed_age_input = tf.keras.layers.BatchNormalization()(age_input)
     layer_input = tf.keras.layers.Input(shape=(1,))
-    batch_normed_layer_input = tf.keras.layers.BatchNormalization()(layer_input)
 
     batch_norm_1_layer = tf.keras.layers.BatchNormalization()
     conv_1_layer = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2, input_shape = [240, 240, 4])
@@ -243,20 +240,20 @@ def build_conv_model(clinical_data, use_layer):
     if clinical_data == True and use_layer == True:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             flatten,
-            batch_normed_age_input,
-            batch_normed_sex_input,
-            batch_normed_layer_input
+            age_input,
+            sex_input,
+            layer_input
         ])
     elif clinical_data == True and use_layer == False:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             flatten,
-            batch_normed_age_input,
-            batch_normed_sex_input,
+            age_input,
+            sex_input,
         ])
     elif clinical_data == False and use_layer == True:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             flatten,
-            batch_normed_layer_input
+            layer_input
         ])
     else:
         # if clinical data is not wanted, then only the image is used

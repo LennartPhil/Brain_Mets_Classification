@@ -245,10 +245,6 @@ def build_transfer_bit_model(clinical_data, use_layer, trainable = True):
     age_input = tf.keras.layers.Input(shape=(1,))
     layer_input = tf.keras.layers.Input(shape=(1,))
 
-    batch_normed_sex_input = tf.keras.layers.BatchNormalization()(sex_input)
-    batch_normed_age_input = tf.keras.layers.BatchNormalization()(age_input)
-    batch_normed_layer_input = tf.keras.layers.BatchNormalization()(layer_input)
-
     augmented = data_augmentation(image_input)
     batch_normed_augment = tf.keras.layers.BatchNormalization()(augmented)
     
@@ -256,7 +252,7 @@ def build_transfer_bit_model(clinical_data, use_layer, trainable = True):
 
     # Use the pretrained base model
     # this is the R152x4 architecture, which unfortunately doesn't fit into memory, so I went down with the size
-    # x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable)(batch_normed_augment)
+    x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable)(batch_normed_augment)
     # R101x3 architecture also didn't fit into memory
     # x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r101x3/1", trainable=trainable)(batch_normed_augment)
     # x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r101x1/1", trainable=trainable)(batch_normed_augment)
@@ -268,20 +264,20 @@ def build_transfer_bit_model(clinical_data, use_layer, trainable = True):
     if clinical_data == True and use_layer == True:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             bit,
-            batch_normed_sex_input,
-            batch_normed_age_input,
-            batch_normed_layer_input
+            sex_input,
+            age_input,
+            layer_input
         ])
     elif clinical_data == True and use_layer == False:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             bit,
-            batch_normed_sex_input,
-            batch_normed_age_input
+            sex_input,
+            age_input
         ])
     elif clinical_data == False and use_layer == True:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             bit,
-            batch_normed_layer_input
+            layer_input
         ])
     else:
         # if clinical data is not wanted, then only the image is used

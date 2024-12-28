@@ -252,10 +252,6 @@ def build_transfer_inceptionv3_model(clinical_data, use_layer):
     age_input = tf.keras.layers.Input(shape=(1,))
     layer_input = tf.keras.layers.Input(shape=(1,))
 
-    batch_normed_sex_input = tf.keras.layers.BatchNormalization()(sex_input)
-    batch_normed_age_input = tf.keras.layers.BatchNormalization()(age_input)
-    batch_normed_layer_input = tf.keras.layers.BatchNormalization()(layer_input)
-
     augmented = data_augmentation(image_input)
     batch_normed_augment = tf.keras.layers.BatchNormalization()(augmented)
     
@@ -271,20 +267,20 @@ def build_transfer_inceptionv3_model(clinical_data, use_layer):
     if clinical_data == True and use_layer == True:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             inception,
-            batch_normed_sex_input,
-            batch_normed_age_input,
-            batch_normed_layer_input
+            sex_input,
+            age_input,
+            layer_input
         ])
     elif clinical_data == True and use_layer == False:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             inception,
-            batch_normed_sex_input,
-            batch_normed_age_input
+            sex_input,
+            age_input
         ])
     elif clinical_data == False and use_layer == True:
         concatenated_inputs = tf.keras.layers.Concatenate()([
             inception,
-            batch_normed_layer_input
+            layer_input
         ])
     else:
         # if clinical data is not wanted, then only the image is used
