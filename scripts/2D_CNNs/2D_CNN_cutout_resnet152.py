@@ -366,35 +366,9 @@ def build_resnet152_model(clinical_data = clinical_data, use_layer = use_layer):
 
     
 if contrast_DA:
-    data_augmentation = tf.keras.Sequential([
-        tf.keras.layers.RandomFlip(mode = "horizontal"),
-        #tf.keras.layers.Rescaling(1/255),
-        tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
-        tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
-        tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
-        hf.NormalizeToRange(zero_to_one=True),
-        tf.keras.layers.RandomTranslation(
-            height_factor = 0.05,
-            width_factor = 0.05,
-            fill_mode = "nearest",
-            interpolation = "bilinear"
-        ),
-    ])
+    data_augmentation = hf.contrast_data_augmentation
 else:
-    data_augmentation = tf.keras.Sequential([
-        tf.keras.layers.RandomFlip(mode = "horizontal"),
-        #tf.keras.layers.Rescaling(1/255),
-        #tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
-        #tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
-        tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
-        hf.NormalizeToRange(zero_to_one=True),
-        tf.keras.layers.RandomTranslation(
-            height_factor = 0.05,
-            width_factor = 0.05,
-            fill_mode = "nearest",
-            interpolation = "bilinear"
-        ),
-    ])
+    data_augmentation = hf.normal_data_augmentation
 
 if __name__ == "__main__":
     train_ai()
