@@ -23,6 +23,12 @@ early_stopping_patience = 300 #200
 #two_class_weights = {1: 0.92156863, 0 :1.09302326}
 two_class_weights = {0: 1.09302326, 1: 0.92156863}
 
+AGE_MIN = 0
+AGE_MAX = 110
+
+LAYER_MIN = 0
+LAYER_MAX = 154
+
 def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, rgb = False, current_fold = 0):
     #patients = get_patient_paths(path_to_tfrs)
 
@@ -198,14 +204,19 @@ def parse_record(record, use_clinical_data = True, use_layer = False, labeled = 
     feature_description = {
         "image": tf.io.FixedLenFeature(image_shape, tf.float32),
         "sex": tf.io.FixedLenFeature([], tf.int64, default_value=[0]),
-        "age": tf.io.FixedLenFeature([], tf.int64, default_value=0),
-        "layer": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+        "age": tf.io.FixedLenFeature([], tf.int64, default_value=AGE_MIN),
+        "layer": tf.io.FixedLenFeature([], tf.int64, default_value=LAYER_MIN),
         "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0),
     }
 
     example = tf.io.parse_single_example(record, feature_description)
     image = example["image"]
     image = tf.reshape(image, image_shape)
+
+    # scale age and layer
+    # the values also get clipped to [0, 1]
+    scaled_age = min_max_scale(example["age"], AGE_MIN, AGE_MAX)
+    scaled_layer = min_max_scale(example["layer"], LAYER_MIN, LAYER_MAX)
 
     # primary should have a value between 0 and 5
     # depending on num classes return different values
@@ -264,19 +275,19 @@ def parse_record(record, use_clinical_data = True, use_layer = False, labeled = 
     
     # if use_clinical_data is False and use_layer is True, return only the image, the layer and the primary
     elif use_clinical_data == False and use_layer:
-        return (image, example["layer"]), primary_to_return
+        return (image, scaled_layer), primary_to_return
     
     # if use_clinical_data is True and use_layer is False, return the image, the sex, the age and the primary
     elif use_clinical_data and use_layer == False and labeled:
-        return (image, example["sex"], example["age"]), primary_to_return #example["primary"]
+        return (image, example["sex"], scaled_age), primary_to_return #example["primary"]
     
     # if use_clinical_data is True and use_layer is True and labeled, return the image, the sex, the age, the layer and the primary
     elif use_clinical_data and use_layer and labeled:
-        return (image, example["sex"], example["age"], example["layer"]), primary_to_return
+        return (image, example["sex"], scaled_age, scaled_layer), primary_to_return
 
     # if use_clinical_data is True and use_layer is True and not labeled, return the image, the sex, the age and the layer, not the primary!
     elif use_clinical_data and use_layer and not labeled:
-        return image, example["sex"], example["age"], example["layer"]
+        return image, example["sex"], scaled_age, scaled_layer
 
     else:
         return image
@@ -350,6 +361,22 @@ def get_callbacks(path_to_callbacks,
     print("get_callbacks successful")
 
     return callbacks
+
+
+def min_max_scale(data, min_val, max_val):
+    """
+    Min-Max scaling with fixed min and max values.
+    Args:
+        data: Input tensor to be scaled.
+        min_val: Fixed minimum value.
+        max_val: Fixed maximum value.
+    Returns:
+        scaled_data: Tensor scaled to the range [0, 1].
+    """
+    scaled_data = (data - min_val) / (max_val - min_val)
+    clipped_data = tf.clip_by_value(scaled_data, 0, 1)
+
+    return clipped_data
 
 
 class NormalizeToRange(tf.keras.layers.Layer):
