@@ -396,6 +396,36 @@ class NormalizeToRange(tf.keras.layers.Layer):
         return normalized
 
 
+# Data Augmentation
+# one with brightness and contrast adjustments, one without
+
+contrast_data_augmentation = tf.keras.Sequential([
+        tf.keras.layers.RandomFlip(mode = "horizontal"),
+        tf.keras.layers.RandomContrast(0.5), # consider removing the random contrast layer as that causes pixel values to go beyond 1
+        tf.keras.layers.RandomBrightness(factor = (-0.2, 0.4)), #, value_range=(0, 1)
+        tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
+        NormalizeToRange(zero_to_one=True),
+        tf.keras.layers.RandomTranslation(
+            height_factor = 0.05,
+            width_factor = 0.05,
+            fill_mode = "nearest",
+            interpolation = "bilinear"
+        ),
+    ])
+
+normal_data_augmentation = tf.keras.Sequential([
+        tf.keras.layers.RandomFlip(mode = "horizontal"),
+        tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
+        NormalizeToRange(zero_to_one=True),
+        tf.keras.layers.RandomTranslation(
+            height_factor = 0.05,
+            width_factor = 0.05,
+            fill_mode = "nearest",
+            interpolation = "bilinear"
+        ),
+    ])
+
+
 #Custom Weighted Cross Entropy Loss
 class WeightedCrossEntropyLoss(tf.keras.losses.Loss):
     def __init__(self, class_weights):
