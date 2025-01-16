@@ -395,6 +395,48 @@ class NormalizeToRange(tf.keras.layers.Layer):
             normalized = 2 * (inputs - min_val) / (max_val - min_val) - 1
         return normalized
 
+# Custom Data Augmentation Layers
+class RandomRescale(tf.keras.layers.Layer):
+    def __init__(self, scale_range=(0.8, 1.2), **kwargs):
+        """
+        Custom layer for random rescaling of images.
+        Args:
+            scale_range (tuple): A tuple specifying the minimum and maximum scaling factors.
+                                 Values < 1.0 zoom out, and > 1.0 zoom in.
+        """
+        super(RandomRescale, self).__init__(**kwargs)
+        self.scale_range = scale_range
+
+    def call(self, inputs, training=None):
+        if training:
+            # Randomly choose a scaling factor
+            scale = tf.random.uniform([], self.scale_range[0], self.scale_range[1])
+            
+            # Get image dimensions
+            input_shape = tf.shape(inputs)
+            height, width = input_shape[1], input_shape[2]
+
+            # For testing without the batch size
+            #height, width = input_shape[0], input_shape[1]
+            
+            # Compute new dimensions
+            new_height = tf.cast(tf.cast(height, tf.float32) * scale, tf.int32)
+            new_width = tf.cast(tf.cast(width, tf.float32) * scale, tf.int32)
+            
+            # Resize image to new dimensions
+            scaled_image = tf.image.resize(inputs, [new_height, new_width])
+            
+            # Crop or pad to original size
+            scaled_image = tf.image.resize_with_crop_or_pad(scaled_image, height, width)
+            
+            return scaled_image
+        else:
+            return inputs
+
+    def get_config(self):
+        config = super(RandomRescale, self).get_config()
+        config.update({"scale_range": self.scale_range})
+        return config
 
 # Data Augmentation
 # one with brightness and contrast adjustments, one without
@@ -411,11 +453,12 @@ contrast_data_augmentation = tf.keras.Sequential([
             fill_mode = "nearest",
             interpolation = "bilinear"
         ),
+        RandomRescale(scale_range=(0.7, 1.2))
     ])
 
 normal_data_augmentation = tf.keras.Sequential([
         tf.keras.layers.RandomFlip(mode = "horizontal"),
-        tf.keras.layers.RandomRotation(factor = (-0.1, 0.1), fill_mode = "nearest"),
+        tf.keras.layers.RandomRotation(factor = (-0.14, 0.14), fill_mode = "nearest"),
         NormalizeToRange(zero_to_one=True),
         tf.keras.layers.RandomTranslation(
             height_factor = 0.05,
@@ -423,6 +466,7 @@ normal_data_augmentation = tf.keras.Sequential([
             fill_mode = "nearest",
             interpolation = "bilinear"
         ),
+        RandomRescale(scale_range=(0.7, 1.2))
     ])
 
 
