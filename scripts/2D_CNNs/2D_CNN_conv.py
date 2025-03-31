@@ -5,7 +5,9 @@ import os
 from time import strftime
 from functools import partial
 import numpy as np
+import constants
 
+# --- GPU setup ---
 gpus = tf.config.list_physical_devices('GPU')
 print(gpus)
 if gpus:
@@ -21,18 +23,57 @@ if gpus:
 
 print("tensorflow_setup successful")
 
+# --- Configuration ---
+dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+
 cutout = False
 rgb_images = False # using gray scale images as input
-contrast_DA = True # data augmentation with contrast
-clinical_data = True
-use_layer = True
+#include_mask = True
+contrast_DA = False # data augmentation with contrast
+clinical_data = False
+use_layer = False
 num_classes = 2
-use_k_fold = False
-learning_rate_tuning = True
+
+# --- Select Sequences ---
+selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
+
+if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
+    num_classes = 3
+    cutout = False
+    clinical_data = False
+    use_layer = False
+    #include_mask = False
+    rgb_images = True
+    selected_sequences = ["t1c"]
+
+elif dataset_type == constants.Dataset.PRETRAIN_FINE:
+    num_classes = 2
+    cutout = False
+    clinical_data = False
+    use_layer = False
+
+
+try:
+    selected_indices = [constants.SEQUENCE_TO_INDEX[name] for name in selected_sequences]
+    num_selected_channels = len(selected_indices)
+    if num_selected_channels == 0:
+        raise ValueError("selected_sequences cannot be empty.")
+    if num_selected_channels == 1 and rgb_images == True:
+        input_shape = (constants.IMG_SIZE, constants.IMG_SIZE, 3)
+    else:
+        if rgb_images == True:
+            raise ValueError(f"RGB images cannot be used when multiple sequences are selected, selected sequences: {selected_sequences}")
+        input_shape = (constants.IMG_SIZE, constants.IMG_SIZE, num_selected_channels)
+    print(f"Using sequences: {selected_sequences} -> Indices: {selected_indices}")
+    print(f"Derived input shape: {input_shape}, using RGB images: {rgb_images}")
+except KeyError as e:
+    raise ValueError(f"Invalid sequence name in selected_sequences: {e}. Available keys: {list(constants.SEQUENCE_TO_INDEX.keys())}")
+
 
 
 batch_size = 75 #50
-if learning_rate_tuning:
+if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = 400
 else:
     training_epochs = 1500
@@ -50,104 +91,47 @@ training_codename = hf.get_training_codename(
     use_layer = use_layer,
     is_cutout = cutout,
     is_rgb_images = rgb_images,
+    selected_sequences_str = "-".join(selected_sequences),
     contrast_DA = contrast_DA,
-    is_learning_rate_tuning = learning_rate_tuning,
-    is_k_fold = use_k_fold,
+    dataset_type = dataset_type,
+    training_mode = training_mode,
 )
 
 
-path_to_tfrs = hf.get_path_to_tfrs(cutout, rgb_images)
-path_to_logs = "/logs"
-path_to_splits = "/tfrs/split_text_files"
+path_to_tfrs = hf.get_path_to_tfrs(cutout, rgb_images, dataset_type)
 
-activation_func = "mish"
+if path_to_tfrs is None and dataset_type != constants.Dataset.PRETRAIN_ROUGH:
+    raise ValueError(f"Could not determine path to TFRecords for dataset type {dataset_type}")
+print(f"Using TFRecords from: {path_to_tfrs}")
 
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
 class_directory = f"{training_codename}_{time}"
-path_to_callbacks = Path(path_to_logs) / Path(class_directory)
+path_to_callbacks = Path(constants.path_to_logs) / Path(class_directory)
 os.makedirs(path_to_callbacks, exist_ok=True)
 
 def train_ai():
 
     hf.print_training_timestamps(isStart = True, training_codename = training_codename)
 
-    if use_k_fold:
-        
-        for fold in range(10):
+    # Prepare partial function for parsing data with selected sequences
+    #parse_fn = partial(hf.parse_record, selected_indices = selected_indices)
 
-            hf.print_fold_info(fold, is_start = True)
-
-            train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images, current_fold = fold)
-
-            callbacks = hf.get_callbacks(path_to_callbacks, fold)
-            
-            # build model
-            model = build_conv_model(clinical_data = clinical_data, use_layer = use_layer)
-
-            #training model
-            history = model.fit(
-                train_data,
-                validation_data = val_data,
-                epochs = training_epochs,
-                batch_size = batch_size,
-                callbacks = callbacks,
-                class_weight = hf.two_class_weights
-            )
-
-            # save history
-            hf.save_training_history(
-                history = history,
-                training_codename = training_codename,
-                time = time,
-                fold = fold,
-                path_to_callbacks = path_to_callbacks
-            )
-
-            hf.clear_tf_session()
-
-            hf.print_fold_info(fold, is_start = False)
-
-    elif learning_rate_tuning:
-
-        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size,rgb = rgb_images)
-
-        
-        callbacks = hf.get_callbacks(path_to_callbacks, 0,
-                                     use_lrscheduler = True,
-                                     use_early_stopping = False)
-
-        # build model
-        model = build_conv_model(clinical_data = clinical_data, use_layer = use_layer)
-
-        #training model
-        history = model.fit(
-            train_data,
-            validation_data = val_data,
-            epochs = training_epochs,
-            batch_size = batch_size,
-            callbacks = callbacks,
-            class_weight = hf.two_class_weights
-        )        
-
-        # save history
-        hf.save_training_history(
-            history = history,
-            training_codename = training_codename,
-            time = time,
-            path_to_callbacks = path_to_callbacks
-        )
-
-    else:
+    if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
+        # Rough pretraining data setup (uses its own parsing logic in helper_funcs)
         # regular training
-        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size,rgb = rgb_images)
-
+        train_data, val_data = hf.setup_pretraining_data(
+            path_to_tfrs,
+            batch_size,
+            selected_indices,
+            dataset_type
+        )
 
         # get callbacks
         callbacks = hf.get_callbacks(path_to_callbacks, 0)
 
         # build model
-        model = build_conv_model(clinical_data = clinical_data, use_layer = use_layer)
+        model = build_conv_model()
 
         # traing model
         history = model.fit(
@@ -166,24 +150,180 @@ def train_ai():
             path_to_callbacks = path_to_callbacks
         )
 
+    elif dataset_type == constants.Dataset.PRETRAIN_FINE:
+
+        # regular training
+        train_data, val_data = hf.setup_pretraining_data(
+            path_to_tfrs,
+            batch_size,
+            selected_indices,
+            dataset_type,
+            #parse_fn = parse_fn # Pass the parse function
+        )
+
+        # get callbacks
+        callbacks = hf.get_callbacks(path_to_callbacks, 0)
+
+        # build model
+        model = build_conv_model()
+
+        # traing model
+        history = model.fit(
+            train_data,
+            validation_data = val_data,
+            epochs = training_epochs,
+            batch_size = batch_size,
+            callbacks = callbacks
+        )        
+
+        # save history
+        hf.save_training_history(
+            history = history,
+            training_codename = training_codename,
+            time = time,
+            path_to_callbacks = path_to_callbacks
+        )
+
+    elif training_mode == constants.Training.K_FOLD:
+        
+        for fold in range(10):
+
+            hf.print_fold_info(fold, is_start = True)
+
+            train_data, val_data, test_data = hf.setup_data(
+                path_to_tfrs,
+                path_to_callbacks,
+                constants.path_to_splits,
+                num_classes,
+                batch_size = batch_size,
+                selected_indices = selected_indices,
+                rgb = rgb_images,
+                current_fold = fold,
+            )
+
+            callbacks = hf.get_callbacks(path_to_callbacks, fold)
+            
+            # build model
+            model = build_conv_model()
+
+            #training model
+            history = model.fit(
+                train_data,
+                validation_data = val_data,
+                epochs = training_epochs,
+                batch_size = batch_size,
+                callbacks = callbacks,
+                class_weight = constants.normal_two_class_weights_class_weights if num_classes == 2 else None
+            )
+
+            # save history
+            hf.save_training_history(
+                history = history,
+                training_codename = training_codename,
+                time = time,
+                fold = fold,
+                path_to_callbacks = path_to_callbacks
+            )
+
+            hf.clear_tf_session()
+
+            hf.print_fold_info(fold, is_start = False)
+
+    elif training_mode == constants.Training.LEARNING_RATE_TUNING:
+
+        train_data, val_data, test_data = hf.setup_data(
+            path_to_tfrs,
+            path_to_callbacks,
+            constants.path_to_splits,
+            num_classes,
+            batch_size = batch_size,
+            selected_indices = selected_indices,
+            rgb = rgb_images,
+        )
+        
+        callbacks = hf.get_callbacks(path_to_callbacks, 0,
+                                     use_lrscheduler = True,
+                                     use_early_stopping = False)
+
+        # build model
+        model = build_conv_model()
+
+        #training model
+        history = model.fit(
+            train_data,
+            validation_data = val_data,
+            epochs = training_epochs,
+            batch_size = batch_size,
+            callbacks = callbacks,
+            class_weight = constants.normal_two_class_weights_class_weights if num_classes == 2 else None
+        )        
+
+        # save history
+        hf.save_training_history(
+            history = history,
+            training_codename = training_codename,
+            time = time,
+            path_to_callbacks = path_to_callbacks
+        )
+
+    elif training_mode == constants.Training.NORMAL:
+        # regular training
+        train_data, val_data, test_data = hf.setup_data(
+            path_to_tfrs,
+            path_to_callbacks,
+            constants.path_to_splits,
+            num_classes,
+            batch_size = batch_size,
+            selected_indices = selected_indices,
+            rgb = rgb_images,
+        )
+        
+
+        # get callbacks
+        callbacks = hf.get_callbacks(path_to_callbacks, 0)
+
+        # build model
+        model = build_conv_model()
+
+        # traing model
+        history = model.fit(
+            train_data,
+            validation_data = val_data,
+            epochs = training_epochs,
+            batch_size = batch_size,
+            callbacks = callbacks,
+            class_weight = constants.normal_two_class_weights_class_weights if num_classes == 2 else None
+        )        
+
+        # save history
+        hf.save_training_history(
+            history = history,
+            training_codename = training_codename,
+            time = time,
+            path_to_callbacks = path_to_callbacks
+        )
+    
+    else:
+        raise ValueError("Wrong training mode selected, please pick a training mode")
+
     hf.clear_tf_session()
 
     hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
-def build_conv_model(clinical_data, use_layer):
+def build_conv_model():
   
     DefaultConv2D = partial(
         tf.keras.layers.Conv2D,
         kernel_size = 3,
         padding = "same",
-        activation = activation_func,
+        activation = constants.activation_func,
         kernel_initializer = "he_normal",
         kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)  # L2 Regularization
     )
 
     DefaultDenseLayer = partial(
         tf.keras.layers.Dense,
-        activation = activation_func,
+        activation = constants.activation_func,
         kernel_initializer = "he_normal",
         kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
     )
@@ -191,114 +331,161 @@ def build_conv_model(clinical_data, use_layer):
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate = learning_rate, momentum = 0.9, nesterov = True)
 
     # Define inputs
-    image_input = tf.keras.layers.Input(shape=(240, 240, 4))
-    sex_input = tf.keras.layers.Input(shape=(1,))
-    age_input = tf.keras.layers.Input(shape=(1,))
-    layer_input = tf.keras.layers.Input(shape=(1,))
+    image_input = tf.keras.layers.Input(shape=input_shape, name="image_input")
+    sex_input = tf.keras.layers.Input(shape=(1,), name="sex_input") 
+    age_input = tf.keras.layers.Input(shape=(1,), name="age_input")
+    layer_input = tf.keras.layers.Input(shape=(1,), name="layer_input")
 
-    batch_norm_1_layer = tf.keras.layers.BatchNormalization()
-    conv_1_layer = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2, input_shape = [240, 240, 4])
-    max_pool_1_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
+    # Choose Data Augmentation pipeline
+    augment_layer = hf.contrast_data_augmentation if contrast_DA else hf.normal_data_augmentation
 
-    batch_norm_2_layer = tf.keras.layers.BatchNormalization()
-    conv_2_layer = DefaultConv2D(filters = 128)
-    conv_3_layer = DefaultConv2D(filters = 128)
-    max_pool_2_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
+    # --- Model Architecture ---
+    x = augment_layer(image_input) # Apply augmentation first
 
-    batch_norm_3_layer = tf.keras.layers.BatchNormalization()
-    conv_4_layer = DefaultConv2D(filters = 256)
-    conv_5_layer = DefaultConv2D(filters = 256)
-    max_pool_3_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
+    x = tf.keras.layers.BatchNormalization()(x) # BN before first conv
+    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2)(x)
+    x = tf.keras.layers.MaxPool2D(pool_size = (2,2))(x)
 
-    batch_norm_4_layer = tf.keras.layers.BatchNormalization()
-    dense_1_layer = DefaultDenseLayer(units = 512)
-    dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = DefaultConv2D(filters = 128)(x)
+    x = DefaultConv2D(filters = 128)(x)
+    x = tf.keras.layers.MaxPool2D(pool_size = (2,2))(x)
 
-    batch_norm_5_layer = tf.keras.layers.BatchNormalization()
-    dense_2_layer = DefaultDenseLayer(units = 256)
-    dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = DefaultConv2D(filters = 256)(x)
+    x = DefaultConv2D(filters = 256)(x)
+    x = tf.keras.layers.MaxPool2D(pool_size = (2,2))(x)
 
-    augment = data_augmentation(image_input)
-    batch_norm_1 = batch_norm_1_layer(augment)
+    image_features = tf.keras.layers.Flatten()(x)
 
-    conv_1 = conv_1_layer(batch_norm_1)
-    max_pool_1 = max_pool_1_layer(conv_1)
+    # --- Feature Concatenation ---
+    # use 'clincal_data' and 'use_layer'
 
-    batch_norm_2 = batch_norm_2_layer(max_pool_1)
-    conv_2 = conv_2_layer(batch_norm_2)
-    conv_3 = conv_3_layer(conv_2)
-    max_pool_2 = max_pool_2_layer(conv_3)
+    inputs_to_concat = [image_features]
 
-    batch_norm_3 = batch_norm_3_layer(max_pool_2)
-    conv_4 = conv_4_layer(batch_norm_3)
-    conv_5 = conv_5_layer(conv_4)
-    max_pool_3 = max_pool_3_layer(conv_5)
+    if clinical_data:
+        inputs_to_concat.extend([sex_input, age_input])
+        if use_layer:
+            inputs_to_concat.append(layer_input)
+    elif use_layer:
+        inputs_to_concat.append(layer_input)
 
-    flatten = tf.keras.layers.Flatten()(max_pool_3)
+    if len(inputs_to_concat) > 1:
+        concatenated_features = tf.keras.layers.Concatenate()(inputs_to_concat)
+    else:
+        concatenated_features = image_features # No concatenation needed
+        
+
+    # --- Dense Layers ---
+    x = tf.keras.layers.BatchNormalization()(concatenated_features)
+    x = DefaultDenseLayer(units = 512)(x)
+    x = tf.keras.layers.Dropout(dropout_rate)(x)
+
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = DefaultDenseLayer(units = 256)(x)
+    x = tf.keras.layers.Dropout(dropout_rate)(x)
+
+    # batch_norm_1_layer = tf.keras.layers.BatchNormalization()
+    # conv_1_layer = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2) # , input_shape = [240, 240, 4]
+    # max_pool_1_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
+
+    # batch_norm_2_layer = tf.keras.layers.BatchNormalization()
+    # conv_2_layer = DefaultConv2D(filters = 128)
+    # conv_3_layer = DefaultConv2D(filters = 128)
+    # max_pool_2_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
+
+    # batch_norm_3_layer = tf.keras.layers.BatchNormalization()
+    # conv_4_layer = DefaultConv2D(filters = 256)
+    # conv_5_layer = DefaultConv2D(filters = 256)
+    # max_pool_3_layer = tf.keras.layers.MaxPool2D(pool_size = (2,2))
+
+    # batch_norm_4_layer = tf.keras.layers.BatchNormalization()
+    # dense_1_layer = DefaultDenseLayer(units = 512)
+    # dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
+
+    # batch_norm_5_layer = tf.keras.layers.BatchNormalization()
+    # dense_2_layer = DefaultDenseLayer(units = 256)
+    # dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
+
+    # augment = augment_layer(image_input)
+    # batch_norm_1 = batch_norm_1_layer(augment)
+
+    # conv_1 = conv_1_layer(batch_norm_1)
+    # max_pool_1 = max_pool_1_layer(conv_1)
+
+    # batch_norm_2 = batch_norm_2_layer(max_pool_1)
+    # conv_2 = conv_2_layer(batch_norm_2)
+    # conv_3 = conv_3_layer(conv_2)
+    # max_pool_2 = max_pool_2_layer(conv_3)
+
+    # batch_norm_3 = batch_norm_3_layer(max_pool_2)
+    # conv_4 = conv_4_layer(batch_norm_3)
+    # conv_5 = conv_5_layer(conv_4)
+    # max_pool_3 = max_pool_3_layer(conv_5)
+
+    # flatten = tf.keras.layers.Flatten()(max_pool_3)
 
     # Clinical Data Usage
-    if clinical_data == True and use_layer == True:
-        concatenated_inputs = tf.keras.layers.Concatenate()([
-            flatten,
-            age_input,
-            sex_input,
-            layer_input
-        ])
-    elif clinical_data == True and use_layer == False:
-        concatenated_inputs = tf.keras.layers.Concatenate()([
-            flatten,
-            age_input,
-            sex_input,
-        ])
-    elif clinical_data == False and use_layer == True:
-        concatenated_inputs = tf.keras.layers.Concatenate()([
-            flatten,
-            layer_input
-        ])
+    # if clinical_data == True and use_layer == True:
+    #     concatenated_inputs = tf.keras.layers.Concatenate()([
+    #         flatten,
+    #         age_input,
+    #         sex_input,
+    #         layer_input
+    #     ])
+    # elif clinical_data == True and use_layer == False:
+    #     concatenated_inputs = tf.keras.layers.Concatenate()([
+    #         flatten,
+    #         age_input,
+    #         sex_input,
+    #     ])
+    # elif clinical_data == False and use_layer == True:
+    #     concatenated_inputs = tf.keras.layers.Concatenate()([
+    #         flatten,
+    #         layer_input
+    #     ])
+    # else:
+    #     # if clinical data is not wanted, then only the image is used
+    #     concatenated_inputs = flatten
+
+    # x = batch_norm_4_layer(concatenated_inputs)
+    # x = dense_1_layer(x)
+    # x = dropout_1_layer(x)
+    # x = batch_norm_5_layer(x)
+    # x = dense_2_layer(x)
+    # x = dropout_2_layer(x)
+
+
+    # --- Output Layer ---
+
+    if num_classes == 2:
+        # Binary Classification
+        x = tf.keras.layers.Dense(1)(x)
+        output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
+        loss = "binary_crossentropy"
+    elif num_classes > 2 and num_classes <= 6:
+        x = tf.keras.layers.Dense(num_classes)(x)
+        output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        loss = "sparse_categorical_crossentropy"
     else:
-        # if clinical data is not wanted, then only the image is used
-        concatenated_inputs = flatten
+        raise ValueError("numm_classes must have a value between 2 and 6")
 
-    x = batch_norm_4_layer(concatenated_inputs)
-    x = dense_1_layer(x)
-    x = dropout_1_layer(x)
-    x = batch_norm_5_layer(x)
-    x = dense_2_layer(x)
-    x = dropout_2_layer(x)
-
-    match num_classes:
-        case 2:
-            x = tf.keras.layers.Dense(1)(x)
-            output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
-        case 3 | 4 | 5 | 6:
-            x = tf.keras.layers.Dense(num_classes)(x)
-            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
-        case _:
-            print("Wrong num classes set in the build_conv_model func, please pick a number between 2 and 6")
-
-    model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output])
-
-    if num_classes > 2:
-        model.compile(
-            loss = "sparse_categorical_crossentropy", 
-            optimizer = optimizer, 
-            metrics = ["RootMeanSquaredError", "accuracy"]
-        )
+    # --- Create and compile model ---
+    if dataset_type == constants.Dataset.NORMAL:
+        model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output])
     else:
-        model.compile(
-            loss = "binary_crossentropy", 
-            optimizer = optimizer, 
-            metrics = ["RootMeanSquaredError", "accuracy"]
-        )
+        model = tf.keras.Model(inputs = [image_input], outputs = [output])
+
+    model.compile(
+        loss = loss,
+        optimizer = optimizer,
+        metrics = ["accuracy"] #"RootMeanSquaredError", "AUC", "Precision", "Recall" 
+    )
+    
     model.summary()
 
     return model
 
-
-if contrast_DA:
-    data_augmentation = hf.contrast_data_augmentation
-else:
-    data_augmentation = hf.normal_data_augmentation
 
 if __name__ == "__main__":
     train_ai()
