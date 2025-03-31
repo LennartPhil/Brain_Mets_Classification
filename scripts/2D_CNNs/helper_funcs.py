@@ -7,57 +7,127 @@ from time import strftime
 import glob
 import datetime
 import numpy as np
+import constants
 
-kernel_initializer = "he_normal"
-activation_func = "mish"
+# --- Data Setup Functions ---
 
-train_ratio = 0.8
-val_ratio = 0.1
-test_ratio = 0.1
-
-shuffle_buffer_size = 200
-repeat_count = 1
-
-early_stopping_patience = 300 #200
-
-#two_class_weights = {1: 0.92156863, 0 :1.09302326}
-two_class_weights = {0: 1.09302326, 1: 0.92156863}
-
-AGE_MIN = 0
-AGE_MAX = 110
-
-LAYER_MIN = 0
-LAYER_MAX = 154
-
-def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, rgb = False, current_fold = 0):
+def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, selected_indices, rgb = False, current_fold = 0):
     #patients = get_patient_paths(path_to_tfrs)
 
     #train_paths, val_paths, test_paths = split_patients(patients, path_to_callbacks=path_to_callbacks, fraction_to_use=1)
 
     train_paths, val_paths = get_patient_paths_for_fold(current_fold, path_to_splits, path_to_tfrs)
     test_paths = get_test_paths(path_to_splits, path_to_tfrs)
+
+    # covnert patient directories to list of .tfrecord files
     train_paths = get_tfr_paths_for_patients(train_paths)
     val_paths = get_tfr_paths_for_patients(val_paths)
     test_paths = get_tfr_paths_for_patients(test_paths)
 
-    train_data, val_data, test_data = read_data(train_paths, val_paths, num_classes, batch_size, test_paths, rgb = rgb)
+    print(f"Fold {current_fold}: Train {len(train_paths)}, Val {len(val_paths)}, Test {len(test_paths)}")
+
+
+    train_data, val_data, test_data = read_data(
+        train_paths,
+        val_paths,
+        selected_indices,
+        num_classes,
+        batch_size,
+        test_paths,
+        rgb = rgb,
+    )
 
     return train_data, val_data, test_data
 
-def get_patient_paths_for_fold(fold, path_to_splits, path_to_tfrs):
-    # read .txt file
-    txt_train_file_name = f"fold_{fold}_train_ids.txt"
-    txt_val_file_name = f"fold_{fold}_val_ids.txt"
 
-    with open(f"{path_to_splits}/{txt_train_file_name}", "r") as f:
-        train_patients = [line.strip() for line in f]
-        train_patients = [f"{path_to_tfrs}/{pat}" for pat in train_patients]
+def setup_pretraining_data(path_to_tfrs, batch_size, selected_indices, dataset_type):
+    """
+    Sets up data for pretraining.
 
-    with open(f"{path_to_splits}/{txt_val_file_name}", "r") as f:
-        val_patients = [line.strip() for line in f]
-        val_patients = [f"{path_to_tfrs}/{pat}" for pat in val_patients]
+    Parameters
+    ----------
+    path_to_tfrs : str
+        Path to the folder containing the .tfrecord files.
+    path_to_splits : str
+        Path to the folder containing the .txt files with the fold information.
+    num_classes : int
+        Number of classes.
+    batch_size : int
+        Batch size.
+    pretraining_type : Pretraining
+        Type of pretraining.
+    rgb : bool, optional
+        Whether to use rgb images or not. The default is False.
+    paths_to_rough_pretraining : tuple, optional
+        Paths to the .tfrecord files for rough pretraining. The default is None.
 
-    return train_patients, val_patients
+    Returns
+    -------
+    train_data : tf.data.Dataset
+        Training dataset.
+    val_data : tf.data.Dataset
+        Validation dataset.
+    """
+
+    if dataset_type == constants.Dataset.PRETRAIN_FINE:
+        # execute code if no pretraining is needed
+        train_paths, val_paths = get_patient_paths_for_fold(0, path_to_tfrs, dataset_type = dataset_type)
+        train_data, val_data = read_data(train_paths, val_paths, selected_indices, batch_size, dataset_type = dataset_type)
+
+    elif dataset_type == constants.Dataset.PRETRAIN_ROUGH:
+        # execute code if rough pretraining is needed
+        train_path, val_path = constants.paths_to_rough_pretraining
+        train_data, val_data = read_data(train_path, val_path, selected_indices, batch_size, dataset_type = dataset_type)
+
+    return train_data, val_data
+
+def get_patient_paths_for_fold(fold, path_to_tfrs, dataset_type = constants.Dataset.NORMAL):
+    # read .txt files
+    if dataset_type == constants.Dataset.NORMAL:
+
+        txt_train_file_name = f"fold_{fold}_train_ids.txt"
+        txt_val_file_name = f"fold_{fold}_val_ids.txt"
+
+        with open(f"{constants.path_to_splits}/{txt_train_file_name}", "r") as f:
+            train_patients = [line.strip() for line in f]
+            train_patients = [f"{path_to_tfrs}/{pat}" for pat in train_patients]
+
+        with open(f"{constants.path_to_splits}/{txt_val_file_name}", "r") as f:
+            val_patients = [line.strip() for line in f]
+            val_patients = [f"{path_to_tfrs}/{pat}" for pat in val_patients]
+
+        return train_patients, val_patients
+
+    elif dataset_type == constants.Dataset.PRETRAIN_FINE:
+
+        txt_train_file_name = "pretraining_fine_train.txt"
+        txt_val_file_name = "pretraining_fine_val.txt"
+
+        with open(f"{constants.path_to_splits}/{txt_train_file_name}", "r") as f:
+            train_patients = [line.strip() for line in f]
+            train_patients = [f"{path_to_tfrs}/{pat}" for pat in train_patients]
+            # only keep patients that end with .tfrecord
+            train_patients = [pat for pat in train_patients if pat.endswith(".tfrecord")]
+
+            # check if tfrecord is valid
+            for pat in train_patients:
+                verify_tfrecord(pat)
+
+        with open(f"{constants.path_to_splits}/{txt_val_file_name}", "r") as f:
+            val_patients = [line.strip() for line in f]
+            val_patients = [f"{path_to_tfrs}/{pat}" for pat in val_patients]
+            # only keep patients that end with .tfrecord
+            val_patients = [pat for pat in val_patients if pat.endswith(".tfrecord")]
+
+            # check if tfrecord is valid
+            for pat in val_patients:
+                verify_tfrecord(pat)
+
+        return train_patients, val_patients
+    
+    else:
+        # raise error
+        raise ValueError(f"Invalid pretraining type: {dataset_type}")
 
 def get_test_paths(path_to_splits, path_to_tfrs):
     # read .txt file
@@ -103,34 +173,34 @@ def get_patient_paths(path_to_tfrs):
     return patient_paths
 
 
-def split_patients(patient_paths, path_to_callbacks, fraction_to_use = 1):
+# def split_patients(patient_paths, path_to_callbacks, fraction_to_use = 1):
 
-    random.shuffle(patient_paths)
+    # random.shuffle(patient_paths)
 
-    patient_paths = patient_paths[:int(len(patient_paths) * fraction_to_use)]
+    # patient_paths = patient_paths[:int(len(patient_paths) * fraction_to_use)]
 
-    if fraction_to_use != 1:
-        print(f"actual tfrs length: {len(patient_paths)}")
+    # if fraction_to_use != 1:
+    #     print(f"actual tfrs length: {len(patient_paths)}")
 
-    train_size = int(len(patient_paths) * train_ratio)
-    val_size = int(len(patient_paths) * val_ratio)
+    # train_size = int(len(patient_paths) * constants.train_ratio)
+    # val_size = int(len(patient_paths) * constants.val_ratio)
 
-    train_patients_paths = patient_paths[:train_size]
-    val_patients_paths = patient_paths[train_size:train_size + val_size]
-    test_patients_paths = patient_paths[train_size + val_size:]
+    # train_patients_paths = patient_paths[:train_size]
+    # val_patients_paths = patient_paths[train_size:train_size + val_size]
+    # test_patients_paths = patient_paths[train_size + val_size:]
 
-    print(f"train: {len(train_patients_paths)} | val: {len(val_patients_paths)} | test: {len(test_patients_paths)}")
+    # print(f"train: {len(train_patients_paths)} | val: {len(val_patients_paths)} | test: {len(test_patients_paths)}")
 
-    # save train / val / test patients to txt file
-    save_paths_to_txt(train_patients_paths, "train", path_to_callbacks)
-    save_paths_to_txt(val_patients_paths, "val", path_to_callbacks)
-    save_paths_to_txt(test_patients_paths, "test", path_to_callbacks)
+    # # save train / val / test patients to txt file
+    # save_paths_to_txt(train_patients_paths, "train", path_to_callbacks)
+    # save_paths_to_txt(val_patients_paths, "val", path_to_callbacks)
+    # save_paths_to_txt(test_patients_paths, "test", path_to_callbacks)
 
-    sum = len(train_patients_paths) + len(val_patients_paths) + len(test_patients_paths)
-    if sum != len(patient_paths):
-        print("WARNING: error occured in train / val / test split!")
+    # sum = len(train_patients_paths) + len(val_patients_paths) + len(test_patients_paths)
+    # if sum != len(patient_paths):
+    #     print("WARNING: error occured in train / val / test split!")
 
-    return train_patients_paths, val_patients_paths, test_patients_paths
+    # return train_patients_paths, val_patients_paths, test_patients_paths
 
 def get_tfr_paths_for_patients(patient_paths):
 
@@ -146,36 +216,64 @@ def get_tfr_paths_for_patients(patient_paths):
 
     return tfr_paths
 
-def read_data(train_paths, val_paths, num_classes, batch_size, test_paths = None, rgb = False):
+def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes = None, test_paths = None, rgb = False, dataset_type = constants.Dataset.NORMAL):
 
-    train_data = tf.data.Dataset.from_tensor_slices(train_paths)
-    val_data = tf.data.Dataset.from_tensor_slices(val_paths)
+    if dataset_type != constants.Dataset.PRETRAIN_ROUGH:
 
-    train_data = train_data.interleave(
-        lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
-        num_parallel_calls=tf.data.AUTOTUNE,
-        deterministic=False
-    )
-    val_data = val_data.interleave(
-        lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
-        num_parallel_calls=tf.data.AUTOTUNE,
-        deterministic=False
-    )
+        train_data = tf.data.Dataset.from_tensor_slices(train_paths)
+        val_data = tf.data.Dataset.from_tensor_slices(val_paths)
 
-    train_data = train_data.map(partial(parse_record, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
-    val_data = val_data.map(partial(parse_record, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+        train_data = train_data.interleave(
+            lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
+            num_parallel_calls=tf.data.AUTOTUNE,
+            deterministic=False
+        )
+        val_data = val_data.interleave(
+            lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
+            num_parallel_calls=tf.data.AUTOTUNE,
+            deterministic=True
+        )
 
-    train_data = train_data.shuffle(buffer_size=shuffle_buffer_size)
-    val_data = val_data.shuffle(buffer_size=shuffle_buffer_size)
+        if dataset_type == constants.Training.NORMAL:
+            train_data = train_data.map(partial(parse_record, selected_indices, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+            val_data = val_data.map(partial(parse_record, selected_indices, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
 
-    train_data = train_data.repeat(count = repeat_count)
-    val_data = val_data.repeat(count = repeat_count)
+        elif dataset_type == constants.Dataset.PRETRAIN_FINE:
+            train_data = train_data.map(partial(parse_record, selected_indices, use_clinical_data = False, use_layer = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+            val_data = val_data.map(partial(parse_record, selected_indices, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+
+    else: # ROUGH pretraining
+        
+        train_data = tf.data.TFRecordDataset([train_paths], compression_type="GZIP")
+        val_data = tf.data.TFRecordDataset([val_paths], compression_type="GZIP")
+
+        feature_description = {
+            "image": tf.io.FixedLenFeature([constants.IMG_SIZE, constants.IMG_SIZE, constants.ROUGH_NUM_IMAGES], tf.float32),
+            "label": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+        }
+
+        def rough_parse(serialize_tumor):
+            example = tf.io.parse_single_example(serialize_tumor, feature_description)
+            image = example["image"]
+            #image = tf.reshape(image, [constants.IMG_SIZE, constants.IMG_SIZE, rough_num_images])
+            
+            return image, example["label"]
+        
+        train_data = train_data.map(rough_parse, num_parallel_calls=tf.data.AUTOTUNE)
+        val_data = val_data.map(rough_parse, num_parallel_calls=tf.data.AUTOTUNE)
+
+
+    train_data = train_data.shuffle(buffer_size=constants.shuffle_buffer_size)
+    #val_data = val_data.shuffle(buffer_size=constants.shuffle_buffer_size)
+
+    train_data = train_data.repeat(count = constants.repeat_count)
+    val_data = val_data.repeat(count = constants.repeat_count)
 
     train_data = train_data.batch(batch_size)
     val_data = val_data.batch(batch_size)
 
-    train_data = train_data.prefetch(buffer_size=1)
-    val_data = val_data.prefetch(buffer_size=1)
+    train_data = train_data.prefetch(buffer_size=tf.data.AUTOTUNE)
+    val_data = val_data.prefetch(buffer_size=tf.data.AUTOTUNE)
 
     if test_paths is not None:
         test_data = tf.data.Dataset.from_tensor_slices(test_paths)
@@ -184,7 +282,7 @@ def read_data(train_paths, val_paths, num_classes, batch_size, test_paths = None
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=False
         )
-        test_data = test_data.map(partial(parse_record, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+        test_data = test_data.map(partial(parse_record, selected_indices, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
         test_data = test_data.batch(batch_size)
         test_data = test_data.prefetch(buffer_size=1)
 
@@ -192,31 +290,34 @@ def read_data(train_paths, val_paths, num_classes, batch_size, test_paths = None
 
     return train_data, val_data
 
-def parse_record(record, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False, sequence = "t1c"):
+def parse_record(record, selected_indices, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False):
 
     image_shape = []
 
     if rgb: # rgb images need three channels
-        image_shape = [240, 240, 3, 4]
+        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 3, 5]
     else: # gray scale images don't
-        image_shape = [240, 240, 4]
+        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
 
     feature_description = {
         "image": tf.io.FixedLenFeature(image_shape, tf.float32),
         "sex": tf.io.FixedLenFeature([], tf.int64, default_value=[0]),
-        "age": tf.io.FixedLenFeature([], tf.int64, default_value=AGE_MIN),
-        "layer": tf.io.FixedLenFeature([], tf.int64, default_value=LAYER_MIN),
-        "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+        "age": tf.io.FixedLenFeature([], tf.int64, default_value=constants.AGE_MIN),
+        "layer": tf.io.FixedLenFeature([], tf.int64, default_value=constants.LAYER_MIN),
+        "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0), # actual label
     }
 
     example = tf.io.parse_single_example(record, feature_description)
-    image = example["image"]
-    image = tf.reshape(image, image_shape)
+
+    # --- Image Channel Selection ---
+    full_image = example["image"]
+    selected_image = tf.gather(full_image, selected_indices, axis=-1)
+    #image = tf.reshape(image, image_shape)
 
     # scale age and layer
     # the values also get clipped to [0, 1]
-    scaled_age = min_max_scale(example["age"], AGE_MIN, AGE_MAX)
-    scaled_layer = min_max_scale(example["layer"], LAYER_MIN, LAYER_MAX)
+    scaled_age = min_max_scale(example["age"], constants.AGE_MIN, constants.AGE_MAX)
+    scaled_layer = min_max_scale(example["layer"], constants.LAYER_MIN, constants.LAYER_MAX)
 
     # primary should have a value between 0 and 5
     # depending on num classes return different values
@@ -254,61 +355,64 @@ def parse_record(record, use_clinical_data = True, use_layer = False, labeled = 
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     else:
-            print("ERROR")
-            print("num classes not supported")
-            print("Check parse_record function")
-            print("____________________________")
+        raise ValueError(f"num_classes must have a value between 2 and 6, got {num_classes}")
 
-    if rgb: # select the right sequence to return
-        if sequence == "t1":
-            image = image[:, :, :, 0]
-        elif sequence == "t1c":
-            image = image[:, :, :, 1]
-        elif sequence == "t2":
-            image = image[:, :, :, 2]
-        elif sequence == "flair":
-            image = image[:, :, :, 3]
+
+    # if rgb: # select the right sequence to return
+    #     if sequence == "t1":
+    #         image = image[:, :, :, 0]
+    #     elif sequence == "t1c":
+    #         image = image[:, :, :, 1]
+    #     elif sequence == "t2":
+    #         image = image[:, :, :, 2]
+    #     elif sequence == "flair":
+    #         image = image[:, :, :, 3]
 
     # if use_clinical_data is False and use_layer is False, return only the image and the primary
     if use_clinical_data == False and use_layer == False:
-        return image, primary_to_return
+        return selected_image, primary_to_return
     
     # if use_clinical_data is False and use_layer is True, return only the image, the layer and the primary
     elif use_clinical_data == False and use_layer:
-        return (image, scaled_layer), primary_to_return
+        return (selected_image, scaled_layer), primary_to_return
     
     # if use_clinical_data is True and use_layer is False, return the image, the sex, the age and the primary
     elif use_clinical_data and use_layer == False and labeled:
-        return (image, example["sex"], scaled_age), primary_to_return #example["primary"]
+        return (selected_image, example["sex"], scaled_age), primary_to_return #example["primary"]
     
     # if use_clinical_data is True and use_layer is True and labeled, return the image, the sex, the age, the layer and the primary
     elif use_clinical_data and use_layer and labeled:
-        return (image, example["sex"], scaled_age, scaled_layer), primary_to_return
+        return (selected_image, example["sex"], scaled_age, scaled_layer), primary_to_return
 
     # if use_clinical_data is True and use_layer is True and not labeled, return the image, the sex, the age and the layer, not the primary!
     elif use_clinical_data and use_layer and not labeled:
-        return image, example["sex"], scaled_age, scaled_layer
+        return selected_image, example["sex"], scaled_age, scaled_layer
 
     else:
-        return image
+        return selected_image
+    
     
 def verify_tfrecord(file_path):
     try:
         for _ in tf.data.TFRecordDataset(file_path, compression_type="GZIP"):
             pass
-    except tf.errors.DataLossError:
-        print(f"Corrupted TFRecord file: {file_path}")
+        return True
+    except tf.errors.DataLossError as e:
+        print(f"Corrupted TFRecord file: {file_path}\n{e}")
+        return False
+    except Exception as e:
+        print(f"Error verifying TFRecord file: {file_path}\nError: {e}")
+        return False
 
 
 def get_callbacks(path_to_callbacks,
                   fold_num = 0,
                   use_checkpoint = True,
                   use_early_stopping = True,
-                  early_stopping_patience = early_stopping_patience,
+                  early_stopping_patience = constants.early_stopping_patience,
                   use_tensorboard = True,
                   use_csv_logger = True,
-                  use_lrscheduler = False,
-                  stop_training = False):
+                  use_lrscheduler = False):
 
     callbacks = []
 
@@ -354,14 +458,12 @@ def get_callbacks(path_to_callbacks,
         lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-8 * 10**(epoch * 0.0175))
         callbacks.append(lr_schedule)
 
-    if stop_training:
-        unfreeze = UnfreezeCallback()
-        callbacks.append(unfreeze)
-
     print("get_callbacks successful")
 
     return callbacks
 
+
+# --- Utility functions and layers ---
 
 def min_max_scale(data, min_val, max_val):
     """
@@ -380,19 +482,25 @@ def min_max_scale(data, min_val, max_val):
 
 
 class NormalizeToRange(tf.keras.layers.Layer):
-    def __init__(self, zero_to_one=True):
-        super(NormalizeToRange, self).__init__()
+    """Layer to normalize input tensor values to [0, 1] or [-1, 1]."""
+    def __init__(self, zero_to_one=True, epsilon=1e-7, **kwargs):
+        super().__init__(**kwargs) #super(NormalizeToRange, self).__init__()
         self.zero_to_one = zero_to_one
+        self.epsilon = epsilon
 
     def call(self, inputs):
         min_val = tf.reduce_min(inputs)
         max_val = tf.reduce_max(inputs)
+
+        range_val = max_val - min_val
+        range_val = tf.maximum(range_val, self.epsilon)
+
         if self.zero_to_one:
             # Normalize to [0, 1]
-            normalized = (inputs - min_val) / (max_val - min_val)
+            normalized = (inputs - min_val) / range_val
         else:
             # Normalize to [-1, 1]
-            normalized = 2 * (inputs - min_val) / (max_val - min_val) - 1
+            normalized = 2 * (inputs - min_val) / range_val - 1
         return normalized
 
 # Custom Data Augmentation Layers
@@ -486,37 +594,6 @@ class WeightedCrossEntropyLoss(tf.keras.losses.Loss):
         return tf.reduce_mean(weighted_cross_entropy)
         
 
-class UnfreezeCallback(tf.keras.callbacks.Callback):
-    def __init__(self, patience=3, monitor='val_accuracy', min_delta=0.01):
-        super(UnfreezeCallback, self).__init__()
-        self.patience = patience
-        self.monitor = monitor
-        self.min_delta = min_delta
-        self.wait = 0
-        self.best = -float('inf')
-        self.unfreeze = False
-
-    def on_epoch_end(self, epoch, logs=None):
-        #print("Epoch ended")
-
-        current = logs.get(self.monitor)
-        if current is None:
-            raise ValueError(f"Monitor {self.monitor} is not available in logs.")
-        
-        if current > self.best + self.min_delta:
-            self.best = current
-            self.wait = 0
-            print("\nnot gonna unfreeze")
-        else:
-            self.wait += 1
-            if self.wait >= self.patience and not self.unfreeze:
-                print(f"\nStopping Tranining at epoch {epoch + 1}")
-
-                self.model.stop_training = True
-
-                self.unfreeze = True
-                self.wait = 0
-
 def __initial_conv_block(input, weight_decay = 5e-4):
     ''' Adds an initial convolution block, with batch normalization and relu activation
     Args:
@@ -528,10 +605,10 @@ def __initial_conv_block(input, weight_decay = 5e-4):
     x = tf.keras.layers.Conv3D(filters = 64,
                                kernel_size = 3,
                                padding = "same",
-                               kernel_initializer = kernel_initializer,
+                               kernel_initializer = constants.kernel_initializer,
                                kernel_regularizer = tf.keras.regularizers.l2(weight_decay))(input)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation(activation_func)(x)
+    x = tf.keras.layers.Activation(constants.activation_func)(x)
 
     return x
 
@@ -555,10 +632,10 @@ def __grouped_convolution_block(input, grouped_channels, cardinality, strides, w
                                    padding = "same",
                                    use_bias = False,
                                    strides = (strides, strides, strides),
-                                   kernel_initializer = kernel_initializer,
+                                   kernel_initializer = constants.kernel_initializer,
                                    kernel_regularizer = tf.keras.regularizers.l2(weight_decay))(input)
         x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.Activation(activation_func)(x)
+        x = tf.keras.layers.Activation(constants.activation_func)(x)
 
         return x
     
@@ -571,14 +648,14 @@ def __grouped_convolution_block(input, grouped_channels, cardinality, strides, w
                                    padding = "same",
                                    use_bias = False,
                                    strides = (strides, strides, strides),
-                                   kernel_initializer = kernel_initializer,
+                                   kernel_initializer = constants.kernel_initializer,
                                    kernel_regularizer = tf.keras.regularizers.l2(weight_decay))(x)
         
         group_list.append(x)
     
     group_merge = tf.keras.layers.Concatenate(axis=-1)(group_list)
     x = tf.keras.layers.BatchNormalization()(group_merge)
-    x = tf.keras.layers.Activation(activation_func)(x)
+    x = tf.keras.layers.Activation(constants.activation_func)(x)
 
     return x
 
@@ -594,27 +671,27 @@ def __bottleneck_block(input, filters, cardinality, strides, weight_decay):
     if needs_conv:
         # Apply convolution to shortcut path to match the main path's dimensions
         init = tf.keras.layers.Conv3D(filters * 2, 1, strides=strides, padding="same", use_bias=False,
-                                      kernel_initializer=kernel_initializer,
+                                      kernel_initializer=constants.kernel_initializer,
                                       kernel_regularizer=tf.keras.regularizers.l2(weight_decay))(init)
         init = tf.keras.layers.BatchNormalization()(init)
 
     # Main path
     x = tf.keras.layers.Conv3D(filters, 1, padding="same", use_bias=False,
-                               kernel_initializer=kernel_initializer,
+                               kernel_initializer=constants.kernel_initializer,
                                kernel_regularizer=tf.keras.regularizers.l2(weight_decay))(input)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation(activation_func)(x)
+    x = tf.keras.layers.Activation(constants.activation_func)(x)
 
     x = __grouped_convolution_block(x, grouped_channels, cardinality, strides, weight_decay)
 
     x = tf.keras.layers.Conv3D(filters * 2, 1, padding="same", use_bias=False,
-                               kernel_initializer=kernel_initializer,
+                               kernel_initializer=constants.kernel_initializer,
                                kernel_regularizer=tf.keras.regularizers.l2(weight_decay))(x)
     x = tf.keras.layers.BatchNormalization()(x)
 
     # Addition - ensuring init and x have compatible shapes
     x = tf.keras.layers.Add()([init, x])
-    x = tf.keras.layers.Activation(activation_func)(x)
+    x = tf.keras.layers.Activation(constants.activation_func)(x)
 
     return x
  
@@ -709,110 +786,81 @@ def print_training_timestamps(isStart, training_codename):
 
 
 
-def get_training_codename(code_name, num_classes, clinical_data, use_layer, is_cutout, is_rgb_images, contrast_DA, is_learning_rate_tuning, is_k_fold, is_upper_layer_training = False):
-    """
-    Generates a unique codename for a training run based on the inputs.
-
-    Parameters
-    ----------
-    code_name : str
-        Base name for the training run.
-    num_classes : int
-        Number of classes for the classification task.
-    clinical_data : bool
-        Whether to include clinical data in the model.
-    use_layer : bool
-        Whether to use a layer for the model.
-    is_cutout : bool
-        Whether to use cutout for the model.
-    is_rgb_images : bool
-        Whether to use RGB images.
-    contrast_DA : bool
-        Whether to use contrast data augmentation.
-    is_learning_rate_tuning : bool
-        Whether to tune the learning rate.
-    is_k_fold : bool
-        Whether to use k-fold cross-validation.
-    is_upper_layer_training : bool, optional
-        Whether to train the upper layer of the model.
-
-    Returns
-    -------
-    training_codename : str
-        Unique codename for the training run.
-    """
+def get_training_codename(code_name, num_classes, clinical_data, use_layer, is_cutout, is_rgb_images, selected_sequences_str,contrast_DA, dataset_type, training_mode):
     
-    training_codename = code_name
+    training_codename = f"{code_name}_{num_classes}cls"
 
-    training_codename += f"_{num_classes}_cls"
+    training_codename += "_cuout" if is_cutout else "_slice"
+    training_codename += "_clin" if clinical_data else "_no_clin"
+    training_codename += "_layer" if use_layer else "_no_layer"
+    training_codename += "_rgb" if is_rgb_images else "_gray"
 
-    if is_cutout:
-        training_codename = training_codename + "_cutout"
-    else:
-        training_codename = training_codename + "_slice"
+    training_codename += f"_seq[{selected_sequences_str}]" # e.g., _seq[t1c-flair-mask]
 
-    if clinical_data:
-        training_codename = training_codename + "_with_clin"
-    else:
-        training_codename = training_codename + "_no_clin"
+    training_codename += "_contrast_DA" if contrast_DA else "_normal_DA"
 
-    if use_layer:
-        training_codename = training_codename + "_with_layer"
-    else:
-        training_codename = training_codename + "_no_layer"
+    if dataset_type == constants.Dataset.PRETRAIN_FINE:
+        training_codename = training_codename + "_pretrain_fine"
+    elif dataset_type == constants.Dataset.PRETRAIN_ROUGH:
+        training_codename = training_codename + "_pretrain_rough"
 
-    if is_rgb_images:
-        training_codename += "_rgb"
-    else:
-        training_codename += "_gray"
-
-    if contrast_DA:
-        training_codename = training_codename + "_contrast_DA"
-    else:
-        training_codename = training_codename + "_normal_DA"
-
-    if is_learning_rate_tuning:
+    if training_mode == constants.Training.LEARNING_RATE_TUNING:
         training_codename = training_codename + "_lr"
-    elif is_upper_layer_training:
+    elif training_mode == constants.Training.UPPER_LAYER:
         training_codename = training_codename + "_upper_layer"
-    elif is_k_fold:
+    elif training_mode == constants.Training.K_FOLD:
         training_codename = training_codename + "_kfold"
-    else:
+    elif training_mode == constants.Training.NORMAL:
         training_codename = training_codename + "_normal"
+    else:
+        raise(ValueError(f"Invalid training mode for codename: {training_mode}"))
 
     return training_codename
 
-def get_path_to_tfrs(is_cutout, is_rgb_images):
-    if is_cutout:
+def get_path_to_tfrs(is_rgb_images, is_cutout = False, dataset_type = constants.Dataset.NORMAL):
+    if dataset_type == constants.Dataset.NORMAL:
+        if is_cutout:
+            if is_rgb_images:
+                # is cutout with color images
+                path_to_tfrs = constants.path_to_tfr_dirs + "/all_pats_single_cutout_rgb"
+            else:
+                # is cutout with gray images
+                path_to_tfrs = constants.path_to_tfr_dirs + "/all_pats_single_cutout_gray"
+        else:
+            if is_rgb_images:
+                # is brain slice with color images
+                path_to_tfrs = constants.path_to_tfr_dirs + "/all_pats_single_slice_rgb"
+            else:
+                # is brain slice with gray images
+                path_to_tfrs = constants.path_to_tfr_dirs + "/all_pats_single_slice_gray"
+    
+    elif dataset_type == constants.Dataset.PRETRAIN_FINE:
         if is_rgb_images:
             # is cutout with color images
-            path_to_tfrs = "/tfrs/all_pats_single_cutout_rgb"
+            path_to_tfrs = constants.path_to_tfr_dirs + "/pretraining_fine_rgb"
         else:
             # is cutout with gray images
-            path_to_tfrs = "/tfrs/all_pats_single_cutout_gray"
+            path_to_tfrs = constants.path_to_tfr_dirs + "/pretraining_fine_gray"
+    
     else:
-        if is_rgb_images:
-            # is brain slice with color images
-            path_to_tfrs = "/tfrs/all_pats_single_slice_rgb"
-        else:
-            # is brain slice with gray images
-            path_to_tfrs = "/tfrs/all_pats_single_slice_gray"
+        return None
     
     return path_to_tfrs
 
 def clear_tf_session():
     tf.keras.backend.clear_session()
-    print("Clearing session...")
+
+    import gc
+    gc.collect()
+
+    print("Clearing session and ran garbage collection")
 
 def print_fold_info(fold, is_start):
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if is_start:
-        print()
-        print("Starting fold: " + str(fold))
-        print("at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        print(f"\n--- Starting Fold: {fold} at {now} ---")
     else:
-        print()
-        print("Finishing fold: " + str(fold))
-        print("at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        print(f"\n--- Finishing Fold: {fold} at {now} ---")
 
 
 def save_training_history(history, training_codename, time, path_to_callbacks, fold = -1):
