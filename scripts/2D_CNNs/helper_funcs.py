@@ -16,7 +16,7 @@ def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, bat
 
     #train_paths, val_paths, test_paths = split_patients(patients, path_to_callbacks=path_to_callbacks, fraction_to_use=1)
 
-    train_paths, val_paths = get_patient_paths_for_fold(current_fold, path_to_splits, path_to_tfrs)
+    train_paths, val_paths = get_patient_paths_for_fold(current_fold, path_to_splits) #path_to_tfrs
     test_paths = get_test_paths(path_to_splits, path_to_tfrs)
 
     # covnert patient directories to list of .tfrecord files
