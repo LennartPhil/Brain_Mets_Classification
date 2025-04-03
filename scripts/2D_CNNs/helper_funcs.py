@@ -103,7 +103,7 @@ def get_patient_paths_for_fold(fold, path_to_tfrs, dataset_type = constants.Data
         txt_train_file_name = "pretraining_fine_train.txt"
         txt_val_file_name = "pretraining_fine_val.txt"
 
-        with open(f"{constants.path_to_splits}/{txt_train_file_name}", "r") as f:
+        with open(f"{str(constants.path_to_splits)}/{txt_train_file_name}", "r") as f:
             train_patients = [line.strip() for line in f]
             train_patients = [f"{path_to_tfrs}/{pat}" for pat in train_patients]
             # only keep patients that end with .tfrecord
@@ -113,7 +113,7 @@ def get_patient_paths_for_fold(fold, path_to_tfrs, dataset_type = constants.Data
             for pat in train_patients:
                 verify_tfrecord(pat)
 
-        with open(f"{constants.path_to_splits}/{txt_val_file_name}", "r") as f:
+        with open(f"{str(constants.path_to_splits)}/{txt_val_file_name}", "r") as f:
             val_patients = [line.strip() for line in f]
             val_patients = [f"{path_to_tfrs}/{pat}" for pat in val_patients]
             # only keep patients that end with .tfrecord
