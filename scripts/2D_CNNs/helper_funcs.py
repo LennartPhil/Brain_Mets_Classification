@@ -822,25 +822,25 @@ def get_path_to_tfrs(is_rgb_images, is_cutout = False, dataset_type = constants.
         if is_cutout:
             if is_rgb_images:
                 # is cutout with color images
-                path_to_tfrs = constants.path_to_tfr_dirs + "/all_pats_single_cutout_rgb"
+                path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_cutout_rgb"
             else:
                 # is cutout with gray images
-                path_to_tfrs = constants.path_to_tfr_dirs + "/all_pats_single_cutout_gray"
+                path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_cutout_gray"
         else:
             if is_rgb_images:
                 # is brain slice with color images
-                path_to_tfrs = constants.path_to_tfr_dirs + "/all_pats_single_slice_rgb"
+                path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_slice_rgb"
             else:
                 # is brain slice with gray images
-                path_to_tfrs = constants.path_to_tfr_dirs + "/all_pats_single_slice_gray"
+                path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_slice_gray"
     
     elif dataset_type == constants.Dataset.PRETRAIN_FINE:
         if is_rgb_images:
             # is cutout with color images
-            path_to_tfrs = constants.path_to_tfr_dirs + "/pretraining_fine_rgb"
+            path_to_tfrs = constants.path_to_tfr_dirs / "pretraining_fine_rgb"
         else:
             # is cutout with gray images
-            path_to_tfrs = constants.path_to_tfr_dirs + "/pretraining_fine_gray"
+            path_to_tfrs = constants.path_to_tfr_dirs / "pretraining_fine_gray"
     
     else:
         return None
