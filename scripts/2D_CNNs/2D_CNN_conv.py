@@ -48,7 +48,7 @@ if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     selected_sequences = ["t1c"]
 
 elif dataset_type == constants.Dataset.PRETRAIN_FINE:
-    num_classes = 2
+    num_classes = 4
     cutout = False
     clinical_data = False
     use_layer = False
