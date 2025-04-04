@@ -290,7 +290,7 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
 
     return train_data, val_data
 
-def parse_record(record, selected_indices, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False):
+def parse_record(record, selected_indices, dataset_type = constants.Dataset.NORMAL, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False):
 
     image_shape = []
 
@@ -299,13 +299,25 @@ def parse_record(record, selected_indices, use_clinical_data = True, use_layer =
     else: # gray scale images don't
         image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
 
-    feature_description = {
-        "image": tf.io.FixedLenFeature(image_shape, tf.float32),
-        "sex": tf.io.FixedLenFeature([], tf.int64, default_value=[0]),
-        "age": tf.io.FixedLenFeature([], tf.int64, default_value=constants.AGE_MIN),
-        "layer": tf.io.FixedLenFeature([], tf.int64, default_value=constants.LAYER_MIN),
-        "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0), # actual label
-    }
+    if dataset_type == constants.Dataset.NORMAL:
+
+        feature_description = {
+            "image": tf.io.FixedLenFeature(image_shape, tf.float32),
+            "sex": tf.io.FixedLenFeature([], tf.int64, default_value=[0]),
+            "age": tf.io.FixedLenFeature([], tf.int64, default_value=constants.AGE_MIN),
+            "layer": tf.io.FixedLenFeature([], tf.int64, default_value=constants.LAYER_MIN),
+            "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0), # actual label
+        }
+
+    elif dataset_type == constants.Dataset.PRETRAIN_FINE:
+
+        feature_description = {
+            "image": tf.io.FixedLenFeature(image_shape, tf.float32),
+            "label": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+        }
+
+    else:
+        raise ValueError(f"Invalid dataset type: {dataset_type}")
 
     example = tf.io.parse_single_example(record, feature_description)
 
@@ -314,10 +326,11 @@ def parse_record(record, selected_indices, use_clinical_data = True, use_layer =
     selected_image = tf.gather(full_image, selected_indices, axis=-1)
     #image = tf.reshape(image, image_shape)
 
-    # scale age and layer
-    # the values also get clipped to [0, 1]
-    scaled_age = min_max_scale(example["age"], constants.AGE_MIN, constants.AGE_MAX)
-    scaled_layer = min_max_scale(example["layer"], constants.LAYER_MIN, constants.LAYER_MAX)
+    if dataset_type == constants.Dataset.NORMAL:
+        # scale age and layer
+        # the values also get clipped to [0, 1]
+        scaled_age = min_max_scale(example["age"], constants.AGE_MIN, constants.AGE_MAX)
+        scaled_layer = min_max_scale(example["layer"], constants.LAYER_MIN, constants.LAYER_MAX)
 
     # primary should have a value between 0 and 5
     # depending on num classes return different values
@@ -330,28 +343,28 @@ def parse_record(record, selected_indices, use_clinical_data = True, use_layer =
     primary_to_return = tf.constant(0, dtype=tf.int64)
 
     if num_classes == 2:
-        if example["primary"] == tf.constant(1, dtype=tf.int64):
-            primary_to_return = example["primary"]
+        if example["label"] == tf.constant(1, dtype=tf.int64):
+            primary_to_return = example["label"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 3:
-        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64):
-            primary_to_return = example["primary"]
+        if example["label"] == tf.constant(1, dtype=tf.int64) or example["label"] == tf.constant(2, dtype=tf.int64):
+            primary_to_return = example["label"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 4:
-        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64):
-            primary_to_return = example["primary"]
+        if example["label"] == tf.constant(1, dtype=tf.int64) or example["label"] == tf.constant(2, dtype=tf.int64) or example["label"] == tf.constant(3, dtype=tf.int64):
+            primary_to_return = example["label"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 5:
-        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64) or example["primary"] == tf.constant(4, dtype=tf.int64):
-            primary_to_return = example["primary"]
+        if example["label"] == tf.constant(1, dtype=tf.int64) or example["label"] == tf.constant(2, dtype=tf.int64) or example["label"] == tf.constant(3, dtype=tf.int64) or example["label"] == tf.constant(4, dtype=tf.int64):
+            primary_to_return = example["label"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 6:
-        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64) or example["primary"] == tf.constant(4, dtype=tf.int64) or example["primary"] == tf.constant(5, dtype=tf.int64):
-            primary_to_return = example["primary"]
+        if example["label"] == tf.constant(1, dtype=tf.int64) or example["label"] == tf.constant(2, dtype=tf.int64) or example["label"] == tf.constant(3, dtype=tf.int64) or example["label"] == tf.constant(4, dtype=tf.int64) or example["label"] == tf.constant(5, dtype=tf.int64):
+            primary_to_return = example["label"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     else:
