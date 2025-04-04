@@ -241,7 +241,7 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
 
         elif dataset_type == constants.Dataset.PRETRAIN_FINE:
             train_data = train_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = False, use_layer = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
-            val_data = val_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+            val_data = val_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = False, use_layer = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
 
     else: # ROUGH pretraining
         
