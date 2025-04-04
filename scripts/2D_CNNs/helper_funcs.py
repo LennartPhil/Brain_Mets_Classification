@@ -348,6 +348,12 @@ def parse_record(record, selected_indices, dataset_type = constants.Dataset.NORM
         scaled_age = min_max_scale(example["age"], constants.AGE_MIN, constants.AGE_MAX)
         scaled_layer = min_max_scale(example["layer"], constants.LAYER_MIN, constants.LAYER_MAX)
 
+        label = example["primary"] # actual label
+    
+    elif dataset_type == constants.Dataset.PRETRAIN_FINE:
+
+        label = example["label"]
+
     # primary should have a value between 0 and 5
     # depending on num classes return different values
     # if num_classes = 2, return 1 if primary is 1, else 0
@@ -359,28 +365,28 @@ def parse_record(record, selected_indices, dataset_type = constants.Dataset.NORM
     primary_to_return = tf.constant(0, dtype=tf.int64)
 
     if num_classes == 2:
-        if example["label"] == tf.constant(1, dtype=tf.int64):
-            primary_to_return = example["label"]
+        if label == tf.constant(1, dtype=tf.int64):
+            primary_to_return = label
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 3:
-        if example["label"] == tf.constant(1, dtype=tf.int64) or example["label"] == tf.constant(2, dtype=tf.int64):
-            primary_to_return = example["label"]
+        if label == tf.constant(1, dtype=tf.int64) or label == tf.constant(2, dtype=tf.int64):
+            primary_to_return = label
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 4:
-        if example["label"] == tf.constant(1, dtype=tf.int64) or example["label"] == tf.constant(2, dtype=tf.int64) or example["label"] == tf.constant(3, dtype=tf.int64):
-            primary_to_return = example["label"]
+        if label == tf.constant(1, dtype=tf.int64) or label == tf.constant(2, dtype=tf.int64) or label == tf.constant(3, dtype=tf.int64):
+            primary_to_return = label
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 5:
-        if example["label"] == tf.constant(1, dtype=tf.int64) or example["label"] == tf.constant(2, dtype=tf.int64) or example["label"] == tf.constant(3, dtype=tf.int64) or example["label"] == tf.constant(4, dtype=tf.int64):
-            primary_to_return = example["label"]
+        if label == tf.constant(1, dtype=tf.int64) or label == tf.constant(2, dtype=tf.int64) or label == tf.constant(3, dtype=tf.int64) or label == tf.constant(4, dtype=tf.int64):
+            primary_to_return = label
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 6:
-        if example["label"] == tf.constant(1, dtype=tf.int64) or example["label"] == tf.constant(2, dtype=tf.int64) or example["label"] == tf.constant(3, dtype=tf.int64) or example["label"] == tf.constant(4, dtype=tf.int64) or example["label"] == tf.constant(5, dtype=tf.int64):
-            primary_to_return = example["label"]
+        if label == tf.constant(1, dtype=tf.int64) or label == tf.constant(2, dtype=tf.int64) or label == tf.constant(3, dtype=tf.int64) or label == tf.constant(4, dtype=tf.int64) or label == tf.constant(5, dtype=tf.int64):
+            primary_to_return = label
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     else:
