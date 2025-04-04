@@ -292,6 +292,21 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
 
 def parse_record(record, selected_indices, dataset_type = constants.Dataset.NORMAL, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False):
 
+    # --- Add Debugging ---
+    tf.print("--- Debug parse_record ---", output_stream=sys.stderr)
+    tf.print("Record input type:", type(record), output_stream=sys.stderr)
+    # Check if it's even a tensor before accessing properties
+    if isinstance(record, tf.Tensor):
+         tf.print("Record shape:", tf.shape(record), output_stream=sys.stderr)
+         tf.print("Record rank:", tf.rank(record), output_stream=sys.stderr)
+         tf.print("Record dtype:", record.dtype, output_stream=sys.stderr)
+         # Try to assert properties if it is a Tensor
+         tf.debugging.assert_scalar(record, message="Assertion Failure: Record is not scalar!")
+         tf.debugging.assert_equal(record.dtype, tf.string, message="Assertion Failure: Record is not string!")
+    else:
+         tf.print("Record is not a Tensor!", output_stream=sys.stderr)
+    tf.print("--- End Debug ---", output_stream=sys.stderr)
+
     image_shape = []
 
     if rgb: # rgb images need three channels
