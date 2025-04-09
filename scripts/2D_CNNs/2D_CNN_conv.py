@@ -28,14 +28,14 @@ dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, 
 training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
-rgb_images = False # using gray scale images as input
+rgb_images = True # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
 clinical_data = False
 use_layer = False
 num_classes = 2
 
 # --- Select Sequences ---
-selected_sequences = ["t1", "t1c", "t2"] #["t1", "t1c", "t2", "flair", "mask"]
+selected_sequences = ["t2"] #["t1", "t1c", "t2", "flair", "mask"]
 
 if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     num_classes = 3
@@ -104,7 +104,11 @@ training_codename = hf.get_training_codename(
 )
 
 
-path_to_tfrs = hf.get_path_to_tfrs(cutout, rgb_images, dataset_type)
+path_to_tfrs = hf.get_path_to_tfrs(
+    is_rgb_images = rgb_images,
+    is_cutout = cutout,
+    dataset_type = dataset_type,
+)
 
 if path_to_tfrs is None and dataset_type != constants.Dataset.PRETRAIN_ROUGH:
     raise ValueError(f"Could not determine path to TFRecords for dataset type {dataset_type}")
@@ -168,7 +172,7 @@ def train_ai():
             batch_size,
             selected_indices,
             dataset_type,
-            #parse_fn = parse_fn # Pass the parse function
+            rgb = rgb_images
         )
 
         # get callbacks
