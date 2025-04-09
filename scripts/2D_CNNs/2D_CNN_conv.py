@@ -24,26 +24,24 @@ if gpus:
 print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
-#include_mask = True
 contrast_DA = False # data augmentation with contrast
 clinical_data = False
 use_layer = False
 num_classes = 2
 
 # --- Select Sequences ---
-selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
+selected_sequences = ["t1", "t1c", "t2"] #["t1", "t1c", "t2", "flair", "mask"]
 
 if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     num_classes = 3
     cutout = False
     clinical_data = False
     use_layer = False
-    #include_mask = False
     rgb_images = True
     selected_sequences = ["t1c"]
     if training_mode != constants.Training.LEARNING_RATE_TUNING and training_mode != constants.Training.NORMAL:
@@ -51,12 +49,15 @@ if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
         
 
 elif dataset_type == constants.Dataset.PRETRAIN_FINE:
-    num_classes = 5
+    num_classes = 2 # we only fine train on the glioblastoma and brain metatases, meaning we'll only need 2 classes
     cutout = False
     clinical_data = False
     use_layer = False
     if training_mode != constants.Training.LEARNING_RATE_TUNING and training_mode != constants.Training.NORMAL:
         raise ValueError(f"For PRETRAIN_ROUGH dataset, only LEARNING_RATE_TUNING and NORMAL training modes are supported. Current mode: {training_mode}")
+
+if rgb_images == True and len(selected_sequences) > 1:
+    raise ValueError(f"RGB images cannot be used when multiple sequences are selected, selected sequences: {selected_sequences}. Please select only 1 sequence.")
 
 
 try:
@@ -147,7 +148,8 @@ def train_ai():
             validation_data = val_data,
             epochs = training_epochs,
             batch_size = batch_size,
-            callbacks = callbacks
+            callbacks = callbacks,
+            class_weight = constants.rough_class_weights
         )        
 
         # save history
@@ -186,7 +188,8 @@ def train_ai():
             validation_data = val_data,
             epochs = training_epochs,
             batch_size = batch_size,
-            callbacks = callbacks
+            callbacks = callbacks,
+            class_weight = constants.fine_two_class_weights
         )        
 
         # save history
