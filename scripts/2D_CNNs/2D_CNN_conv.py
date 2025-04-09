@@ -127,7 +127,6 @@ def train_ai():
     if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
         # Rough pretraining data setup (uses its own parsing logic in helper_funcs.py)
 
-        # regular training
         train_data, val_data = hf.setup_pretraining_data(
             path_to_tfrs,
             batch_size,
@@ -166,7 +165,6 @@ def train_ai():
         
     elif dataset_type == constants.Dataset.PRETRAIN_FINE:
 
-        # regular training
         train_data, val_data = hf.setup_pretraining_data(
             path_to_tfrs,
             batch_size,
@@ -210,6 +208,9 @@ def train_ai():
 
         for fold in range(k_fold_amount):
 
+            if training_mode == constants.Training.K_FOLD:
+                hf.print_fold_info(fold, is_start = True)
+
             train_data, val_data, test_data = hf.setup_data(
                 path_to_tfrs = path_to_tfrs,
                 path_to_callbacks = path_to_callbacks,
@@ -247,8 +248,7 @@ def train_ai():
                 validation_data = val_data,
                 epochs = training_epochs,
                 callbacks = callbacks,
-                #class_weight = constants.normal_two_class_weights if num_classes == 2 else None
-            )        
+            )      
 
             # save history
             hf.save_training_history(
@@ -359,7 +359,7 @@ def build_conv_model():
         output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         loss = "sparse_categorical_crossentropy"
     else:
-        raise ValueError("numm_classes must have a value between 2 and 6")
+        raise ValueError("num_classes must have a value between 2 and 6")
 
     # --- Create and compile model ---
     if dataset_type == constants.Dataset.NORMAL:
