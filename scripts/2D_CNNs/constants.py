@@ -51,6 +51,8 @@ early_stopping_patience = 300 #200
 # --- Weights constants ---
 #two_class_weights = {1: 0.92156863, 0 :1.09302326}
 normal_two_class_weights = {0: 1.09302326, 1: 0.92156863}
+rough_class_weights = {0: 0.7078619089062953, 1: 1.4294083186877562, 2: 1.126500461680517} # for the exact calculation see the preprocessing_brain_tumor_dataset.ipynb file
+fine_two_class_weights = {0: 2.588372093023256, 1: 0.6197104677060133} # for the calculation see the other_dataset.ipynb file
 
 # --- Type of dataset to use ---
 class Dataset(Enum):
