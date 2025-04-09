@@ -24,7 +24,7 @@ if gpus:
 print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_ROUGH # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
 training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
@@ -46,12 +46,17 @@ if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     #include_mask = False
     rgb_images = True
     selected_sequences = ["t1c"]
+    if training_mode != constants.Training.LEARNING_RATE_TUNING and training_mode != constants.Training.NORMAL:
+        raise ValueError(f"For PRETRAIN_ROUGH dataset, only LEARNING_RATE_TUNING and NORMAL training modes are supported. Current mode: {training_mode}")
+        
 
 elif dataset_type == constants.Dataset.PRETRAIN_FINE:
     num_classes = 5
     cutout = False
     clinical_data = False
     use_layer = False
+    if training_mode != constants.Training.LEARNING_RATE_TUNING and training_mode != constants.Training.NORMAL:
+        raise ValueError(f"For PRETRAIN_ROUGH dataset, only LEARNING_RATE_TUNING and NORMAL training modes are supported. Current mode: {training_mode}")
 
 
 try:
@@ -114,11 +119,9 @@ def train_ai():
 
     hf.print_training_timestamps(isStart = True, training_codename = training_codename)
 
-    # Prepare partial function for parsing data with selected sequences
-    #parse_fn = partial(hf.parse_record, selected_indices = selected_indices)
-
     if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
-        # Rough pretraining data setup (uses its own parsing logic in helper_funcs)
+        # Rough pretraining data setup (uses its own parsing logic in helper_funcs.py)
+
         # regular training
         train_data, val_data = hf.setup_pretraining_data(
             path_to_tfrs,
@@ -128,7 +131,12 @@ def train_ai():
         )
 
         # get callbacks
-        callbacks = hf.get_callbacks(path_to_callbacks, 0)
+        callbacks = hf.get_callbacks(
+            path_to_callbacks = path_to_callbacks,
+            fold_num = 0,
+            use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+            use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True
+        )
 
         # build model
         model = build_conv_model()
@@ -149,7 +157,7 @@ def train_ai():
             time = time,
             path_to_callbacks = path_to_callbacks
         )
-
+        
     elif dataset_type == constants.Dataset.PRETRAIN_FINE:
 
         # regular training
@@ -162,7 +170,12 @@ def train_ai():
         )
 
         # get callbacks
-        callbacks = hf.get_callbacks(path_to_callbacks, 0)
+        callbacks = hf.get_callbacks(
+            path_to_callbacks = path_to_callbacks,
+            fold_num = 0,
+            use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+            use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True
+        )
 
         # build model
         model = build_conv_model()
@@ -184,11 +197,11 @@ def train_ai():
             path_to_callbacks = path_to_callbacks
         )
 
-    elif training_mode == constants.Training.K_FOLD:
-        
-        for fold in range(10):
+    elif dataset_type == constants.Dataset.NORMAL:
 
-            hf.print_fold_info(fold, is_start = True)
+        k_fold_amount = 10 if training_mode == constants.Training.K_FOLD else 1
+
+        for fold in range(k_fold_amount):
 
             train_data, val_data, test_data = hf.setup_data(
                 path_to_tfrs = path_to_tfrs,
@@ -200,11 +213,24 @@ def train_ai():
                 use_clinical_data = clinical_data,
                 use_layer = use_layer,
                 rgb = rgb_images,
-                current_fold = fold,
+                current_fold = fold
             )
-
-            callbacks = hf.get_callbacks(path_to_callbacks, fold)
             
+            callbacks = hf.get_callbacks(
+                path_to_callbacks = path_to_callbacks,
+                fold_num = 0,
+                use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+                use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True
+            )
+            
+            # hf.check_dataset(train_data, "Training", batch_size, input_shape,
+            #                num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
+            # hf.check_dataset(val_data, "Validation", batch_size, input_shape,
+            #                num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
+            # if test_data is not None:
+            #     hf.check_dataset(test_data, "Test", batch_size, input_shape,
+            #         num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
+
             # build model
             model = build_conv_model()
 
@@ -213,112 +239,26 @@ def train_ai():
                 train_data,
                 validation_data = val_data,
                 epochs = training_epochs,
-                #batch_size = batch_size,
                 callbacks = callbacks,
                 #class_weight = constants.normal_two_class_weights if num_classes == 2 else None
-            )
+            )        
 
             # save history
             hf.save_training_history(
                 history = history,
                 training_codename = training_codename,
                 time = time,
-                fold = fold,
-                path_to_callbacks = path_to_callbacks
+                path_to_callbacks = path_to_callbacks,
+                fold = fold if training_mode == constants.Training.K_FOLD else -1
             )
 
-            hf.clear_tf_session()
+            if training_mode == constants.Training.K_FOLD:
+                hf.clear_tf_session()
 
-            hf.print_fold_info(fold, is_start = False)
-
-    elif training_mode == constants.Training.LEARNING_RATE_TUNING:
-
-        train_data, val_data, test_data = hf.setup_data(
-            path_to_tfrs = path_to_tfrs,
-            path_to_callbacks = path_to_callbacks,
-            path_to_splits = constants.path_to_splits,
-            num_classes = num_classes,
-            batch_size = batch_size,
-            selected_indices = selected_indices,
-            use_clinical_data = clinical_data,
-            use_layer = use_layer,
-            rgb = rgb_images,
-        )
-        
-        callbacks = hf.get_callbacks(path_to_callbacks, 0,
-                                     use_lrscheduler = True,
-                                     use_early_stopping = False)
-        
-        hf.check_dataset(train_data, "Training", batch_size, input_shape,
-                       num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
-        hf.check_dataset(val_data, "Validation", batch_size, input_shape,
-                       num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
-        if test_data is not None:
-            hf.check_dataset(test_data, "Test", batch_size, input_shape,
-                num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
-
-        # build model
-        model = build_conv_model()
-
-        #training model
-        history = model.fit(
-            train_data,
-            validation_data = val_data,
-            epochs = training_epochs,
-            #batch_size = batch_size,
-            callbacks = callbacks,
-            #class_weight = constants.normal_two_class_weights if num_classes == 2 else None
-        )        
-
-        # save history
-        hf.save_training_history(
-            history = history,
-            training_codename = training_codename,
-            time = time,
-            path_to_callbacks = path_to_callbacks
-        )
-
-    elif training_mode == constants.Training.NORMAL:
-        # regular training
-        train_data, val_data, test_data = hf.setup_data(
-            path_to_tfrs,
-            path_to_callbacks,
-            constants.path_to_splits,
-            num_classes,
-            batch_size = batch_size,
-            selected_indices = selected_indices,
-            use_clinical_data = clinical_data,
-            use_layer = use_layer,
-            rgb = rgb_images,
-        )
-        
-
-        # get callbacks
-        callbacks = hf.get_callbacks(path_to_callbacks, 0)
-
-        # build model
-        model = build_conv_model()
-
-        # traing model
-        history = model.fit(
-            train_data,
-            validation_data = val_data,
-            epochs = training_epochs,
-            #batch_size = batch_size,
-            callbacks = callbacks,
-            #class_weight = constants.normal_two_class_weights if num_classes == 2 else None
-        )        
-
-        # save history
-        hf.save_training_history(
-            history = history,
-            training_codename = training_codename,
-            time = time,
-            path_to_callbacks = path_to_callbacks
-        )
+                hf.print_fold_info(fold, is_start = False)
     
     else:
-        raise ValueError("Wrong training mode selected, please pick a training mode")
+        raise ValueError(f"Invalid dataset type: {dataset_type}. Supported types: {constants.Dataset.NORMAL}, {constants.Dataset.PRETRAIN_ROUGH}, {constants.Dataset.PRETRAIN_FINE}")
 
     hf.clear_tf_session()
 
