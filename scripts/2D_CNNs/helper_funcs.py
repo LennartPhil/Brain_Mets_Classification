@@ -12,12 +12,12 @@ import sys
 
 # --- Data Setup Functions ---
 
-def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, selected_indices, rgb = False, current_fold = 0):
+def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size, selected_indices, rgb = False, use_clinical_data = True, use_layer = True, current_fold = 0):
     #patients = get_patient_paths(path_to_tfrs)
 
     #train_paths, val_paths, test_paths = split_patients(patients, path_to_callbacks=path_to_callbacks, fraction_to_use=1)
 
-    train_paths, val_paths = get_patient_paths_for_fold(current_fold, path_to_splits) #path_to_tfrs
+    train_paths, val_paths = get_patient_paths_for_fold(current_fold, path_to_tfrs) #path_to_splits
     test_paths = get_test_paths(path_to_splits, path_to_tfrs)
 
     # covnert patient directories to list of .tfrecord files
@@ -29,12 +29,14 @@ def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, bat
 
 
     train_data, val_data, test_data = read_data(
-        train_paths,
-        val_paths,
-        selected_indices,
-        num_classes,
-        batch_size,
-        test_paths,
+        train_paths = train_paths,
+        val_paths = val_paths,
+        selected_indices = selected_indices,
+        num_classes = num_classes,
+        batch_size = batch_size,
+        use_clinical_data = use_clinical_data,
+        use_layer = use_layer,
+        test_paths = test_paths,
         rgb = rgb,
     )
 
@@ -174,35 +176,6 @@ def get_patient_paths(path_to_tfrs):
     return patient_paths
 
 
-# def split_patients(patient_paths, path_to_callbacks, fraction_to_use = 1):
-
-    # random.shuffle(patient_paths)
-
-    # patient_paths = patient_paths[:int(len(patient_paths) * fraction_to_use)]
-
-    # if fraction_to_use != 1:
-    #     print(f"actual tfrs length: {len(patient_paths)}")
-
-    # train_size = int(len(patient_paths) * constants.train_ratio)
-    # val_size = int(len(patient_paths) * constants.val_ratio)
-
-    # train_patients_paths = patient_paths[:train_size]
-    # val_patients_paths = patient_paths[train_size:train_size + val_size]
-    # test_patients_paths = patient_paths[train_size + val_size:]
-
-    # print(f"train: {len(train_patients_paths)} | val: {len(val_patients_paths)} | test: {len(test_patients_paths)}")
-
-    # # save train / val / test patients to txt file
-    # save_paths_to_txt(train_patients_paths, "train", path_to_callbacks)
-    # save_paths_to_txt(val_patients_paths, "val", path_to_callbacks)
-    # save_paths_to_txt(test_patients_paths, "test", path_to_callbacks)
-
-    # sum = len(train_patients_paths) + len(val_patients_paths) + len(test_patients_paths)
-    # if sum != len(patient_paths):
-    #     print("WARNING: error occured in train / val / test split!")
-
-    # return train_patients_paths, val_patients_paths, test_patients_paths
-
 def get_tfr_paths_for_patients(patient_paths):
 
     tfr_paths = []
@@ -217,7 +190,7 @@ def get_tfr_paths_for_patients(patient_paths):
 
     return tfr_paths
 
-def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes = None, test_paths = None, rgb = False, dataset_type = constants.Dataset.NORMAL):
+def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes = None, test_paths = None, rgb = False, use_clinical_data = True, use_layer = True, dataset_type = constants.Dataset.NORMAL):
 
     if dataset_type != constants.Dataset.PRETRAIN_ROUGH:
 
@@ -232,16 +205,48 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
         val_data = val_data.interleave(
             lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
             num_parallel_calls=tf.data.AUTOTUNE,
-            deterministic=True
+            deterministic=False # True
         )
 
-        if dataset_type == constants.Training.NORMAL:
-            train_data = train_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
-            val_data = val_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+        if dataset_type == constants.Dataset.NORMAL:
+            train_parse_partial = partial(parse_record,
+                                          selected_indices = selected_indices,
+                                          dataset_type = dataset_type,
+                                          use_clinical_data = use_clinical_data,
+                                          use_layer = use_layer,
+                                          labeled = True,
+                                          num_classes = num_classes,
+                                          rgb = rgb)
+            
+            val_parse_partial = partial(parse_record,
+                                        selected_indices = selected_indices,
+                                        dataset_type = dataset_type,
+                                        use_clinical_data = use_clinical_data,
+                                        use_layer = use_layer,
+                                        labeled = True,
+                                        num_classes = num_classes,
+                                        rgb = rgb)
+
+            train_data = train_data.map(train_parse_partial, num_parallel_calls=tf.data.AUTOTUNE)
+            val_data = val_data.map(val_parse_partial, num_parallel_calls=tf.data.AUTOTUNE)
 
         elif dataset_type == constants.Dataset.PRETRAIN_FINE:
-            train_data = train_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = False, use_layer = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
-            val_data = val_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = False, use_layer = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+            # train_data = train_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = False, use_layer = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+            # val_data = val_data.map(partial(parse_record, selected_indices, dataset_type = dataset_type, use_clinical_data = False, use_layer = False, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+            train_parse_partial = partial(parse_fine_pretraining_record,
+                                          selected_indices = selected_indices,
+                                          labeled = True,
+                                          num_classes = num_classes,
+                                          rgb = rgb)
+            
+            val_parse_partial = partial(parse_fine_pretraining_record,
+                                        selected_indices = selected_indices,
+                                        labeled = True,
+                                        num_classes = num_classes,
+                                        rgb = rgb)
+
+            train_data = train_data.map(train_parse_partial, num_parallel_calls=tf.data.AUTOTUNE)
+            val_data = val_data.map(val_parse_partial, num_parallel_calls=tf.data.AUTOTUNE)
 
     else: # ROUGH pretraining
         
@@ -283,7 +288,18 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=False
         )
-        test_data = test_data.map(partial(parse_record, selected_indices, use_clinical_data = True, use_layer = True, labeled = True, num_classes = num_classes, rgb = rgb), num_parallel_calls=tf.data.AUTOTUNE)
+
+        test_parse_partial = partial(parse_record,
+                                    selected_indices = selected_indices,
+                                    dataset_type = dataset_type,
+                                    use_clinical_data = use_clinical_data,
+                                    use_layer = use_layer,
+                                    labeled = True,
+                                    num_classes = num_classes,
+                                    rgb = rgb)
+
+
+        test_data = test_data.map(test_parse_partial, num_parallel_calls=tf.data.AUTOTUNE)
         test_data = test_data.batch(batch_size)
         test_data = test_data.prefetch(buffer_size=1)
 
@@ -291,22 +307,8 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
 
     return train_data, val_data
 
-def parse_record(record, selected_indices, dataset_type = constants.Dataset.NORMAL, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False):
 
-    # --- Add Debugging ---
-    tf.print("--- Debug parse_record ---", output_stream=sys.stderr)
-    tf.print("Record input type:", type(record), output_stream=sys.stderr)
-    # Check if it's even a tensor before accessing properties
-    if isinstance(record, tf.Tensor):
-         tf.print("Record shape:", tf.shape(record), output_stream=sys.stderr)
-         tf.print("Record rank:", tf.rank(record), output_stream=sys.stderr)
-         tf.print("Record dtype:", record.dtype, output_stream=sys.stderr)
-         # Try to assert properties if it is a Tensor
-         tf.debugging.assert_scalar(record, message="Assertion Failure: Record is not scalar!")
-         tf.debugging.assert_equal(record.dtype, tf.string, message="Assertion Failure: Record is not string!")
-    else:
-         tf.print("Record is not a Tensor!", output_stream=sys.stderr)
-    tf.print("--- End Debug ---", output_stream=sys.stderr)
+def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = constants.Dataset.NORMAL, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False):
 
     image_shape = []
 
@@ -315,44 +317,25 @@ def parse_record(record, selected_indices, dataset_type = constants.Dataset.NORM
     else: # gray scale images don't
         image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
 
-    if dataset_type == constants.Dataset.NORMAL:
-
-        feature_description = {
-            "image": tf.io.FixedLenFeature(image_shape, tf.float32),
-            "sex": tf.io.FixedLenFeature([], tf.int64, default_value=[0]),
-            "age": tf.io.FixedLenFeature([], tf.int64, default_value=constants.AGE_MIN),
-            "layer": tf.io.FixedLenFeature([], tf.int64, default_value=constants.LAYER_MIN),
-            "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0), # actual label
-        }
-
-    elif dataset_type == constants.Dataset.PRETRAIN_FINE:
-
-        feature_description = {
-            "image": tf.io.FixedLenFeature(image_shape, tf.float32),
-            "label": tf.io.FixedLenFeature([], tf.int64, default_value=0),
-        }
-
-    else:
-        raise ValueError(f"Invalid dataset type: {dataset_type}")
+    feature_description = {
+        "image": tf.io.FixedLenFeature(image_shape, tf.float32),
+        "sex": tf.io.FixedLenFeature([], tf.int64, default_value=[0]),
+        "age": tf.io.FixedLenFeature([], tf.int64, default_value=constants.AGE_MIN),
+        "layer": tf.io.FixedLenFeature([], tf.int64, default_value=constants.LAYER_MIN),
+        "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0), # actual label
+    }
 
     example = tf.io.parse_single_example(record, feature_description)
 
     # --- Image Channel Selection ---
-    full_image = example["image"]
-    selected_image = tf.gather(full_image, selected_indices, axis=-1)
-    #image = tf.reshape(image, image_shape)
+    image = example["image"]
+    image = tf.reshape(image, image_shape)
+    #selected_image = tf.gather(image, selected_indices, axis=-1)
 
-    if dataset_type == constants.Dataset.NORMAL:
-        # scale age and layer
-        # the values also get clipped to [0, 1]
-        scaled_age = min_max_scale(example["age"], constants.AGE_MIN, constants.AGE_MAX)
-        scaled_layer = min_max_scale(example["layer"], constants.LAYER_MIN, constants.LAYER_MAX)
-
-        label = example["primary"] # actual label
-    
-    elif dataset_type == constants.Dataset.PRETRAIN_FINE:
-
-        label = example["label"]
+    # scale age and layer
+    # the values also get clipped to [0, 1]
+    scaled_age = min_max_scale(example["age"], constants.AGE_MIN, constants.AGE_MAX)
+    scaled_layer = min_max_scale(example["layer"], constants.LAYER_MIN, constants.LAYER_MAX)
 
     # primary should have a value between 0 and 5
     # depending on num classes return different values
@@ -365,28 +348,28 @@ def parse_record(record, selected_indices, dataset_type = constants.Dataset.NORM
     primary_to_return = tf.constant(0, dtype=tf.int64)
 
     if num_classes == 2:
-        if label == tf.constant(1, dtype=tf.int64):
-            primary_to_return = label
+        if example["primary"] == tf.constant(1, dtype=tf.int64):
+            primary_to_return = example["primary"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 3:
-        if label == tf.constant(1, dtype=tf.int64) or label == tf.constant(2, dtype=tf.int64):
-            primary_to_return = label
+        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64):
+            primary_to_return = example["primary"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 4:
-        if label == tf.constant(1, dtype=tf.int64) or label == tf.constant(2, dtype=tf.int64) or label == tf.constant(3, dtype=tf.int64):
-            primary_to_return = label
+        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64):
+            primary_to_return = example["primary"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 5:
-        if label == tf.constant(1, dtype=tf.int64) or label == tf.constant(2, dtype=tf.int64) or label == tf.constant(3, dtype=tf.int64) or label == tf.constant(4, dtype=tf.int64):
-            primary_to_return = label
+        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64) or example["primary"] == tf.constant(4, dtype=tf.int64):
+            primary_to_return = example["primary"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     elif num_classes == 6:
-        if label == tf.constant(1, dtype=tf.int64) or label == tf.constant(2, dtype=tf.int64) or label == tf.constant(3, dtype=tf.int64) or label == tf.constant(4, dtype=tf.int64) or label == tf.constant(5, dtype=tf.int64):
-            primary_to_return = label
+        if example["primary"] == tf.constant(1, dtype=tf.int64) or example["primary"] == tf.constant(2, dtype=tf.int64) or example["primary"] == tf.constant(3, dtype=tf.int64) or example["primary"] == tf.constant(4, dtype=tf.int64) or example["primary"] == tf.constant(5, dtype=tf.int64):
+            primary_to_return = example["primary"]
         else:
             primary_to_return = tf.constant(0, dtype=tf.int64)
     else:
@@ -405,28 +388,98 @@ def parse_record(record, selected_indices, dataset_type = constants.Dataset.NORM
 
     # if use_clinical_data is False and use_layer is False, return only the image and the primary
     if use_clinical_data == False and use_layer == False:
-        return selected_image, primary_to_return
+        return image, primary_to_return
     
     # if use_clinical_data is False and use_layer is True, return only the image, the layer and the primary
     elif use_clinical_data == False and use_layer:
-        return (selected_image, scaled_layer), primary_to_return
+        return (image, scaled_layer), primary_to_return
     
     # if use_clinical_data is True and use_layer is False, return the image, the sex, the age and the primary
     elif use_clinical_data and use_layer == False and labeled:
-        return (selected_image, example["sex"], scaled_age), primary_to_return #example["primary"]
+        return (image, example["sex"], scaled_age), primary_to_return #example["primary"]
     
     # if use_clinical_data is True and use_layer is True and labeled, return the image, the sex, the age, the layer and the primary
     elif use_clinical_data and use_layer and labeled:
-        return (selected_image, example["sex"], scaled_age, scaled_layer), primary_to_return
+        return (image, example["sex"], scaled_age, scaled_layer), primary_to_return
 
     # if use_clinical_data is True and use_layer is True and not labeled, return the image, the sex, the age and the layer, not the primary!
     elif use_clinical_data and use_layer and not labeled:
-        return selected_image, example["sex"], scaled_age, scaled_layer
+        return image, example["sex"], scaled_age, scaled_layer
 
     else:
+        return image
+
+
+def parse_fine_pretraining_record(record, selected_indices, labeled = False, num_classes = 4, rgb = False):
+    
+    # # --- Add Debugging ---
+    # tf.print("--- Debug parse_record ---", output_stream=sys.stderr)
+    # tf.print("Record input type:", type(record), output_stream=sys.stderr)
+    # # Check if it's even a tensor before accessing properties
+    # if isinstance(record, tf.Tensor):
+    #      tf.print("Record shape:", tf.shape(record), output_stream=sys.stderr)
+    #      tf.print("Record rank:", tf.rank(record), output_stream=sys.stderr)
+    #      tf.print("Record dtype:", record.dtype, output_stream=sys.stderr)
+    #      # Try to assert properties if it is a Tensor
+    #      tf.debugging.assert_scalar(record, message="Assertion Failure: Record is not scalar!")
+    #      tf.debugging.assert_equal(record.dtype, tf.string, message="Assertion Failure: Record is not string!")
+    # else:
+    #      tf.print("Record is not a Tensor!", output_stream=sys.stderr)
+    # tf.print("--- End Debug ---", output_stream=sys.stderr)
+
+    image_shape = []
+
+    if rgb: # rgb images need three channels
+        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 3, 5]
+    else: # gray scale images don't
+        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
+
+
+    feature_description = {
+        "image": tf.io.FixedLenFeature(image_shape, tf.float32),
+        "label": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+    }
+
+
+    example = tf.io.parse_single_example(record, feature_description)
+
+    # --- Image Channel Selection ---
+    full_image = example["image"]
+    selected_image = tf.gather(full_image, selected_indices, axis=-1)
+    #image = tf.reshape(image, image_shape)
+
+    label = example["label"]
+
+    # TO-DO:
+    # ADD VARIBALE NUM OF CLASSES!
+
+    # primary should have a value between 0 and 5
+    # depending on num classes return different values
+    # if num_classes = 2, return 1 if primary is 1, else 0
+    # if num_classes = 3, return primaries 1 and 2, else 0
+    # if num_classes = 4, return primaries 1, 2 and 3, else 0
+    # if num_classes = 5, return primaries 1, 2, 3 and 4, else 0
+    # if num_classes = 6, return primaries 1, 2, 3, 4 and 5, else 0
+
+    primary_to_return = label
+
+
+    # if rgb: # select the right sequence to return
+    #     if sequence == "t1":
+    #         image = image[:, :, :, 0]
+    #     elif sequence == "t1c":
+    #         image = image[:, :, :, 1]
+    #     elif sequence == "t2":
+    #         image = image[:, :, :, 2]
+    #     elif sequence == "flair":
+    #         image = image[:, :, :, 3]
+
+    if labeled:
+        return selected_image, primary_to_return
+    else:
         return selected_image
-    
-    
+
+
 def verify_tfrecord(file_path):
     try:
         for _ in tf.data.TFRecordDataset(file_path, compression_type="GZIP"):
@@ -872,10 +925,10 @@ def get_path_to_tfrs(is_rgb_images, is_cutout = False, dataset_type = constants.
     elif dataset_type == constants.Dataset.PRETRAIN_FINE:
         if is_rgb_images:
             # is cutout with color images
-            path_to_tfrs = constants.path_to_tfr_dirs / "pretraining_fine_rgb"
+            path_to_tfrs = constants.path_to_fine_pretraining / "pretraining_fine_rgb"
         else:
             # is cutout with gray images
-            path_to_tfrs = constants.path_to_tfr_dirs / "pretraining_fine_gray"
+            path_to_tfrs = constants.path_to_fine_pretraining / "pretraining_fine_gray"
     
     else:
         return None
@@ -908,3 +961,165 @@ def save_training_history(history, training_codename, time, path_to_callbacks, f
 
     path_to_np_file = path_to_callbacks / history_file_name
     np.save(path_to_np_file, history_dict)
+
+
+
+
+
+def check_dataset(dataset, dataset_name, batch_size, expected_input_shape,
+                  num_classes, use_clinical_data, use_layer, dataset_type,
+                  num_batches_to_check=1):
+    """
+    Checks the structure, shapes, and types of batches yielded by a tf.data.Dataset.
+
+    Args:
+        dataset: The tf.data.Dataset object to check (e.g., train_data, val_data).
+        dataset_name: A string name for the dataset (e.g., "Training", "Validation").
+        batch_size: The expected batch size.
+        expected_input_shape: The expected shape of the image tensor (H, W, C).
+        num_classes: The expected number of classes.
+        use_clinical_data: Boolean flag indicating if clinical data is expected.
+        use_layer: Boolean flag indicating if layer data is expected.
+        dataset_type: The constants.Dataset enum value.
+        num_batches_to_check: How many batches to fetch and inspect.
+    """
+    print(f"\n--- Checking Dataset: {dataset_name} ---")
+    print(f"Expected Config: Batch={batch_size}, ImgShape={expected_input_shape}, Classes={num_classes}, Clinical={use_clinical_data}, Layer={use_layer}, Type={dataset_type.name}")
+
+    iterator = iter(dataset.take(num_batches_to_check))
+    batch_count = 0
+
+    try:
+        for batch in iterator:
+            batch_count += 1
+            print(f"\n--- Inspecting Batch {batch_count} ---")
+
+            # 1. Check Overall Batch Structure (Inputs, Labels, [Weights])
+            batch_len = len(batch)
+            print(f"Batch tuple length: {batch_len}")
+            if batch_len < 2 or batch_len > 3:
+                print(f"ERROR: Unexpected batch tuple length. Expected 2 or 3, got {batch_len}.")
+                # Attempt to print elements anyway for debugging
+                for i, elem in enumerate(batch):
+                   print(f"  Element {i} type: {type(elem)}")
+                   if hasattr(elem, 'shape'):
+                       print(f"  Element {i} shape: {elem.shape}")
+                   if hasattr(elem, 'dtype'):
+                       print(f"  Element {i} dtype: {elem.dtype}")
+                break # Stop checking after structural error
+
+            inputs_batch = batch[0]
+            labels_batch = batch[1]
+            weights_batch = batch[2] if batch_len == 3 else None
+
+            # 2. Check Inputs Structure
+            is_input_tuple = isinstance(inputs_batch, (tuple, list))
+            print(f"Inputs is a tuple/list: {is_input_tuple}")
+
+            expected_num_inputs = 1
+            if use_clinical_data:
+                expected_num_inputs += 2 # sex, age
+            if use_layer:
+                expected_num_inputs += 1 # layer
+
+            # For pretraining, inputs might be simpler
+            if dataset_type == constants.Dataset.PRETRAIN_FINE or dataset_type == constants.Dataset.PRETRAIN_ROUGH:
+                 is_input_tuple = False # Expecting only image for these types usually
+                 expected_num_inputs = 1
+
+            image_batch = None
+            if is_input_tuple:
+                actual_num_inputs = len(inputs_batch)
+                print(f"  Number of elements in inputs tuple: {actual_num_inputs}")
+                if actual_num_inputs != expected_num_inputs:
+                    print(f"  ERROR: Unexpected number of input elements. Expected {expected_num_inputs}, got {actual_num_inputs}.")
+                    # Print details of tuple elements
+                    for i, elem in enumerate(inputs_batch):
+                        print(f"    Input Element {i} type: {type(elem)}")
+                        if hasattr(elem, 'shape'): print(f"    Input Element {i} shape: {elem.shape}")
+                        if hasattr(elem, 'dtype'): print(f"    Input Element {i} dtype: {elem.dtype}")
+
+                if actual_num_inputs > 0:
+                     image_batch = inputs_batch[0] # Image should always be first
+
+                # Check other inputs if expected
+                input_idx = 1
+                if use_clinical_data:
+                    if actual_num_inputs > input_idx:
+                        print(f"  Clinical Sex Shape: {inputs_batch[input_idx].shape}, Dtype: {inputs_batch[input_idx].dtype}") # Expect (batch_size,) or (batch_size, 1)
+                    input_idx += 1
+                    if actual_num_inputs > input_idx:
+                        print(f"  Clinical Age Shape: {inputs_batch[input_idx].shape}, Dtype: {inputs_batch[input_idx].dtype}") # Expect (batch_size,) or (batch_size, 1), float32
+                    input_idx += 1
+                if use_layer:
+                     if actual_num_inputs > input_idx:
+                        print(f"  Layer Shape: {inputs_batch[input_idx].shape}, Dtype: {inputs_batch[input_idx].dtype}") # Expect (batch_size,) or (batch_size, 1), float32
+                     input_idx += 1
+
+            else: # Inputs should be a single tensor (the image)
+                if use_clinical_data or use_layer and dataset_type == constants.Dataset.NORMAL:
+                    print(f"  WARNING: Inputs is a single tensor, but clinical/layer data was expected for NORMAL dataset type.")
+                image_batch = inputs_batch
+
+            # 3. Check Image Batch
+            if image_batch is None:
+                 print("  ERROR: Could not identify image batch.")
+            else:
+                print(f"Image Batch Shape: {image_batch.shape}") # Expect (batch_size, H, W, C)
+                print(f"Image Batch Dtype: {image_batch.dtype}")  # Expect float32
+                if len(image_batch.shape) != 4:
+                    print(f"  ERROR: Image batch should be 4D (Batch, H, W, C), but got {len(image_batch.shape)}D.")
+                elif image_batch.shape[0] != batch_size and image_batch.shape[0] is not None: # Allow for last partial batch
+                     print(f"  WARNING: Image batch size ({image_batch.shape[0]}) doesn't match expected ({batch_size}). (May be last partial batch)")
+                # Check image dimensions H, W, C
+                if image_batch.shape[1] != expected_input_shape[0] or \
+                   image_batch.shape[2] != expected_input_shape[1] or \
+                   image_batch.shape[3] != expected_input_shape[2]:
+                   print(f"  ERROR: Image batch dimensions {image_batch.shape[1:]} don't match expected {expected_input_shape}.")
+
+                # Optional: Check value range (if augmentation/normalization applied)
+                img_min = tf.reduce_min(image_batch)
+                img_max = tf.reduce_max(image_batch)
+                print(f"Image Batch Value Range: [{img_min:.4f}, {img_max:.4f}]")
+
+            # 4. Check Labels Batch
+            print(f"Labels Batch Shape: {labels_batch.shape}") # Expect (batch_size,)
+            print(f"Labels Batch Dtype: {labels_batch.dtype}")  # Expect int64 or int32
+            if len(labels_batch.shape) != 1:
+                 print(f"  ERROR: Labels batch should be 1D (Batch,), but got {len(labels_batch.shape)}D.")
+            elif labels_batch.shape[0] != batch_size and labels_batch.shape[0] is not None:
+                 print(f"  WARNING: Labels batch size ({labels_batch.shape[0]}) doesn't match expected ({batch_size}). (May be last partial batch)")
+
+            # Optional: Check label values
+            unique_labels, _ = tf.unique(tf.reshape(labels_batch, [-1]))
+            print(f"Unique labels in batch: {unique_labels.numpy()}")
+            if tf.reduce_max(unique_labels) >= num_classes or tf.reduce_min(unique_labels) < 0:
+                 print(f"  ERROR: Labels found outside expected range [0, {num_classes-1}].")
+
+            # 5. Check Weights Batch (if present)
+            if weights_batch is not None:
+                print(f"Weights Batch Shape: {weights_batch.shape}") # Expect (batch_size,)
+                print(f"Weights Batch Dtype: {weights_batch.dtype}")  # Expect float32
+                if len(weights_batch.shape) != 1:
+                    print(f"  ERROR: Weights batch should be 1D (Batch,), but got {len(weights_batch.shape)}D.")
+                elif weights_batch.shape[0] != batch_size and weights_batch.shape[0] is not None:
+                     print(f"  WARNING: Weights batch size ({weights_batch.shape[0]}) doesn't match expected ({batch_size}). (May be last partial batch)")
+                # Optional: Check weight values
+                w_min = tf.reduce_min(weights_batch)
+                w_max = tf.reduce_max(weights_batch)
+                print(f"Weights Batch Value Range: [{w_min:.4f}, {w_max:.4f}]")
+            elif batch_len == 3:
+                 print("  WARNING: Batch tuple length was 3, but weights_batch is None.")
+
+
+    except tf.errors.OutOfRangeError:
+        print("\nDataset exhausted before checking specified number of batches.")
+    except Exception as e:
+        print(f"\n--- ERROR encountered during dataset checking ---")
+        import traceback
+        traceback.print_exc() # Print detailed exception traceback
+
+    if batch_count == 0:
+         print("\nERROR: Could not iterate through any batches. Dataset might be empty or setup failed.")
+
+    print(f"\n--- Finished Checking Dataset: {dataset_name} ---")
