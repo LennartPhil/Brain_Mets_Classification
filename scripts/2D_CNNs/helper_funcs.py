@@ -43,39 +43,12 @@ def setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, bat
     return train_data, val_data, test_data
 
 
-def setup_pretraining_data(path_to_tfrs, batch_size, selected_indices, dataset_type):
-    """
-    Sets up data for pretraining.
-
-    Parameters
-    ----------
-    path_to_tfrs : str
-        Path to the folder containing the .tfrecord files.
-    path_to_splits : str
-        Path to the folder containing the .txt files with the fold information.
-    num_classes : int
-        Number of classes.
-    batch_size : int
-        Batch size.
-    pretraining_type : Pretraining
-        Type of pretraining.
-    rgb : bool, optional
-        Whether to use rgb images or not. The default is False.
-    paths_to_rough_pretraining : tuple, optional
-        Paths to the .tfrecord files for rough pretraining. The default is None.
-
-    Returns
-    -------
-    train_data : tf.data.Dataset
-        Training dataset.
-    val_data : tf.data.Dataset
-        Validation dataset.
-    """
+def setup_pretraining_data(path_to_tfrs, batch_size, selected_indices, dataset_type, rgb = False):
 
     if dataset_type == constants.Dataset.PRETRAIN_FINE:
         # execute code if no pretraining is needed
         train_paths, val_paths = get_patient_paths_for_fold(0, path_to_tfrs, dataset_type = dataset_type)
-        train_data, val_data = read_data(train_paths, val_paths, selected_indices, batch_size, dataset_type = dataset_type)
+        train_data, val_data = read_data(train_paths, val_paths, selected_indices, batch_size, dataset_type = dataset_type, rgb = rgb)
 
     elif dataset_type == constants.Dataset.PRETRAIN_ROUGH:
         # execute code if rough pretraining is needed
@@ -310,12 +283,7 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
 
 def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = constants.Dataset.NORMAL, use_clinical_data = True, use_layer = False, labeled = False, num_classes = 2, rgb = False):
 
-    image_shape = []
-
-    if rgb: # rgb images need three channels
-        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 3, 5]
-    else: # gray scale images don't
-        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
+    image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
 
     feature_description = {
         "image": tf.io.FixedLenFeature(image_shape, tf.float32),
@@ -328,9 +296,20 @@ def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = cons
     example = tf.io.parse_single_example(record, feature_description)
 
     # --- Image Channel Selection ---
-    image = example["image"]
-    image = tf.reshape(image, image_shape)
-    image = tf.gather(image, selected_indices, axis=-1)
+    full_image = example["image"]
+    full_image = tf.reshape(full_image, image_shape)
+
+    if rgb:
+        # RGB mode: Select one channel and tile to 3 channels
+        # selected_indices should contain exactly one index (validated in main script)
+        tf.debugging.assert_equal(tf.shape(selected_indices)[0], 1,
+                                  message = "RGB mode requires exactly one selected index in the parser.")
+        single_channel_image = tf.gather(full_image, selected_indices, axis=-1)
+        # tile the single channel 3 times along the last axis (shape becomes [H, W, 3])
+        image = tf.tile(single_channel_image, [1, 1, 3])
+    else:
+        # Grayscale mode: Gather the specified channels (shape becomes [H, W, num_selected_channels])
+        image = tf.gather(full_image, selected_indices, axis=-1)
 
     # scale age and layer
     # the values also get clipped to [0, 1]
@@ -376,16 +355,6 @@ def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = cons
         raise ValueError(f"num_classes must have a value between 2 and 6, got {num_classes}")
 
 
-    # if rgb: # select the right sequence to return
-    #     if sequence == "t1":
-    #         image = image[:, :, :, 0]
-    #     elif sequence == "t1c":
-    #         image = image[:, :, :, 1]
-    #     elif sequence == "t2":
-    #         image = image[:, :, :, 2]
-    #     elif sequence == "flair":
-    #         image = image[:, :, :, 3]
-
     # if use_clinical_data is False and use_layer is False, return only the image and the primary
     if use_clinical_data == False and use_layer == False:
         return image, primary_to_return
@@ -410,7 +379,7 @@ def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = cons
         return image
 
 
-def parse_fine_pretraining_record(record, selected_indices, labeled = False, num_classes = 4, rgb = False):
+def parse_fine_pretraining_record(record, selected_indices = [0, 1, 2, 3, 4], labeled = False, num_classes = 4, rgb = False):
     
     # # --- Add Debugging ---
     # tf.print("--- Debug parse_record ---", output_stream=sys.stderr)
@@ -427,27 +396,31 @@ def parse_fine_pretraining_record(record, selected_indices, labeled = False, num
     #      tf.print("Record is not a Tensor!", output_stream=sys.stderr)
     # tf.print("--- End Debug ---", output_stream=sys.stderr)
 
-    image_shape = []
 
-    if rgb: # rgb images need three channels
-        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 3, 5]
-    else: # gray scale images don't
-        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
-
+    image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
 
     feature_description = {
         "image": tf.io.FixedLenFeature(image_shape, tf.float32),
         "label": tf.io.FixedLenFeature([], tf.int64, default_value=0),
     }
 
-
     example = tf.io.parse_single_example(record, feature_description)
 
     # --- Image Channel Selection ---
     full_image = example["image"]
-    image = tf.reshape(full_image, image_shape)
-    selected_image = tf.gather(image, selected_indices, axis=-1)
-    image = tf.reshape(image, image_shape)
+    full_image = tf.reshape(full_image, image_shape)
+
+    if rgb:
+        # RGB mode: Select one channel and tile to 3 channels
+        # selected_indices should contain exactly one index (validated in main script)
+        tf.debugging.assert_equal(tf.shape(selected_indices)[0], 1,
+                                  message = "RGB mode requires exactly one selected index in the parser.")
+        single_channel_image = tf.gather(full_image, selected_indices, axis=-1)
+        # tile the single channel 3 times along the last axis (shape becomes [H, W, 3])
+        image = tf.tile(single_channel_image, [1, 1, 3])
+    else:
+        # Grayscale mode: Gather the specified channels (shape becomes [H, W, num_selected_channels])
+        image = tf.gather(full_image, selected_indices, axis=-1)
 
     original_label = example["label"]
 
@@ -460,20 +433,10 @@ def parse_fine_pretraining_record(record, selected_indices, labeled = False, num
     primary_to_return = label
 
 
-    # if rgb: # select the right sequence to return
-    #     if sequence == "t1":
-    #         image = image[:, :, :, 0]
-    #     elif sequence == "t1c":
-    #         image = image[:, :, :, 1]
-    #     elif sequence == "t2":
-    #         image = image[:, :, :, 2]
-    #     elif sequence == "flair":
-    #         image = image[:, :, :, 3]
-
     if labeled:
-        return selected_image, primary_to_return
+        return image, primary_to_return
     else:
-        return selected_image
+        return image
 
 
 def verify_tfrecord(file_path):
@@ -911,20 +874,16 @@ def get_path_to_tfrs(is_rgb_images, is_cutout = False, dataset_type = constants.
                 # is cutout with gray images
                 path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_cutout_gray"
         else:
-            if is_rgb_images:
-                # is brain slice with color images
-                path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_slice_rgb"
-            else:
-                # is brain slice with gray images
-                path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_slice_gray"
+            path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_slice_gray"
+            # if is_rgb_images:
+            #     # is brain slice with color images
+            #     path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_slice_rgb"
+            # else:
+            #     # is brain slice with gray images
+            #     path_to_tfrs = constants.path_to_tfr_dirs / "all_pats_single_slice_gray"
     
     elif dataset_type == constants.Dataset.PRETRAIN_FINE:
-        if is_rgb_images:
-            # is cutout with color images
-            path_to_tfrs = constants.path_to_fine_pretraining / "pretraining_fine_rgb"
-        else:
-            # is cutout with gray images
-            path_to_tfrs = constants.path_to_fine_pretraining / "pretraining_fine_gray_2_classes"
+        path_to_tfrs = constants.path_to_fine_pretraining / "pretraining_fine_gray_2_classes"
     
     else:
         return None
