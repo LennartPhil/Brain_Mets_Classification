@@ -24,18 +24,18 @@ if gpus:
 print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+dataset_type = constants.Dataset.PRETRAIN_ROUGH # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
 training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
-rgb_images = True # using gray scale images as input
+rgb_images = False # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
 clinical_data = False
 use_layer = False
 num_classes = 2
 
 # --- Select Sequences ---
-selected_sequences = ["t2"] #["t1", "t1c", "t2", "flair", "mask"]
+selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
 
 if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     num_classes = 3
@@ -354,10 +354,15 @@ def build_conv_model():
         x = tf.keras.layers.Dense(1)(x)
         output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
         loss = "binary_crossentropy"
+        metrics = ["accuracy",
+                   tf.keras.metrics.AUC(name = "auc"),
+                   tf.keras.metrics.Precision(name = "precision"),
+                   tf.keras.metrics.Recall(name = "recall")]
     elif num_classes > 2 and num_classes <= 6:
         x = tf.keras.layers.Dense(num_classes)(x)
         output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         loss = "sparse_categorical_crossentropy"
+        metrics = ["accuracy"]
     else:
         raise ValueError("num_classes must have a value between 2 and 6")
 
@@ -379,7 +384,7 @@ def build_conv_model():
     model.compile(
         loss = loss,
         optimizer = optimizer,
-        metrics = ["accuracy"] #"RootMeanSquaredError", "AUC", "Precision", "Recall" 
+        metrics = metrics
     )
     
     model.summary()
