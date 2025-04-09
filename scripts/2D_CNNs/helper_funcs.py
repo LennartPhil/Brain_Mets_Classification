@@ -103,8 +103,8 @@ def get_patient_paths_for_fold(fold, path_to_tfrs, dataset_type = constants.Data
 
     elif dataset_type == constants.Dataset.PRETRAIN_FINE:
 
-        txt_train_file_name = "pretraining_fine_train.txt"
-        txt_val_file_name = "pretraining_fine_val.txt"
+        txt_train_file_name = "pretraining_fine_train_2_classes.txt"
+        txt_val_file_name = "pretraining_fine_val_2_classes.txt"
 
         with open(f"{str(constants.path_to_splits)}/{txt_train_file_name}", "r") as f:
             train_patients = [line.strip() for line in f]
@@ -205,7 +205,7 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
         val_data = val_data.interleave(
             lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
             num_parallel_calls=tf.data.AUTOTUNE,
-            deterministic=False # True
+            deterministic=True
         )
 
         if dataset_type == constants.Dataset.NORMAL:
@@ -273,7 +273,7 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
     #val_data = val_data.shuffle(buffer_size=constants.shuffle_buffer_size)
 
     train_data = train_data.repeat(count = constants.repeat_count)
-    val_data = val_data.repeat(count = constants.repeat_count)
+    #val_data = val_data.repeat(count = constants.repeat_count)
 
     train_data = train_data.batch(batch_size)
     val_data = val_data.batch(batch_size)
@@ -286,7 +286,7 @@ def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes 
         test_data = test_data.interleave(
             lambda x: tf.data.TFRecordDataset([x], compression_type="GZIP"),
             num_parallel_calls=tf.data.AUTOTUNE,
-            deterministic=False
+            deterministic=True
         )
 
         test_parse_partial = partial(parse_record,
@@ -330,7 +330,7 @@ def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = cons
     # --- Image Channel Selection ---
     image = example["image"]
     image = tf.reshape(image, image_shape)
-    #selected_image = tf.gather(image, selected_indices, axis=-1)
+    image = tf.gather(image, selected_indices, axis=-1)
 
     # scale age and layer
     # the values also get clipped to [0, 1]
@@ -445,21 +445,17 @@ def parse_fine_pretraining_record(record, selected_indices, labeled = False, num
 
     # --- Image Channel Selection ---
     full_image = example["image"]
-    selected_image = tf.gather(full_image, selected_indices, axis=-1)
-    #image = tf.reshape(image, image_shape)
+    image = tf.reshape(full_image, image_shape)
+    selected_image = tf.gather(image, selected_indices, axis=-1)
+    image = tf.reshape(image, image_shape)
 
-    label = example["label"]
+    original_label = example["label"]
 
-    # TO-DO:
-    # ADD VARIBALE NUM OF CLASSES!
-
-    # primary should have a value between 0 and 5
-    # depending on num classes return different values
-    # if num_classes = 2, return 1 if primary is 1, else 0
-    # if num_classes = 3, return primaries 1 and 2, else 0
-    # if num_classes = 4, return primaries 1, 2 and 3, else 0
-    # if num_classes = 5, return primaries 1, 2, 3 and 4, else 0
-    # if num_classes = 6, return primaries 1, 2, 3, 4 and 5, else 0
+    # Map original labels {0, 4} to new labels {0, 1}
+    if original_label == tf.constant(4, dtype=tf.int64):
+        label = tf.constant(1, dtype=tf.int64)
+    else:
+        label = original_label
 
     primary_to_return = label
 
@@ -650,7 +646,7 @@ contrast_data_augmentation = tf.keras.Sequential([
             interpolation = "bilinear"
         ),
         RandomRescale(scale_range=(0.7, 1.2))
-    ])
+    ], name = "contrast_data_augmentation")
 
 normal_data_augmentation = tf.keras.Sequential([
         tf.keras.layers.RandomFlip(mode = "horizontal"),
@@ -663,7 +659,7 @@ normal_data_augmentation = tf.keras.Sequential([
             interpolation = "bilinear"
         ),
         RandomRescale(scale_range=(0.7, 1.2))
-    ])
+    ], name = "normal_data_augmentation")
 
 
 #Custom Weighted Cross Entropy Loss
@@ -928,7 +924,7 @@ def get_path_to_tfrs(is_rgb_images, is_cutout = False, dataset_type = constants.
             path_to_tfrs = constants.path_to_fine_pretraining / "pretraining_fine_rgb"
         else:
             # is cutout with gray images
-            path_to_tfrs = constants.path_to_fine_pretraining / "pretraining_fine_gray"
+            path_to_tfrs = constants.path_to_fine_pretraining / "pretraining_fine_gray_2_classes"
     
     else:
         return None
