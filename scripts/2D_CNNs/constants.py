@@ -5,7 +5,9 @@ from pathlib import Path
 path_to_logs = Path("/logs")
 path_to_tfr_dirs = Path("/tfrs")
 path_to_splits = path_to_tfr_dirs / Path("split_text_files") # Directory containing train/val/test split files
-paths_to_rough_pretraining = path_to_tfr_dirs / "rough_train.tfrecord", path_to_tfr_dirs / "rough_val.tfrecord" #"/tfrs/rough_pretraining/train.tfrecord", "tfrs/rough_pretraining/val.tfrecord"
+#paths_to_rough_pretraining = path_to_tfr_dirs / "rough_train.tfrecord", path_to_tfr_dirs / "rough_val.tfrecord" #"/tfrs/rough_pretraining/train.tfrecord", "tfrs/rough_pretraining/val.tfrecord"
+paths_to_rough_pretraining = "/rough_pretraining/rough_train.tfrecord", "/rough_pretraining/rough_val.tfrecord"
+path_to_fine_pretraining = Path("/fine_pretraining")
 
 # --- Data setup constants ---
 train_ratio = 0.8
