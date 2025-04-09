@@ -24,8 +24,8 @@ if gpus:
 print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+dataset_type = constants.Dataset.PRETRAIN_ROUGH # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
@@ -48,7 +48,7 @@ if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     selected_sequences = ["t1c"]
 
 elif dataset_type == constants.Dataset.PRETRAIN_FINE:
-    num_classes = 4
+    num_classes = 5
     cutout = False
     clinical_data = False
     use_layer = False
@@ -191,12 +191,14 @@ def train_ai():
             hf.print_fold_info(fold, is_start = True)
 
             train_data, val_data, test_data = hf.setup_data(
-                path_to_tfrs,
-                path_to_callbacks,
-                constants.path_to_splits,
-                num_classes,
+                path_to_tfrs = path_to_tfrs,
+                path_to_callbacks = path_to_callbacks,
+                path_to_splits = constants.path_to_splits,
+                num_classes = num_classes,
                 batch_size = batch_size,
                 selected_indices = selected_indices,
+                use_clinical_data = clinical_data,
+                use_layer = use_layer,
                 rgb = rgb_images,
                 current_fold = fold,
             )
@@ -211,9 +213,9 @@ def train_ai():
                 train_data,
                 validation_data = val_data,
                 epochs = training_epochs,
-                batch_size = batch_size,
+                #batch_size = batch_size,
                 callbacks = callbacks,
-                class_weight = constants.normal_two_class_weights_class_weights if num_classes == 2 else None
+                #class_weight = constants.normal_two_class_weights if num_classes == 2 else None
             )
 
             # save history
@@ -232,18 +234,28 @@ def train_ai():
     elif training_mode == constants.Training.LEARNING_RATE_TUNING:
 
         train_data, val_data, test_data = hf.setup_data(
-            path_to_tfrs,
-            path_to_callbacks,
-            constants.path_to_splits,
-            num_classes,
+            path_to_tfrs = path_to_tfrs,
+            path_to_callbacks = path_to_callbacks,
+            path_to_splits = constants.path_to_splits,
+            num_classes = num_classes,
             batch_size = batch_size,
             selected_indices = selected_indices,
+            use_clinical_data = clinical_data,
+            use_layer = use_layer,
             rgb = rgb_images,
         )
         
         callbacks = hf.get_callbacks(path_to_callbacks, 0,
                                      use_lrscheduler = True,
                                      use_early_stopping = False)
+        
+        hf.check_dataset(train_data, "Training", batch_size, input_shape,
+                       num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
+        hf.check_dataset(val_data, "Validation", batch_size, input_shape,
+                       num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
+        if test_data is not None:
+            hf.check_dataset(test_data, "Test", batch_size, input_shape,
+                num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
 
         # build model
         model = build_conv_model()
@@ -253,9 +265,9 @@ def train_ai():
             train_data,
             validation_data = val_data,
             epochs = training_epochs,
-            batch_size = batch_size,
+            #batch_size = batch_size,
             callbacks = callbacks,
-            class_weight = constants.normal_two_class_weights_class_weights if num_classes == 2 else None
+            #class_weight = constants.normal_two_class_weights if num_classes == 2 else None
         )        
 
         # save history
@@ -275,6 +287,8 @@ def train_ai():
             num_classes,
             batch_size = batch_size,
             selected_indices = selected_indices,
+            use_clinical_data = clinical_data,
+            use_layer = use_layer,
             rgb = rgb_images,
         )
         
@@ -290,9 +304,9 @@ def train_ai():
             train_data,
             validation_data = val_data,
             epochs = training_epochs,
-            batch_size = batch_size,
+            #batch_size = batch_size,
             callbacks = callbacks,
-            class_weight = constants.normal_two_class_weights_class_weights if num_classes == 2 else None
+            #class_weight = constants.normal_two_class_weights if num_classes == 2 else None
         )        
 
         # save history
@@ -472,7 +486,16 @@ def build_conv_model():
 
     # --- Create and compile model ---
     if dataset_type == constants.Dataset.NORMAL:
-        model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output])
+        if clinical_data == True:
+            if use_layer == True:
+                model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output])
+            else:
+                model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output])
+        else:
+            if use_layer == True:
+                model = tf.keras.Model(inputs = [image_input, layer_input], outputs = [output])
+            else:
+                model = tf.keras.Model(inputs = [image_input], outputs = [output])
     else:
         model = tf.keras.Model(inputs = [image_input], outputs = [output])
 
