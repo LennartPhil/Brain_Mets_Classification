@@ -42,6 +42,7 @@ kernel_initializer = "he_normal"
 activation_func = "mish"
 
 early_stopping_patience = 300 #200
+early_stopping_patience_upper_layer = 20
 
 # --- Model constants ---
 # INPUT_SHAPE_RGB = (IMG_SIZE, IMG_SIZE, 3)
