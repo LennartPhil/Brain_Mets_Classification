@@ -265,15 +265,6 @@ def train_ai():
 
 
 def build_resnet34_model():
-    """
-    Builds a ResNet34 model for image classification.
-
-    Returns:
-        model (tf.keras.Model): The compiled ResNet34 model.
-
-    Raises:
-        ValueError: If num_classes is not one of the allowed values (2, 3, 4, 5, or 6).
-    """
 
     DefaultConv2D = partial(
         tf.keras.layers.Conv2D,
