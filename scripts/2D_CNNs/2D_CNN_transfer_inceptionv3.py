@@ -5,6 +5,7 @@ import os
 from time import strftime
 from functools import partial
 import numpy as np
+import constants
 
 # So the idea with the pretrained models is the following:
 # 1. Run: adjust the upper layers with trainable turned off
@@ -12,6 +13,9 @@ import numpy as np
 # 2. Run: find best learning rate with exported weights
 # 3. Run: train of the best learning rate
 
+# IMPORTANT NOTE: this script only accepts 3 channels as input!!!
+
+# --- GPU setup ---
 gpus = tf.config.list_physical_devices('GPU')
 print(gpus)
 if gpus:
@@ -27,24 +31,68 @@ if gpus:
 
 print("tensorflow_setup successful")
 
+# --- Configuration ---
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.UPPER_LAYER # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+
 cutout = False
-rgb_images = True # using gray scale images as input
-contrast_DA = True
-clinical_data = True
-use_layer = True
+rgb_images = False # using gray scale images as input
+contrast_DA = False # data augmentation with contrast
+clinical_data = False
+use_layer = False
 num_classes = 2
-train_upper_layers = True
-use_k_fold = False
-learning_rate_tuning = False
+
+# --- Select Sequences ---
+selected_sequences = ["t1", "t1c", "t2"]
+
+if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
+    num_classes = 3
+    cutout = False
+    clinical_data = False
+    use_layer = False
+    rgb_images = True
+    selected_sequences = ["t1c"]
+    if training_mode == constants.Training.K_FOLD:
+        raise ValueError(f"For PRETRAIN_ROUGH dataset, only UPPER_LAYER, LEARNING_RATE_TUNING and NORMAL training modes are supported. Current mode: {training_mode}")
+        
+
+elif dataset_type == constants.Dataset.PRETRAIN_FINE:
+    num_classes = 2 # we only fine train on the glioblastoma and brain metatases, meaning we'll only need 2 classes
+    cutout = False
+    clinical_data = False
+    use_layer = False
+    if training_mode == constants.Training.K_FOLD:
+        raise ValueError(f"For PRETRAIN_ROUGH dataset, only UPPER_LAYER, LEARNING_RATE_TUNING and NORMAL training modes are supported. Current mode: {training_mode}")
+
+if rgb_images == True and len(selected_sequences) > 1:
+    raise ValueError(f"RGB images cannot be used when multiple sequences are selected, selected sequences: {selected_sequences}. Please select only 1 sequence.")
+
+
+try:
+    selected_indices = [constants.SEQUENCE_TO_INDEX[name] for name in selected_sequences]
+    num_selected_channels = len(selected_indices)
+    if num_selected_channels == 0:
+        raise ValueError("selected_sequences cannot be empty.")
+    if num_selected_channels == 1 and rgb_images == True:
+        input_shape = (constants.IMG_SIZE, constants.IMG_SIZE, 3)
+    else:
+        if rgb_images == True:
+            raise ValueError(f"RGB images cannot be used when multiple sequences are selected, selected sequences: {selected_sequences}")
+        input_shape = (constants.IMG_SIZE, constants.IMG_SIZE, num_selected_channels)
+    print(f"Using sequences: {selected_sequences} -> Indices: {selected_indices}")
+    print(f"Derived input shape: {input_shape}, using RGB images: {rgb_images}")
+except KeyError as e:
+    raise ValueError(f"Invalid sequence name in selected_sequences: {e}. Available keys: {list(constants.SEQUENCE_TO_INDEX.keys())}")
+
 
 batch_size = 20
-if learning_rate_tuning:
+if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = 400
 else:
     training_epochs = 1500
 
 learning_rate = 0.004
-if train_upper_layers:
+if training_mode == constants.Training.UPPER_LAYER:
     learning_rate = 0.001
 
 # Regularization
@@ -53,7 +101,7 @@ l2_regularization = 0.0001
 
 image_size = 299
 
-codename = "transfer_inceptionv3_01"
+codename = "transfer_inceptionv3_00"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
@@ -61,18 +109,18 @@ training_codename = hf.get_training_codename(
     use_layer = use_layer,
     is_cutout = cutout,
     is_rgb_images = rgb_images,
+    selected_sequences_str = "-".join(selected_sequences),
     contrast_DA = contrast_DA,
-    is_learning_rate_tuning = learning_rate_tuning,
-    is_k_fold = use_k_fold,
-    is_upper_layer_training = train_upper_layers
+    dataset_type = dataset_type,
+    training_mode = training_mode,
 )
 
 
-path_to_tfrs = hf.get_path_to_tfrs(cutout, rgb_images)
-path_to_logs = "/logs"
-path_to_splits = "/tfrs/split_text_files"
-
-activation_func = "mish"
+path_to_tfrs = hf.get_path_to_tfrs(
+    is_rgb_images = rgb_images,
+    is_cutout = cutout,
+    dataset_type = dataset_type,
+)
 
 
 # slice + clinical data + contrast weights:
@@ -82,44 +130,164 @@ activation_func = "mish"
 #path_to_weights = path_to_logs + "/transfer_inceptionv3_01_2_cls_slice_rgb_normal_DA_upper_layer_run_2024_11_22_21_42_56/fold_0/saved_weights.weights.h5"
 
 # slice - clinical data - contrast weights:
-path_to_weights = path_to_logs + "/transfer_inceptionv3_01_2_cls_no_clin_slice_rgb_normal_DA_upper_layer_run_2024_12_08_03_24_13/fold_0/saved_weights.weights.h5"
+path_to_weights = constants.path_to_logs / "transfer_inceptionv3_01_2_cls_no_clin_slice_rgb_normal_DA_upper_layer_run_2024_12_08_03_24_13/fold_0/saved_weights.weights.h5"
 
 
 time = strftime("run_%Y_%m_%d_%H_%M_%S")
 class_directory = f"{training_codename}_{time}"
-path_to_callbacks = Path(path_to_logs) / Path(class_directory)
+path_to_callbacks = Path(constants.path_to_logs) / Path(class_directory)
 os.makedirs(path_to_callbacks, exist_ok=True)
 
 def train_ai():
 
     hf.print_training_timestamps(isStart = True, training_codename = training_codename)
 
-    if use_k_fold:
-        
-        for fold in range(10):
+    if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
+        # Rough pretraining data setup (uses its own parsing logic in helper_funcs.py)
 
-            hf.print_fold_info(fold, is_start = True)
+        train_data, val_data = hf.setup_pretraining_data(
+            path_to_tfrs,
+            batch_size,
+            selected_indices,
+            dataset_type
+        )
 
-            train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images, current_fold = fold)
+        # get callbacks
+        callbacks = hf.get_callbacks(
+            path_to_callbacks = path_to_callbacks,
+            fold_num = 0,
+            use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+            use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
+            early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+        )
 
-            callbacks = hf.get_callbacks(path_to_callbacks, fold)
+        # build model
+        model = build_transfer_inceptionv3_model(
+            trainable = False if training_mode == constants.Training.UPPER_LAYER else True
+        )
+
+        # load weights
+        if training_mode != constants.Training.UPPER_LAYER:
+            model.load_weights(path_to_weights)
+
+        # traing model
+        history = model.fit(
+            train_data,
+            validation_data = val_data,
+            epochs = training_epochs,
+            batch_size = batch_size,
+            callbacks = callbacks,
+            class_weight = constants.rough_class_weights
+        )        
+
+        # save history
+        hf.save_training_history(
+            history = history,
+            training_codename = training_codename,
+            time = time,
+            path_to_callbacks = path_to_callbacks
+        )
+    
+    elif dataset_type == constants.Dataset.PRETRAIN_FINE:
+
+        train_data, val_data = hf.setup_pretraining_data(
+            path_to_tfrs,
+            batch_size,
+            selected_indices,
+            dataset_type,
+            rgb = rgb_images
+        )
+
+        # get callbacks
+        callbacks = hf.get_callbacks(
+            path_to_callbacks = path_to_callbacks,
+            fold_num = 0,
+            use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+            use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
+            early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+        )
+
+        # build model
+        model = build_transfer_inceptionv3_model(
+            trainable = False if training_mode == constants.Training.UPPER_LAYER else True
+        )
+
+        # load weights
+        if training_mode != constants.Training.UPPER_LAYER:
+            model.load_weights(path_to_weights)
+
+        # traing model
+        history = model.fit(
+            train_data,
+            validation_data = val_data,
+            epochs = training_epochs,
+            batch_size = batch_size,
+            callbacks = callbacks,
+            class_weight = constants.fine_two_class_weights
+        )        
+
+        # save history
+        hf.save_training_history(
+            history = history,
+            training_codename = training_codename,
+            time = time,
+            path_to_callbacks = path_to_callbacks
+        )
+    
+    elif dataset_type == constants.Dataset.NORMAL:
+
+        k_fold_amount = 10 if training_mode == constants.Training.K_FOLD else 1
+
+        for fold in range(k_fold_amount):
+
+            if training_mode == constants.Training.K_FOLD:
+                hf.print_fold_info(fold, is_start = True)
+
+            train_data, val_data, test_data = hf.setup_data(
+                path_to_tfrs = path_to_tfrs,
+                path_to_callbacks = path_to_callbacks,
+                path_to_splits = constants.path_to_splits,
+                num_classes = num_classes,
+                batch_size = batch_size,
+                selected_indices = selected_indices,
+                use_clinical_data = clinical_data,
+                use_layer = use_layer,
+                rgb = rgb_images,
+                current_fold = fold
+            )
             
+            callbacks = hf.get_callbacks(
+                path_to_callbacks = path_to_callbacks,
+                fold_num = 0,
+                use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+                use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
+                early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+            )
+            
+            # hf.check_dataset(train_data, "Training", batch_size, input_shape,
+            #                num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
+            # hf.check_dataset(val_data, "Validation", batch_size, input_shape,
+            #                num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
+            # if test_data is not None:
+            #     hf.check_dataset(test_data, "Test", batch_size, input_shape,
+            #         num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
+
             # build model
-            model = build_transfer_inceptionv3_model(clinical_data = clinical_data, use_layer = use_layer)
-            model.get_layer("inception_v3").trainable = True
+            model = build_transfer_inceptionv3_model(
+                trainable = False if training_mode == constants.Training.UPPER_LAYER else True
+            )
 
             # load weights
-            model.load_weights(path_to_weights)
+            if training_mode != constants.Training.UPPER_LAYER:
+                model.load_weights(path_to_weights)
 
             #training model
             history = model.fit(
                 train_data,
                 validation_data = val_data,
                 epochs = training_epochs,
-                batch_size = batch_size,
                 callbacks = callbacks,
-                class_weight = hf.two_class_weights
-            )
+            )      
 
             # save history
             hf.save_training_history(
@@ -127,119 +295,27 @@ def train_ai():
                 training_codename = training_codename,
                 time = time,
                 path_to_callbacks = path_to_callbacks,
-                fold = fold
+                fold = fold if training_mode == constants.Training.K_FOLD else -1
             )
 
-            hf.clear_tf_session()
+            if training_mode == constants.Training.K_FOLD:
+                hf.clear_tf_session()
 
-            hf.print_fold_info(fold, is_start = False)
-
-    elif train_upper_layers:
-
-        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
-        
-        callbacks = hf.get_callbacks(path_to_callbacks, 0,
-                                     use_early_stopping = True,
-                                     stop_training = False,
-                                     early_stopping_patience = 20)
-        
-        model = build_transfer_inceptionv3_model(clinical_data = clinical_data, use_layer = use_layer)
-
-        model.get_layer("inception_v3").trainable = False
-
-        # traing model
-        history = model.fit(
-            train_data,
-            validation_data = val_data,
-            epochs = training_epochs,
-            batch_size = batch_size,
-            callbacks = callbacks,
-            class_weight = hf.two_class_weights
-        )        
-
-        # save history
-        hf.save_training_history(
-            history = history,
-            training_codename = training_codename,
-            time = time,
-            path_to_callbacks = path_to_callbacks
-        )
-
-    elif learning_rate_tuning:
-
-        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
-        
-        callbacks = hf.get_callbacks(path_to_callbacks, 0,
-                                     use_lrscheduler=True,
-                                     use_early_stopping=False)
-
-        # build model
-        model = build_transfer_inceptionv3_model(clinical_data = clinical_data, use_layer = use_layer)
-        
-        model.get_layer("inception_v3").trainable = True
-
-        # load weights
-        model.load_weights(path_to_weights)
-
-        # traing model
-        history = model.fit(
-            train_data,
-            validation_data = val_data,
-            epochs = training_epochs,
-            batch_size = batch_size,
-            callbacks = callbacks,
-            class_weight = hf.two_class_weights
-        )        
-
-        # save history
-        hf.save_training_history(
-            history = history,
-            training_codename = training_codename,
-            time = time,
-            path_to_callbacks = path_to_callbacks
-        )
-
+                hf.print_fold_info(fold, is_start = False)
+    
     else:
-        # regular training
-        train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
-
-        # get callbacks
-        callbacks = hf.get_callbacks(path_to_callbacks, 0)
-
-        # build model
-        model = build_transfer_inceptionv3_model(clinical_data = clinical_data, use_layer = use_layer)
-
-        model.get_layer("inception_v3").trainable = True
-
-        # load weights
-        model.load_weights(path_to_weights)
-
-        # traing model
-        history = model.fit(
-            train_data,
-            validation_data = val_data,
-            epochs = training_epochs,
-            batch_size = batch_size,
-            callbacks = callbacks
-        )        
-
-        # save history
-        hf.save_training_history(
-            history = history,
-            training_codename = training_codename,
-            time = time,
-            path_to_callbacks = path_to_callbacks
-        )
+        raise ValueError(f"Invalid dataset type: {dataset_type}. Supported types: {constants.Dataset.NORMAL}, {constants.Dataset.PRETRAIN_ROUGH}, {constants.Dataset.PRETRAIN_FINE}")
+    
     
     hf.clear_tf_session()
 
     hf.print_training_timestamps(isStart = False, training_codename = training_codename)
 
-def build_transfer_inceptionv3_model(clinical_data, use_layer):
+def build_transfer_inceptionv3_model(trainable = True):
 
     DefaultDenseLayer = partial(
         tf.keras.layers.Dense,
-        activation = activation_func,
+        activation = constants.activation_func,
         kernel_initializer = "he_normal",
         kernel_regularizer = tf.keras.regularizers.l2(l2_regularization)
     )
@@ -247,94 +323,100 @@ def build_transfer_inceptionv3_model(clinical_data, use_layer):
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate, momentum=0.9, nesterov=True)
 
     # Define inputs
-    image_input = tf.keras.layers.Input(shape=(240, 240, 3))
-    sex_input = tf.keras.layers.Input(shape=(1,))
-    age_input = tf.keras.layers.Input(shape=(1,))
-    layer_input = tf.keras.layers.Input(shape=(1,))
+    image_input = tf.keras.layers.Input(shape=input_shape, name = "image_input")
+    sex_input = tf.keras.layers.Input(shape=(1,), name = "sex_input")
+    age_input = tf.keras.layers.Input(shape=(1,), name = "age_input")
+    layer_input = tf.keras.layers.Input(shape=(1,), name = "layer_input")
 
-    augmented = data_augmentation(image_input)
-    batch_normed_augment = tf.keras.layers.BatchNormalization()(augmented)
-    
-    #tf.print("Augmented shape:", augmented.shape)
+    # Choose Data Augmentation pipeline
+    augment_layer = hf.contrast_data_augmentation if contrast_DA else hf.normal_data_augmentation
 
-    # Use the pretrained base model
-    x = tf.keras.applications.InceptionV3(include_top = False)(batch_normed_augment)
+    # --- Instantiate Base Model and Set Trainable Status ---
+    base_model = tf.keras.applications.InceptionV3(
+        include_top = False,
+        weights = "imagenet",
+        pooling = None
+    )
+    base_model.trainable = trainable
+
+    # --- Model Architecture ---
+    x = augment_layer(image_input)
+    x = tf.keras.layers.Resizing(image_size, image_size)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = base_model(x, training = False if not trainable else True)
     x = tf.keras.layers.GlobalMaxPool2D()(x)
 
-    inception = tf.keras.layers.Flatten()(x)
+    inception_image_features = tf.keras.layers.Flatten()(x)
 
-    # Clinical Data Usage
-    if clinical_data == True and use_layer == True:
-        concatenated_inputs = tf.keras.layers.Concatenate()([
-            inception,
-            sex_input,
-            age_input,
-            layer_input
-        ])
-    elif clinical_data == True and use_layer == False:
-        concatenated_inputs = tf.keras.layers.Concatenate()([
-            inception,
-            sex_input,
-            age_input
-        ])
-    elif clinical_data == False and use_layer == True:
-        concatenated_inputs = tf.keras.layers.Concatenate()([
-            inception,
-            layer_input
-        ])
+    # --- Feature Concatenation ---
+    # use 'clinical_data' and 'use_layer'
+
+    inputs_to_concat = [inception_image_features]
+
+    if clinical_data:
+        inputs_to_concat.extend([sex_input, age_input])
+        if use_layer:
+            inputs_to_concat.append(layer_input)
+    elif use_layer:
+        inputs_to_concat.append(layer_input)
+
+    if len(inputs_to_concat) > 1:
+        concatenated_features = tf.keras.layers.Concatenate()(inputs_to_concat)
     else:
-        # if clinical data is not wanted, then only the image is used
-        concatenated_inputs = inception
+        concatenated_features = inception_image_features # No concatenation needed
 
-    # Define dense and dropout layers
-    dense_1_layer = DefaultDenseLayer(units = 512)
-    dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
-    dense_2_layer = DefaultDenseLayer(units = 256)
-    dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
+    # --- Dense Layers ---
+    x = tf.keras.layers.BatchNormalization()(concatenated_features)
+    x = DefaultDenseLayer(units = 512)(x)
+    x = tf.keras.layers.Dropout(dropout_rate)(x)
 
-    # Fully connected layers
-    x = tf.keras.layers.BatchNormalization()(concatenated_inputs)
-    x = dense_1_layer(x)
-    x = dropout_1_layer(x)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = dense_2_layer(x)
-    x = dropout_2_layer(x)
+    x = DefaultDenseLayer(units = 256)(x)
+    x = tf.keras.layers.Dropout(dropout_rate)(x)
 
-    # Output layer
-    match num_classes:
-        case 2:
-            x = tf.keras.layers.Dense(1)(x)
-            output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
-        case 3 | 4 | 5 | 6:
-            x = tf.keras.layers.Dense(num_classes)(x)
-            output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
-        case _:
-            raise ValueError("num_classes must be 2, 3, 4, 5 or 6.")
 
-    model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output], name = "transfer_inceptionv3_model")
-
-    if num_classes > 2:
-        model.compile(
-            loss = "sparse_categorical_crossentropy",
-            optimizer = optimizer,
-            metrics = ["RootMeanSquaredError", "accuracy"]
-        )
+    # --- Output Layer ---
+    if num_classes == 2:
+        # Binary Classification
+        x = tf.keras.layers.Dense(1)(x)
+        output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
+        loss = "binary_crossentropy"
+        metrics = ["accuracy",
+                   tf.keras.metrics.AUC(name = "auc"),
+                   tf.keras.metrics.Precision(name = "precision"),
+                   tf.keras.metrics.Recall(name = "recall")]
+    elif num_classes > 2 and num_classes <= 6:
+        x = tf.keras.layers.Dense(num_classes)(x)
+        output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
+        loss = "sparse_categorical_crossentropy"
+        metrics = ["accuracy"]
     else:
-        model.compile(
-            loss = "binary_crossentropy",
-            optimizer = optimizer,
-            metrics = ["RootMeanSquaredError", "accuracy"]
-        )
+        raise ValueError("num_classes must have a value between 2 and 6")
+
+    # --- Create and compile model ---
+    if dataset_type == constants.Dataset.NORMAL:
+        if clinical_data == True:
+            if use_layer == True:
+                model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output])
+            else:
+                model = tf.keras.Model(inputs = [image_input, sex_input, age_input], outputs = [output])
+        else:
+            if use_layer == True:
+                model = tf.keras.Model(inputs = [image_input, layer_input], outputs = [output])
+            else:
+                model = tf.keras.Model(inputs = [image_input], outputs = [output])
+    else:
+        model = tf.keras.Model(inputs = [image_input], outputs = [output])
+
+    model.compile(
+        loss = loss,
+        optimizer = optimizer,
+        metrics = metrics
+    )
     
     model.summary()
 
     return model
-
-    
-if contrast_DA:
-    data_augmentation = hf.contrast_data_augmentation
-else:
-    data_augmentation = hf.normal_data_augmentation
 
 if __name__ == "__main__":
     train_ai()
