@@ -14,6 +14,8 @@ import constants
 # 2. Run: find best learning rate with exported weights
 # 3. Run: train of the best learning rate
 
+# IMPORTANT NOTE: this script only accepts 3 channels as input!!!
+
 # --- GPU setup ---
 gpus = tf.config.list_physical_devices('GPU')
 print(gpus)
@@ -308,137 +310,6 @@ def train_ai():
     
     else:
         raise ValueError(f"Invalid dataset type: {dataset_type}. Supported types: {constants.Dataset.NORMAL}, {constants.Dataset.PRETRAIN_ROUGH}, {constants.Dataset.PRETRAIN_FINE}")
-
-
-    # if use_k_fold:
-        
-    #     for fold in range(10):
-
-    #         hf.print_fold_info(fold, is_start = True)
-
-    #         train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images, current_fold = fold)
-
-    #         callbacks = hf.get_callbacks(path_to_callbacks, fold)
-            
-    #         # build model
-    #         model = build_transfer_bit_model(clinical_data = clinical_data, use_layer = use_layer)
-
-    #         # load weights
-    #         model.load_weights(path_to_weights)
-
-    #         #training model
-    #         history = model.fit(
-    #             train_data,
-    #             validation_data = val_data,
-    #             epochs = training_epochs,
-    #             batch_size = batch_size,
-    #             callbacks = callbacks,
-    #             class_weight = hf.two_class_weights
-    #         )
-
-    #         # save history
-    #         hf.save_training_history(
-    #             history = history,
-    #             training_codename = training_codename,
-    #             time = time,
-    #             path_to_callbacks = path_to_callbacks,
-    #             fold = fold
-    #         )
-
-    #         hf.clear_tf_session()
-
-    #         hf.print_fold_info(fold, is_start = False)
-
-    # elif train_upper_layers:
-
-    #     train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
-        
-    #     callbacks = hf.get_callbacks(path_to_callbacks, 0,
-    #                                  use_early_stopping = True,
-    #                                  stop_training = False,
-    #                                  early_stopping_patience = 20)
-        
-    #     model = build_transfer_bit_model(clinical_data = clinical_data, use_layer = use_layer, trainable = False)
-
-    #     # traing model
-    #     history = model.fit(
-    #         train_data,
-    #         validation_data = val_data,
-    #         epochs = training_epochs,
-    #         batch_size = batch_size,
-    #         callbacks = callbacks,
-    #         class_weight = hf.two_class_weights
-    #     )        
-
-    #     # save history
-    #     hf.save_training_history(
-    #         history = history,
-    #         training_codename = training_codename,
-    #         time = time,
-    #         path_to_callbacks = path_to_callbacks
-    #     )
-
-    # elif learning_rate_tuning:
-
-    #     train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
-        
-    #     callbacks = hf.get_callbacks(path_to_callbacks, 0,
-    #                                  use_lrscheduler=True,
-    #                                  use_early_stopping=False)
-
-    #     # build model
-    #     model = build_transfer_bit_model(clinical_data = clinical_data, use_layer = use_layer)
-
-    #     # load weights
-    #     model.load_weights(path_to_weights)
-
-    #     # traing model
-    #     history = model.fit(
-    #         train_data,
-    #         validation_data = val_data,
-    #         epochs = training_epochs,
-    #         batch_size = batch_size,
-    #         callbacks = callbacks,
-    #         class_weight = hf.two_class_weights
-    #     )        
-
-    #     # save history
-    #     hf.save_training_history(
-    #         history = history,
-    #         training_codename = training_codename,
-    #         time = time,
-    #         path_to_callbacks = path_to_callbacks
-    #     )
-
-    # else:
-    #     # regular training
-    #     train_data, val_data, test_data = hf.setup_data(path_to_tfrs, path_to_callbacks, path_to_splits, num_classes, batch_size = batch_size, rgb = rgb_images)
-
-    #     # get callbacks
-    #     callbacks = hf.get_callbacks(path_to_callbacks, 0)
-
-    #     # build model
-    #     model = build_transfer_bit_model(clinical_data = clinical_data, use_layer = use_layer)
-
-    #     # load weights
-    #     model.load_weights(path_to_weights)
-
-    #     # traing model
-    #     history = model.fit(
-    #         train_data,
-    #         validation_data = val_data,
-    #         epochs = training_epochs,
-    #         batch_size = batch_size,
-    #         callbacks = callbacks
-    #     )        
-
-    #     # save history
-    #     hf.save_training_history(
-    #         history = history,
-    #         training_codename = training_codename,
-    #         time = time,
-    #         path_to_callbacks = path_to_callbacks
-    #     )
     
     hf.clear_tf_session()
 
@@ -464,11 +335,9 @@ def build_transfer_bit_model(trainable = True):
     # Choose Data Augmentation pipeline
     augment_layer = hf.contrast_data_augmentation if contrast_DA else hf.normal_data_augmentation
 
-    # augmented = data_augmentation(image_input)
-    # batch_normed_augment = tf.keras.layers.BatchNormalization()(augmented)
-
     # --- Model Architecture ---
     x = augment_layer(image_input)
+    x = tf.keras.layers.Resizing(image_size, image_size)(x)
     x = tf.keras.layers.BatchNormalization()(x)
     # Use the pretrained base model
     # this is the R152x4 architecture, which unfortunately doesn't fit into memory, so I went down with the size
@@ -548,74 +417,6 @@ def build_transfer_bit_model(trainable = True):
     model.summary()
 
     return model
-
-
-    # # Clinical Data Usage
-    # if clinical_data == True and use_layer == True:
-    #     concatenated_inputs = tf.keras.layers.Concatenate()([
-    #         bit,
-    #         sex_input,
-    #         age_input,
-    #         layer_input
-    #     ])
-    # elif clinical_data == True and use_layer == False:
-    #     concatenated_inputs = tf.keras.layers.Concatenate()([
-    #         bit,
-    #         sex_input,
-    #         age_input
-    #     ])
-    # elif clinical_data == False and use_layer == True:
-    #     concatenated_inputs = tf.keras.layers.Concatenate()([
-    #         bit,
-    #         layer_input
-    #     ])
-    # else:
-    #     # if clinical data is not wanted, then only the image is used
-    #     concatenated_inputs = bit
-
-    # Define dense and dropout layers
-    # dense_1_layer = DefaultDenseLayer(units = 512)
-    # dropout_1_layer = tf.keras.layers.Dropout(dropout_rate)
-    # dense_2_layer = DefaultDenseLayer(units = 256)
-    # dropout_2_layer = tf.keras.layers.Dropout(dropout_rate)
-
-    # # Fully connected layers
-    # x = tf.keras.layers.BatchNormalization()(concatenated_inputs)
-    # x = dense_1_layer(x)
-    # x = dropout_1_layer(x)
-    # x = tf.keras.layers.BatchNormalization()(x)
-    # x = dense_2_layer(x)
-    # x = dropout_2_layer(x)
-
-    # # Output layer
-    # match num_classes:
-    #     case 2:
-    #         x = tf.keras.layers.Dense(1)(x)
-    #         output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
-    #     case 3 | 4 | 5 | 6:
-    #         x = tf.keras.layers.Dense(num_classes)(x)
-    #         output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
-    #     case _:
-    #         raise ValueError("num_classes must be 2, 3, 4, 5 or 6.")
-
-    # model = tf.keras.Model(inputs = [image_input, sex_input, age_input, layer_input], outputs = [output], name = "transfer_bit_model")
-
-    # if num_classes > 2:
-    #     model.compile(
-    #         loss = "sparse_categorical_crossentropy",
-    #         optimizer = optimizer,
-    #         metrics = ["RootMeanSquaredError", "accuracy"]
-    #     )
-    # else:
-    #     model.compile(
-    #         loss = "binary_crossentropy",
-    #         optimizer = optimizer,
-    #         metrics = ["RootMeanSquaredError", "accuracy"]
-    #     )
-    
-    # model.summary()
-
-    # return model
 
 
 if __name__ == "__main__":
