@@ -124,13 +124,7 @@ path_to_tfrs = hf.get_path_to_tfrs(
     dataset_type = dataset_type,
 )
 
-# slice + clinical data + contrast weights:
-#path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_slice_rgb_contrast_DA_upper_layer_run_2024_11_18_23_23_54/fold_0/saved_weights.weights.h5"
 
-# slice + clinical data - contrast weights:
-#path_to_weights = path_to_logs + "/transfer_bit_00_2_cls_slice_rgb_normal_DA_upper_layer_run_2024_11_22_21_34_15/fold_0/saved_weights.weights.h5"
-
-# slice - cinical data - contrast weights:
 path_to_weights = constants.path_to_logs / "transfer_bit_00_2_cls_no_clin_slice_rgb_normal_DA_upper_layer_run_2024_12_08_03_16_11/fold_0/saved_weights.weights.h5"
 
 if path_to_tfrs is None and dataset_type != constants.Dataset.PRETRAIN_ROUGH:
