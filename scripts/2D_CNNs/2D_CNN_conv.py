@@ -24,8 +24,8 @@ if gpus:
 print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_ROUGH # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
@@ -34,8 +34,10 @@ clinical_data = False
 use_layer = False
 num_classes = 2
 
+path_to_weights = None #constants.path_to_logs / "conv_00_2cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_fine_normal_run_2025_04_24_13_22_27/fold_0/saved_weights.weights.h5"
+
 # --- Select Sequences ---
-selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
+selected_sequences = ["t1c"]#["t1", "t1c", "t2", "flair", "mask"]
 
 if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     num_classes = 3
@@ -82,7 +84,7 @@ batch_size = 75 #50
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = 400
 else:
-    training_epochs = 1500
+    training_epochs = 10#1500
 learning_rate = 0.001
 
 # Regularization
@@ -184,6 +186,21 @@ def train_ai():
         # build model
         model = build_conv_model()
 
+        if path_to_weights is not None and Path(path_to_weights).exists(): #'path_to_weights' in locals() and 
+            try:
+                print(f"Loading weights from: {path_to_weights}")
+                # Use by_name=True and skip_mismatch=True for flexibility
+                model.load_weights(str(path_to_weights), by_name=True, skip_mismatch=True)
+                print("Weights loaded successfully.")
+            except Exception as e:
+                print(f"ERROR: Could not load weights from {path_to_weights}. Training from scratch. Error: {e}")
+                raise e
+        else:
+            if 'path_to_weights' in locals() and path_to_weights is not None:
+                print(f"Weight file not found at {path_to_weights}. Training from scratch.")
+            else:
+                print("No path_to_weights specified or it's None. Training from scratch (expected for Stage 1).")
+
         # traing model
         history = model.fit(
             train_data,
@@ -242,12 +259,28 @@ def train_ai():
             # build model
             model = build_conv_model()
 
+            if path_to_weights is not None and Path(path_to_weights).exists():
+                try:
+                    print(f"Loading weights from: {path_to_weights}")
+                    # Use by_name=True and skip_mismatch=True for flexibility
+                    model.load_weights(str(path_to_weights), by_name=True, skip_mismatch=True)
+                    print("Weights loaded successfully.")
+                except Exception as e:
+                    print(f"ERROR: Could not load weights from {path_to_weights}. Training from scratch. Error: {e}")
+                    raise e
+            else:
+                if path_to_weights is not None:
+                    print(f"Weight file not found at {path_to_weights}. Training from scratch.")
+                else:
+                    print("No path_to_weights specified or it's None. Training from scratch (expected for Stage 1).")
+
             #training model
             history = model.fit(
                 train_data,
                 validation_data = val_data,
                 epochs = training_epochs,
                 callbacks = callbacks,
+                class_weight = constants.class_weights_dict[num_classes]
             )      
 
             # save history
