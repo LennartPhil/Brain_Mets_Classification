@@ -32,6 +32,6 @@ COPY constants.py /constants.py
 # run pretrained scripts
 #ENTRYPOINT [ "sh", "-c", "python3 /bit_skript.py && python3 /inceptionv3_skript.py && python3 /resnet50v2_skript.py"]
 
-ENTRYPOINT [ "sh", "-c", "python3 /vit_skript.py" ]
+ENTRYPOINT [ "sh", "-c", "python3 /conv_skript.py" ]
 #ENTRYPOINT [ "sh", "-c",  "python3 /efficientv2_skript.py && python3 /bit_skript.py && python3 /vit_skript.py &&" ]
 #ENTRYPOINT [ "python3", "/skript.py" ]-
