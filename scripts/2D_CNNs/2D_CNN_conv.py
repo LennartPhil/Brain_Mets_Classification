@@ -25,7 +25,7 @@ print("tensorflow_setup successful")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
@@ -84,8 +84,8 @@ batch_size = 75 #50
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = 400
 else:
-    training_epochs = 10#1500
-learning_rate = 0.001
+    training_epochs = 1500 #10
+learning_rate = 0.003
 
 # Regularization
 dropout_rate = 0.4
