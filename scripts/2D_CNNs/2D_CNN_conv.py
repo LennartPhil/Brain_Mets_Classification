@@ -25,12 +25,12 @@ print("tensorflow_setup successful")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
-clinical_data = False
+clinical_data = True
 use_layer = False
 num_classes = 2
 
