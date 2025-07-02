@@ -85,7 +85,7 @@ if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = 400
 else:
     training_epochs = 2000 #10
-learning_rate = 0.002
+learning_rate = 0.001
 
 # Regularization
 dropout_rate = 0.4
