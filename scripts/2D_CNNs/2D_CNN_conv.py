@@ -30,9 +30,9 @@ training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD
 cutout = False
 rgb_images = False # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
-clinical_data = False
+clinical_data = True
 use_layer = False
-num_classes = 5
+num_classes = 2
 
 path_to_weights = None #constants.path_to_logs / "conv_00_2cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_fine_normal_run_2025_04_24_13_22_27/fold_0/saved_weights.weights.h5"
 
