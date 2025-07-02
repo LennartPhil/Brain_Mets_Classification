@@ -84,8 +84,8 @@ batch_size = 75 #50
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = 400
 else:
-    training_epochs = 1500 #10
-learning_rate = 0.002
+    training_epochs = 2000 #10
+learning_rate = 0.0002
 
 # Regularization
 dropout_rate = 0.4
