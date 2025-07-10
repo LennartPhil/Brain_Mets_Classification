@@ -24,8 +24,8 @@ if gpus:
 print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
@@ -34,8 +34,9 @@ clinical_data = False
 use_layer = False
 num_classes = 2
 
-use_pretrained_weights = False # if True, will load weights from path_to_weights if it exists
-path_to_weights = constants.path_to_logs / "conv_00_3cls_slice_no_clin_no_layer_rgb_seq[t1c]_normal_DA_pretrain_rough_normal_run_2025_07_06_13_53_53/fold_0/saved_weights.weights.h5" #constants.path_to_logs / "conv_00_2cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_fine_normal_run_2025_04_24_13_22_27/fold_0/saved_weights.weights.h5"
+use_pretrained_weights = True # if True, will load weights from path_to_weights if it exists
+weight_folder = "conv_00_2cls_slice_no_clin_no_layer_gray_seq[t1-t1c-t2-flair-mask]_normal_DA_pretrain_fine_normal_run_2025_07_07_10_05_11/fold_0" + "/saved_weights.weights.h5"
+path_to_weights = constants.path_to_logs / weight_folder #constants.path_to_logs / "conv_00_2cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_fine_normal_run_2025_04_24_13_22_27/fold_0/saved_weights.weights.h5"
 
 # --- Select Sequences ---
 selected_sequences = ["t1", "t1c", "t2", "flair", "mask"] #["t1", "t1c", "t2", "flair", "mask"]
@@ -85,7 +86,7 @@ batch_size = 75 #50
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = 400
 else:
-    training_epochs = 2000 #10
+    training_epochs = 2500 #10
 learning_rate = 0.001
 
 # Regularization
