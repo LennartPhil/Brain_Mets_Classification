@@ -338,21 +338,21 @@ def build_conv_model():
     # --- Model Architecture ---
     x = augment_layer(image_input) # Apply augmentation first
 
-    x = tf.keras.layers.BatchNormalization()(x) # BN before first conv
-    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2)(x)
-    x = tf.keras.layers.MaxPool2D(pool_size = (2,2))(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_1")(x) # BN before first conv
+    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2, name = "conv_1")(x)
+    x = tf.keras.layers.MaxPool2D(pool_size = (2,2), name = "pool_1")(x)
 
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = DefaultConv2D(filters = 128)(x)
-    x = DefaultConv2D(filters = 128)(x)
-    x = tf.keras.layers.MaxPool2D(pool_size = (2,2))(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_2")(x)
+    x = DefaultConv2D(filters = 128, name = "conv_2a")(x)
+    x = DefaultConv2D(filters = 128, name = "conv_2b")(x)
+    x = tf.keras.layers.MaxPool2D(pool_size = (2,2), name = "pool_2")(x)
 
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = DefaultConv2D(filters = 256)(x)
-    x = DefaultConv2D(filters = 256)(x)
-    x = tf.keras.layers.MaxPool2D(pool_size = (2,2))(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_3")(x)
+    x = DefaultConv2D(filters = 256, name = "conv_3a")(x)
+    x = DefaultConv2D(filters = 256, name = "conv_3b")(x)
+    x = tf.keras.layers.MaxPool2D(pool_size = (2,2), name = "pool_3")(x)
 
-    image_features = tf.keras.layers.Flatten()(x)
+    image_features = tf.keras.layers.Flatten(name = "flatten")(x)
 
     # --- Feature Concatenation ---
     # use 'clincal_data' and 'use_layer'
@@ -367,26 +367,26 @@ def build_conv_model():
         inputs_to_concat.append(layer_input)
 
     if len(inputs_to_concat) > 1:
-        concatenated_features = tf.keras.layers.Concatenate()(inputs_to_concat)
+        concatenated_features = tf.keras.layers.Concatenate(name = "concat_features")(inputs_to_concat)
     else:
         concatenated_features = image_features # No concatenation needed
         
 
     # --- Dense Layers ---
-    x = tf.keras.layers.BatchNormalization()(concatenated_features)
-    x = DefaultDenseLayer(units = 512)(x)
-    x = tf.keras.layers.Dropout(dropout_rate)(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_dense_1")(concatenated_features)
+    x = DefaultDenseLayer(units = 512, name = "dense_1")(x)
+    x = tf.keras.layers.Dropout(dropout_rate, name = "dropout_1")(x)
 
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = DefaultDenseLayer(units = 256)(x)
-    x = tf.keras.layers.Dropout(dropout_rate)(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_dense_2")(x)
+    x = DefaultDenseLayer(units = 256, name = "dense_2")(x)
+    x = tf.keras.layers.Dropout(dropout_rate, name = "dropout_2")(x)
 
 
     # --- Output Layer ---
 
     if num_classes == 2:
         # Binary Classification
-        x = tf.keras.layers.Dense(1)(x)
+        x = tf.keras.layers.Dense(1, name=f"dense_output_{num_classes}cls")(x)
         output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
         loss = "binary_crossentropy"
         metrics = ["accuracy",
@@ -394,7 +394,7 @@ def build_conv_model():
                    tf.keras.metrics.Precision(name = "precision"),
                    tf.keras.metrics.Recall(name = "recall")]
     elif num_classes > 2 and num_classes <= 6:
-        x = tf.keras.layers.Dense(num_classes)(x)
+        x = tf.keras.layers.Dense(num_classes, name=f"dense_output_{num_classes}cls")(x)
         output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         loss = "sparse_categorical_crossentropy"
         metrics = ["accuracy"]
