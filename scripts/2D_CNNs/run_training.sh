@@ -3,7 +3,7 @@
 # --- Configuration: SET YOUR ABSOLUTE PATHS HERE ---
 # Set the absolute path to the project's root directory.
 # This is the directory that contains your 'logs', 'TFRecords', and 'scripts' folders.
-export PROJECT_BASE_DIR="/home/lennart"
+export PROJECT_BASE_DIR="/home/lennart/work"
 
 # --- Environment Setup (Optional but good practice) ---
 # If you were using Conda or venv, you would activate it here.
