@@ -464,11 +464,12 @@ def get_callbacks(path_to_callbacks,
     callbacks = []
 
     path_to_fold_callbacks = path_to_callbacks / f"fold_{fold_num}"
+    os.makedirs(path_to_fold_callbacks, exist_ok=True)
 
-    def get_run_logdir(root_logdir = path_to_fold_callbacks / "tensorboard"):
-        return Path(root_logdir) / strftime("run_%Y_%m_%d_%H_%M_%S")
+    # def get_run_logdir(root_logdir = path_to_fold_callbacks / "tensorboard"):
+    #     return Path(root_logdir) / strftime("run_%Y_%m_%d_%H_%M_%S")
 
-    run_logdir = get_run_logdir()
+    # run_logdir = get_run_logdir()
 
     # model checkpoint
     if use_checkpoint:
@@ -478,12 +479,14 @@ def get_callbacks(path_to_callbacks,
             mode = "max",
             save_best_only = True,
             save_weights_only = True,
+            verbose = 1
         )
         callbacks.append(checkpoint_cb)
 
     # early stopping
     if use_early_stopping:
         early_stopping_cb = tf.keras.callbacks.EarlyStopping(
+            monitor = "val_loss",
             patience = early_stopping_patience,
             restore_best_weights = True,
             verbose = 1
@@ -492,15 +495,27 @@ def get_callbacks(path_to_callbacks,
 
     # tensorboard, doesn't really work yet
     if use_tensorboard:
-        tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir = run_logdir,
-                                                    histogram_freq = 1)
+        # The log directory is structured as follows:
+        # .../logs/<run_name>/fold_0/tensorboard/
+        # .../logs/<run_name>/fold_1/tensorboard/
+        # etc.
+        tensorboard_log_dir = path_to_fold_callbacks / "tensorboard"
+        tensorboard_cb = tf.keras.callbacks.TensorBoard(
+            log_dir = tensorboard_log_dir,
+            histogram_freq = 1
+        )
         callbacks.append(tensorboard_cb)
     
     # csv logger
     if use_csv_logger:
-        csv_logger_cb = tf.keras.callbacks.CSVLogger(path_to_fold_callbacks / "training.csv", separator = ",", append = True)
+        csv_logger_cb = tf.keras.callbacks.CSVLogger(
+            path_to_fold_callbacks / "training.csv",
+            separator = ",",
+            append = False
+        )
         callbacks.append(csv_logger_cb)
     
+    # Learning Rate Scheduler
     if use_lrscheduler:
         lr_schedule = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-8 * 10**(epoch * 0.0175))
         callbacks.append(lr_schedule)
