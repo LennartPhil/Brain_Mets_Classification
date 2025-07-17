@@ -7,32 +7,38 @@ from functools import partial
 import numpy as np
 import constants
 
+# mixed precision setup
+tf.keras.mixed_precision.set_global_policy('mixed_float16')
+
 # --- GPU setup ---
 gpus = tf.config.list_physical_devices('GPU')
-print(gpus)
-if gpus:
-    try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        # Memory growth must be set before GPUs have been initialized
-        print(e)
+print(f"{len(gpus)} GPU(s) detected.")
 
-print("tensorflow_setup successful")
+# gpus = tf.config.list_physical_devices('GPU')
+# print(gpus)
+# if gpus:
+#     try:
+#         # Currently, memory growth needs to be the same across GPUs
+#         for gpu in gpus:
+#             tf.config.experimental.set_memory_growth(gpu, True)
+#         logical_gpus = tf.config.list_logical_devices('GPU')
+#         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+#     except RuntimeError as e:
+#         # Memory growth must be set before GPUs have been initialized
+#         print(e)
+
+# print("tensorflow_setup successful")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
 clinical_data = True
-use_layer = True # use the number of the layer as an input feature
-num_classes = 2
+use_layer = False # use the number of the layer as an input feature
+num_classes = 5
 
 use_pretrained_weights = False # if True, will load weights from path_to_weights if it exists
 weight_folder = "conv_00_3cls_slice_no_clin_no_layer_rgb_seq[t1c]_normal_DA_pretrain_rough_normal_run_2025_07_06_13_53_53/fold_0" + "/saved_weights.weights.h5"
@@ -245,7 +251,7 @@ def train_ai():
             
             callbacks = hf.get_callbacks(
                 path_to_callbacks = path_to_callbacks,
-                fold_num = 0,
+                fold_num = fold,
                 use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
                 use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True
             )
