@@ -478,8 +478,7 @@ def get_callbacks(path_to_callbacks,
             monitor = "val_accuracy",
             mode = "max",
             save_best_only = True,
-            save_weights_only = True,
-            verbose = 1
+            save_weights_only = True
         )
         callbacks.append(checkpoint_cb)
 
