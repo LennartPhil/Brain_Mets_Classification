@@ -395,14 +395,12 @@ def build_resnext_model(architecture = "ResNeXt50"):
     filters = 256 #128
     #repetitions = [3, 4, 6, 3]
     input_filters = x.shape[-1]
-    layer_counter = 0
     for i, reps in enumerate(repetitions):
         for j in range(reps):
             strides = 2 if i > 0 and j == 0 else 1
-            x = ResNeXtBlock(filters, cardinality, strides=strides, input_filters=input_filters, name = f"resnext_layer_{layer_counter}")(x)
+            x = ResNeXtBlock(filters, cardinality, strides=strides, input_filters=input_filters, name = f"resnext_stage_{i}_block_{j}")(x)
             input_filters = x.shape[-1] #filters
         filters *= 2
-        layer_counter += 1
 
     x = tf.keras.layers.GlobalAveragePooling2D(name = "gap")(x)
     resnext_image_features = tf.keras.layers.Flatten(name = "flatten")(x)
