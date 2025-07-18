@@ -61,6 +61,9 @@ activation_func = "mish"
 early_stopping_patience = 300 #200
 early_stopping_patience_upper_layer = 20
 
+LEARNING_RATE_EPOCHS = 400
+MAX_TRAINING_EPOCHS = 2500
+
 # --- Model constants ---
 # INPUT_SHAPE_RGB = (IMG_SIZE, IMG_SIZE, 3)
 # INPUT_SHAPE_4_SEQ = (IMG_SIZE, IMG_SIZE, 4)
