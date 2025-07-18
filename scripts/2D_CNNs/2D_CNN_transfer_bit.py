@@ -16,21 +16,24 @@ import constants
 
 # IMPORTANT NOTE: this script only accepts 3 channels as input!!!
 
+# mixed precision setup
+tf.keras.mixed_precision.set_global_policy('mixed_float16')
+
 # --- GPU setup ---
 gpus = tf.config.list_physical_devices('GPU')
-print(gpus)
-if gpus:
-    try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        # Memory growth must be set before GPUs have been initialized
-        print(e)
+print(f"{len(gpus)} GPU(s) detected.")
+# if gpus:
+#     try:
+#         # Currently, memory growth needs to be the same across GPUs
+#         for gpu in gpus:
+#             tf.config.experimental.set_memory_growth(gpu, True)
+#         logical_gpus = tf.config.list_logical_devices('GPU')
+#         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+#     except RuntimeError as e:
+#         # Memory growth must be set before GPUs have been initialized
+#         print(e)
 
-print("tensorflow_setup successful")
+# print("tensorflow_setup successful")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.PRETRAIN_ROUGH # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
@@ -89,9 +92,9 @@ except KeyError as e:
 
 batch_size = 20
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
-    training_epochs = 400
+    training_epochs = constants.LEARNING_RATE_EPOCHS
 else:
-    training_epochs = 1500
+    training_epochs = constants.MAX_TRAINING_EPOCHS
 
 learning_rate = 0.0003
 if training_mode == constants.Training.UPPER_LAYER:
@@ -125,7 +128,9 @@ path_to_tfrs = hf.get_path_to_tfrs(
 )
 
 
-path_to_weights = constants.path_to_logs / "transfer_bit_00_2_cls_no_clin_slice_rgb_normal_DA_upper_layer_run_2024_12_08_03_16_11/fold_0/saved_weights.weights.h5"
+use_pretrained_weights = False # if True, will load weights from path_to_weights if it exists
+weight_folder = "conv_00_3cls_slice_no_clin_no_layer_rgb_seq[t1c]_normal_DA_pretrain_rough_normal_run_2025_07_06_13_53_53/fold_0" + "/saved_weights.weights.h5"
+path_to_weights = constants.path_to_logs / weight_folder
 
 if path_to_tfrs is None and dataset_type != constants.Dataset.PRETRAIN_ROUGH:
     raise ValueError(f"Could not determine path to TFRecords for dataset type {dataset_type}")
@@ -166,8 +171,12 @@ def train_ai():
         )
 
         # load weights
-        if training_mode != constants.Training.UPPER_LAYER:
+        if training_mode != constants.Training.UPPER_LAYER and use_pretrained_weights == True:
+            print(f"Loading weights from: {path_to_weights}")
             model.load_weights(path_to_weights)
+            print("Weights loaded successfully.")
+        else:
+            print(f"Skipping loading weights as training_mode is {training_mode} and use_pretrained_weights is {use_pretrained_weights}. No weights will be loaded.")
 
         # traing model
         history = model.fit(
@@ -212,8 +221,12 @@ def train_ai():
         )
 
         # load weights
-        if training_mode != constants.Training.UPPER_LAYER:
+        if training_mode != constants.Training.UPPER_LAYER and use_pretrained_weights == True:
+            print(f"Loading weights from: {path_to_weights}")
             model.load_weights(path_to_weights)
+            print("Weights loaded successfully.")
+        else:
+            print(f"Skipping loading weights as training_mode is {training_mode} and use_pretrained_weights is {use_pretrained_weights}. No weights will be loaded.")
 
         # traing model
         history = model.fit(
@@ -257,7 +270,7 @@ def train_ai():
             
             callbacks = hf.get_callbacks(
                 path_to_callbacks = path_to_callbacks,
-                fold_num = 0,
+                fold_num = fold,
                 use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
                 use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
                 early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
@@ -277,8 +290,12 @@ def train_ai():
             )
 
             # load weights
-            if training_mode != constants.Training.UPPER_LAYER:
+            if training_mode != constants.Training.UPPER_LAYER and use_pretrained_weights == True:
+                print(f"Loading weights from: {path_to_weights}")
                 model.load_weights(path_to_weights)
+                print("Weights loaded successfully.")
+            else:
+                print(f"Skipping loading weights as training_mode is {training_mode} and use_pretrained_weights is {use_pretrained_weights}. No weights will be loaded.")
 
             #training model
             history = model.fit(
@@ -331,8 +348,8 @@ def build_transfer_bit_model(trainable = True):
 
     # --- Model Architecture ---
     x = augment_layer(image_input)
-    x = tf.keras.layers.Resizing(image_size, image_size)(x)
-    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Resizing(image_size, image_size, name ="resize")(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_1")(x)
     # Use the pretrained base model
     # this is the R152x4 architecture, which unfortunately doesn't fit into memory, so I went down with the size
     x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable)(x)
@@ -341,7 +358,7 @@ def build_transfer_bit_model(trainable = True):
     # x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r101x1/1", trainable=trainable)(batch_normed_augment)
     #x = tf.keras.layers.GlobalMaxPool2D()(x)
 
-    bit_image_features = tf.keras.layers.Flatten()(x)
+    bit_image_features = tf.keras.layers.Flatten(name = "flatten")(x)
 
     # --- Feature Concatenation ---
     # use 'clinical_data' and 'use_layer'
@@ -356,23 +373,23 @@ def build_transfer_bit_model(trainable = True):
         inputs_to_concat.append(layer_input)
 
     if len(inputs_to_concat) > 1:
-        concatenated_features = tf.keras.layers.Concatenate()(inputs_to_concat)
+        concatenated_features = tf.keras.layers.Concatenate(name = "concat_features")(inputs_to_concat)
     else:
         concatenated_features = bit_image_features # No concatenation needed
 
     # --- Dense Layers ---
-    x = tf.keras.layers.BatchNormalization()(concatenated_features)
-    x = DefaultDenseLayer(units=512)(x)
-    x = tf.keras.layers.Dropout(dropout_rate)(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_dense_1")(concatenated_features)
+    x = DefaultDenseLayer(units=512, name = "dense_1")(x)
+    x = tf.keras.layers.Dropout(dropout_rate, name = "dropout_1")(x)
 
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = DefaultDenseLayer(units=256)(x)
-    x = tf.keras.layers.Dropout(dropout_rate)(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_dense_2")(x)
+    x = DefaultDenseLayer(units=256, name = "dense_2")(x)
+    x = tf.keras.layers.Dropout(dropout_rate, name = "dropout_2")(x)
 
     # --- Output Layer ---
     if num_classes == 2:
         # Binary Classification
-        x = tf.keras.layers.Dense(1)(x)
+        x = tf.keras.layers.Dense(1, name = f"dense_output_{num_classes}cls")(x)
         output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
         loss = "binary_crossentropy"
         metrics = ["accuracy",
@@ -380,7 +397,7 @@ def build_transfer_bit_model(trainable = True):
                    tf.keras.metrics.Precision(name = "precision"),
                    tf.keras.metrics.Recall(name = "recall")]
     elif num_classes > 2 and num_classes <= 6:
-        x = tf.keras.layers.Dense(num_classes)(x)
+        x = tf.keras.layers.Dense(num_classes, name = f"dense_output_{num_classes}cls")(x)
         output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         loss = "sparse_categorical_crossentropy"
         metrics = ["accuracy"]

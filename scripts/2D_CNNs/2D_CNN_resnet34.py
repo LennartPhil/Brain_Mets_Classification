@@ -7,20 +7,24 @@ from functools import partial
 import numpy as np
 import constants
 
-gpus = tf.config.list_physical_devices('GPU')
-print(gpus)
-if gpus:
-    try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        # Memory growth must be set before GPUs have been initialized
-        print(e)
+# mixed precision setup
+tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
-print("tensorflow_setup successful")
+# --- GPU setup ---
+gpus = tf.config.list_physical_devices('GPU')
+print(f"{len(gpus)} GPU(s) detected.")
+# if gpus:
+#     try:
+#         # Currently, memory growth needs to be the same across GPUs
+#         for gpu in gpus:
+#             tf.config.experimental.set_memory_growth(gpu, True)
+#         logical_gpus = tf.config.list_logical_devices('GPU')
+#         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+#     except RuntimeError as e:
+#         # Memory growth must be set before GPUs have been initialized
+#         print(e)
+
+# print("tensorflow_setup successful")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
@@ -33,7 +37,9 @@ clinical_data = False
 use_layer = False
 num_classes = 2
 
-path_to_weights = constants.path_to_logs / "conv_00_2cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_fine_normal_run_2025_04_24_13_22_27/fold_0/saved_weights.weights.h5"
+use_pretrained_weights = False # if True, will load weights from path_to_weights if it exists
+weight_folder = "conv_00_3cls_slice_no_clin_no_layer_rgb_seq[t1c]_normal_DA_pretrain_rough_normal_run_2025_07_06_13_53_53/fold_0" + "/saved_weights.weights.h5"
+path_to_weights = constants.path_to_logs / weight_folder
 
 # --- Select Sequences ---
 selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
@@ -81,9 +87,9 @@ except KeyError as e:
 
 batch_size = 50
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
-    training_epochs = 400
+    training_epochs = constants.LEARNING_RATE_EPOCHS #400
 else:
-    training_epochs = 1500
+    training_epochs = constants.MAX_TRAINING_EPOCHS #2500
  # for learning rate set to training_epochs to 400
 learning_rate = 0.001 #0.0001
 
@@ -186,7 +192,7 @@ def train_ai():
         # build model
         model = build_resnet34_model()
 
-        if path_to_weights is not None and Path(path_to_weights).exists(): #'path_to_weights' in locals() and 
+        if use_pretrained_weights == True and path_to_weights is not None and Path(path_to_weights).exists(): #'path_to_weights' in locals() and 
             try:
                 print(f"Loading weights from: {path_to_weights}")
                 # Use by_name=True and skip_mismatch=True for flexibility
@@ -244,7 +250,7 @@ def train_ai():
             
             callbacks = hf.get_callbacks(
                 path_to_callbacks = path_to_callbacks,
-                fold_num = 0,
+                fold_num = fold,
                 use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
                 use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True
             )
@@ -252,7 +258,7 @@ def train_ai():
             # build model
             model = build_resnet34_model()
 
-            if path_to_weights is not None and Path(path_to_weights).exists(): #'path_to_weights' in locals() and 
+            if use_pretrained_weights == True and path_to_weights is not None and Path(path_to_weights).exists(): #'path_to_weights' in locals() and 
                 try:
                     print(f"Loading weights from: {path_to_weights}")
                     # Use by_name=True and skip_mismatch=True for flexibility
@@ -283,7 +289,7 @@ def train_ai():
                 training_codename = training_codename,
                 time = time,
                 path_to_callbacks = path_to_callbacks,
-                fold = fold
+                fold = fold if training_mode == constants.Training.K_FOLD else -1
             )
 
             if training_mode == constants.Training.K_FOLD:
@@ -360,20 +366,22 @@ def build_resnet34_model():
 
     # --- Model Architecture ---
     x = augment_layer(image_input)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2)(x)
-    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_1")(x)
+    x = DefaultConv2D(filters = 64, kernel_size = 7, strides = 2, name = "conv_1")(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_2")(x)
     x = tf.keras.layers.Activation(constants.activation_func)(x)
-    x = tf.keras.layers.MaxPool2D(pool_size = 3, strides = 2, padding = "same")(x)
+    x = tf.keras.layers.MaxPool2D(pool_size = 3, strides = 2, padding = "same", name = "pool_1")(x)
 
     prev_filters = 64
+    residual_counter = 0
     for filters in [64] * 3 + [128] * 4 + [256] * 6 + [512] * 3:
         strides = 1 if filters == prev_filters else 2
-        x = ResidualUnit(filters, strides = strides)(x)
+        x = ResidualUnit(filters, strides = strides, name = f"residual_unit_layer_{residual_counter}_filters_{filters}")(x)
         prev_filters = filters
+        residual_counter += 1
     
-    x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    resnet_image_features = tf.keras.layers.Flatten()(x)
+    x = tf.keras.layers.GlobalAveragePooling2D(name = "gap")(x)
+    resnet_image_features = tf.keras.layers.Flatten(name = "flatten")(x)
 
     # --- Feature Concatenation ---
     inputs_to_concat = [resnet_image_features]
@@ -386,24 +394,24 @@ def build_resnet34_model():
         inputs_to_concat.append(layer_input)
 
     if len(inputs_to_concat) > 1:
-        concatenated_features = tf.keras.layers.Concatenate()(inputs_to_concat)
+        concatenated_features = tf.keras.layers.Concatenate(name = "concat_features")(inputs_to_concat)
     else:
         concatenated_features = resnet_image_features # No concatenation needed
 
     # --- Dense Layers ---
-    x = tf.keras.layers.BatchNormalization()(concatenated_features)
-    x = DefaultDenseLayer(units = 512)(x)
-    x = tf.keras.layers.Dropout(dropout_rate)(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_dense_1")(concatenated_features)
+    x = DefaultDenseLayer(units = 512, name = "dense_1")(x)
+    x = tf.keras.layers.Dropout(dropout_rate, name = "dropout_1")(x)
 
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = DefaultDenseLayer(units = 256)(x)
-    x = tf.keras.layers.Dropout(dropout_rate)(x)
+    x = tf.keras.layers.BatchNormalization(name = "b_norm_dense_2")(x)
+    x = DefaultDenseLayer(units = 256, name = "dense_2")(x)
+    x = tf.keras.layers.Dropout(dropout_rate, name = "dropout_2")(x)
 
     # --- Output Layer ---
 
     if num_classes == 2:
         # Binary Classification
-        x = tf.keras.layers.Dense(1)(x)
+        x = tf.keras.layers.Dense(1, name = f"dense_output_{num_classes}cls")(x)
         output = tf.keras.layers.Activation('sigmoid', dtype='float32', name='predictions')(x)
         loss = "binary_crossentropy"
         metrics = ["accuracy",
@@ -411,7 +419,7 @@ def build_resnet34_model():
                    tf.keras.metrics.Precision(name = "precision"),
                    tf.keras.metrics.Recall(name = "recall")]
     elif num_classes > 2 and num_classes <= 6:
-        x = tf.keras.layers.Dense(num_classes)(x)
+        x = tf.keras.layers.Dense(num_classes, name = f"dense_output_{num_classes}cls")(x)
         output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
         loss = "sparse_categorical_crossentropy"
         metrics = ["accuracy"]
