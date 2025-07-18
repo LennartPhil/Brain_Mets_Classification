@@ -27,7 +27,7 @@ print(f"{len(gpus)} GPU(s) detected.")
 # print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
 training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
@@ -97,7 +97,7 @@ learning_rate = 0.001 #0.0001
 dropout_rate = 0.4 #0.5
 l2_regularization = 0.0001
 
-codename = "resnet34_00"
+codename = "resnet152_00"
 training_codename = hf.get_training_codename(
     code_name = codename,
     num_classes = num_classes,
@@ -439,14 +439,12 @@ def build_resnet152_model():
         (512, 3, 2)
     ]
 
-    residual_counter = 0
     for filters, blocks, stride in block_config:
         for block in range(blocks):
             if block == 0:
-                x = BottleneckResidualUnit(filters, strides=stride, name = f"bottleneck_{residual_counter}_filters_{filters}")(x)
+                x = BottleneckResidualUnit(filters, strides=stride, name = f"bottleneck_{filters}filters_{blocks}blocks_{stride}stride")(x)
             else:
-                x = BottleneckResidualUnit(filters, strides=1, name = f"bottleneck_{residual_counter}_filters_{filters}")(x)
-        residual_counter += 1
+                x = BottleneckResidualUnit(filters, strides=1, name = f"bottleneck_{filters}filters_{blocks}blocks_{stride}stride")(x)
 
     x = tf.keras.layers.GlobalAveragePooling2D(name = "gap")(x)
     resnet_image_features = tf.keras.layers.Flatten(name = "flatten")(x)
