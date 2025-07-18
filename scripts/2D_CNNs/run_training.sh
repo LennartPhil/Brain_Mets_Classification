@@ -5,15 +5,36 @@
 # This is the directory that contains your 'logs', 'TFRecords', and 'scripts' folders.
 export PROJECT_BASE_DIR="/home/lennart/work"
 
-# --- Environment Setup (Optional but good practice) ---
-# If you were using Conda or venv, you would activate it here.
-# For example: source /path/to/your/miniconda/bin/activate your_env_name
-echo "Using Python executable: $(which python)"
-echo "Base directory set to: $PROJECT_BASE_DIR"
-echo "------------------------------------------------"
+# This script runs multiple TensorFlow training scripts sequentially.
+# The '&&' operator ensures that a script only runs if the previous one succeeded.
+# All output (both standard output and errors) will be redirected
+# by the nohup command when this script is executed.
 
-# --- Execution ---
-# Run your training script. It will now inherit the PROJECT_BASE_DIR variable.
-# The 'exec' command replaces the shell process with the python process.
-# The "$@" allows you to pass arguments from the command line to the python script if needed.
-exec python 2D_CNN_conv.py "$@"
+echo "======================================================================"
+echo "Starting experiment run at $(date)"
+echo "======================================================================"
+
+echo "--- Starting training for: 2D_CNN_resnet34.py ---"
+python3 2D_CNN_resnet34.py && \
+echo "--- Finished training for: 22D_CNN_resnet34.py ---"
+
+echo "--- Starting training for: 2D_CNN_resnet152.py ---"
+python3 2D_CNN_resnet152.py && \
+echo "--- Finished training for: 2D_CNN_resnet152.py ---"
+
+echo "--- Starting training for: 2D_CNN_resnext50.py ---"
+python3 2D_CNN_resnext50.py && \
+echo "--- Finished training for: 2D_CNN_resnext50.py ---"
+
+echo "--- Starting training for: 2D_CNN_resnext101.py ---"
+python3 2D_CNN_resnext101.py && \
+echo "--- Finished training for: 2D_CNN_resnext101.py ---"
+
+# Add your other 7+ model training scripts here following the same pattern
+# echo "--- Starting training for: [next_model_script.py] ---"
+# python3 [next_model_script.py] && \
+# echo "--- Finished training for: [next_model_script.py] ---"
+
+echo "======================================================================"
+echo "All experiments finished at $(date)"
+echo "======================================================================"
