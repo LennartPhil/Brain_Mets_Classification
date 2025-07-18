@@ -90,9 +90,9 @@ except KeyError as e:
 
 batch_size = 75 #50
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
-    training_epochs = 400
+    training_epochs = constants.LEARNING_RATE_EPOCHS #400
 else:
-    training_epochs = 2500 #10
+    training_epochs = constants.MAX_TRAINING_EPOCHS #2500 #10
 learning_rate = 0.001
 
 # Regularization
