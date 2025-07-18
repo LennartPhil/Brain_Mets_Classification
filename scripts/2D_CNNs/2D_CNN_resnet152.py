@@ -85,7 +85,7 @@ except KeyError as e:
 
 
 
-batch_size = 10 #20 #50
+batch_size = 50#10 #20 #50
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = constants.LEARNING_RATE_EPOCHS #400
 else:
