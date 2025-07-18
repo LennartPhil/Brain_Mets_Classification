@@ -42,7 +42,7 @@ weight_folder = "conv_00_3cls_slice_no_clin_no_layer_rgb_seq[t1c]_normal_DA_pret
 path_to_weights = constants.path_to_logs / weight_folder
 
 # --- Select Sequences ---
-selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
+selected_sequences = ["t1c"] #["t1", "t1c", "t2", "flair", "mask"]
 
 if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     num_classes = 3
