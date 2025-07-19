@@ -442,9 +442,9 @@ def build_resnet152_model():
     for filters, blocks, stride in block_config:
         for block in range(blocks):
             if block == 0:
-                x = BottleneckResidualUnit(filters, strides=stride, name = f"bottleneck_{filters}filters_{blocks}blocks_{stride}stride")(x)
+                x = BottleneckResidualUnit(filters, strides=stride)(x)
             else:
-                x = BottleneckResidualUnit(filters, strides=1, name = f"bottleneck_{filters}filters_{blocks}blocks_{stride}stride")(x)
+                x = BottleneckResidualUnit(filters, strides=1)(x)
 
     x = tf.keras.layers.GlobalAveragePooling2D(name = "gap")(x)
     resnet_image_features = tf.keras.layers.Flatten(name = "flatten")(x)
