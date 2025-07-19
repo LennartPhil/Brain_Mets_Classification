@@ -14,9 +14,9 @@ echo "======================================================================"
 echo "Starting experiment run at $(date)"
 echo "======================================================================"
 
-# echo "--- Starting training for: 2D_CNN_resnet34.py ---"
-# python3 2D_CNN_resnet34.py && \
-# echo "--- Finished training for: 22D_CNN_resnet34.py ---"
+echo "--- Starting training for: 2D_CNN_resnet34.py ---"
+python3 2D_CNN_resnet34.py && \
+echo "--- Finished training for: 22D_CNN_resnet34.py ---"
 
 echo "--- Starting training for: 2D_CNN_resnet152.py ---"
 python3 2D_CNN_resnet152.py && \
