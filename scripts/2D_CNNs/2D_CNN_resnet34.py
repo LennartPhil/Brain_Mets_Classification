@@ -94,7 +94,7 @@ else:
 learning_rate = 0.001 #0.0001
 
 # Regularization
-dropout_rate = 0.4
+dropout_rate = 0.45
 l2_regularization = 0.0001
 
 codename = "resnet34_00"
