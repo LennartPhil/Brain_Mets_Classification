@@ -28,7 +28,7 @@ print(f"{len(gpus)} GPU(s) detected.")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
@@ -91,7 +91,7 @@ if training_mode == constants.Training.LEARNING_RATE_TUNING:
 else:
     training_epochs = constants.MAX_TRAINING_EPOCHS #2500
  # for learning rate set to training_epochs to 400
-learning_rate = 0.001 #0.0001
+learning_rate = 0.04 #0.0001
 
 # Regularization
 dropout_rate = 0.4 #0.5
