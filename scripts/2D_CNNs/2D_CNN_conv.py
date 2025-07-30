@@ -96,7 +96,7 @@ else:
 learning_rate = 0.003
 
 # Regularization
-dropout_rate = 0.4
+dropout_rate = 0.45
 l2_regularization = 0.0001
 
 codename = "conv_00"
