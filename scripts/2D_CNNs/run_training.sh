@@ -14,13 +14,13 @@ echo "======================================================================"
 echo "Starting experiment run at $(date)"
 echo "======================================================================"
 
-echo "--- Starting training for: 2D_CNN_conv.py ---"
-python3 2D_CNN_conv.py && \
-echo "--- Finished training for: 2D_CNN_conv.py ---"
+# echo "--- Starting training for: 2D_CNN_conv.py ---"
+# python3 2D_CNN_conv.py && \
+# echo "--- Finished training for: 2D_CNN_conv.py ---"
 
-echo "--- Starting training for: 2D_CNN_resnet34.py ---"
-python3 2D_CNN_resnet34.py && \
-echo "--- Finished training for: 22D_CNN_resnet34.py ---"
+# echo "--- Starting training for: 2D_CNN_resnet34.py ---"
+# python3 2D_CNN_resnet34.py && \
+# echo "--- Finished training for: 2D_CNN_resnet34.py ---"
 
 echo "--- Starting training for: 2D_CNN_resnet152.py ---"
 python3 2D_CNN_resnet152.py && \
@@ -30,9 +30,31 @@ echo "--- Starting training for: 2D_CNN_resnext50.py ---"
 python3 2D_CNN_resnext50.py && \
 echo "--- Finished training for: 2D_CNN_resnext50.py ---"
 
-echo "--- Starting training for: 2D_CNN_resnext101.py ---"
-python3 2D_CNN_resnext101.py && \
-echo "--- Finished training for: 2D_CNN_resnext101.py ---"
+# echo "--- Starting training for: 2D_CNN_resnext101.py ---"
+# python3 2D_CNN_resnext101.py && \
+# echo "--- Finished training for: 2D_CNN_resnext101.py ---"
+
+
+
+echo "--- Starting training for: 2D_CNN_transfer_bit.py ---"
+python3 2D_CNN_transfer_bit.py && \
+echo "--- Finished training for: 2D_CNN_transfer_bit.py ---"
+
+echo "--- Starting training for: 2D_CNN_transfer_efficientv2.py ---"
+python3 2D_CNN_transfer_efficientv2.py && \
+echo "--- Finished training for: 2D_CNN_transfer_efficientv2.py ---"
+
+echo "--- Starting training for: 2D_CNN_transfer_inceptionv3.py ---"
+python3 2D_CNN_transfer_inceptionv3.py && \
+echo "--- Finished training for: 2D_CNN_transfer_inceptionv3.py ---"
+
+echo "--- Starting training for: 2D_CNN_transfer_resnet50vs.py ---"
+python3 2D_CNN_transfer_resnet50vs.py && \
+echo "--- Finished training for: 2D_CNN_transfer_resnet50vs.py ---"
+
+# echo "--- Starting training for: 2D_transfer_vit.py ---"
+# python3 2D_transfer_vit.py && \
+# echo "--- Finished training for: 2D_transfer_vit.py ---"
 
 # Add your other 7+ model training scripts here following the same pattern
 # echo "--- Starting training for: [next_model_script.py] ---"
