@@ -36,18 +36,18 @@ print(f"{len(gpus)} GPU(s) detected.")
 # print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_ROUGH # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.UPPER_LAYER # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
-rgb_images = False # using gray scale images as input
+rgb_images = True # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
 clinical_data = False
 use_layer = False
 num_classes = 2
 
 # --- Select Sequences ---
-selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
+selected_sequences = ["t1c"] #["t1", "t1c", "t2", "flair", "mask"]
 
 if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     num_classes = 3
@@ -101,8 +101,8 @@ if training_mode == constants.Training.UPPER_LAYER:
     learning_rate = 0.001
 
 # Regularization
-dropout_rate = 0.4
-l2_regularization = 0.0001
+dropout_rate = constants.REGULAR_DROPOUT_RATE
+l2_regularization = constants.REGULAR_L2_REGULARIZATION
 
 image_size = 384
 
