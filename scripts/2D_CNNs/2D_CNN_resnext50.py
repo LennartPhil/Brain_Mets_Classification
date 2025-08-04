@@ -94,7 +94,7 @@ learning_rate = 0.04
 
 # Regularization
 dropout_rate = 0.45
-l2_regularization = 0.0001
+l2_regularization = 0.001 #0.0001
 
 codename = "resnext50_00"
 training_codename = hf.get_training_codename(
