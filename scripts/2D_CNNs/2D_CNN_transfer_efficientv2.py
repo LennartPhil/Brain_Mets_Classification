@@ -351,9 +351,14 @@ def build_transfer_efficientv2_model(trainable = True):
     x = tf.keras.layers.Resizing(image_size, image_size, name ="resize")(x)
     x = tf.keras.layers.BatchNormalization(name = "b_norm_1")(x)
 
+    # Force FP32 for the Hub module
+    x = tf.cast(x, tf.float32, name="to_fp32_for_hub")
     # Use the pretrained base model
     x = hub.KerasLayer("https://www.kaggle.com/models/google/efficientnet-v2/TensorFlow2/imagenet21k-xl-feature-vector/1", trainable=trainable)(x)
-    #x = tf.keras.layers.GlobalMaxPool2D()(x)
+
+    # cast back so subsequent layers run in mixed precision
+    x = tf.cast(x, tf.keras.mixed_precision.global_policy().compute_dtype,
+                name="back_to_mixed")
 
     efficient_image_features = tf.keras.layers.Flatten(name = "flatten")(x)
 
