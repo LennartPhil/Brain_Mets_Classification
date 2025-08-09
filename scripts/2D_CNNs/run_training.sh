@@ -48,13 +48,13 @@ echo "--- Starting training for: 2D_CNN_transfer_inceptionv3.py ---"
 python3 2D_CNN_transfer_inceptionv3.py && \
 echo "--- Finished training for: 2D_CNN_transfer_inceptionv3.py ---"
 
-echo "--- Starting training for: 2D_CNN_transfer_resnet50vs.py ---"
-python3 2D_CNN_transfer_resnet50vs.py && \
-echo "--- Finished training for: 2D_CNN_transfer_resnet50vs.py ---"
+echo "--- Starting training for: 2D_CNN_transfer_resnet50v2.py ---"
+python3 2D_CNN_transfer_resnet50v2.py && \
+echo "--- Finished training for: 2D_CNN_transfer_resnet50v2.py ---"
 
-# echo "--- Starting training for: 2D_transfer_vit.py ---"
-# python3 2D_transfer_vit.py && \
-# echo "--- Finished training for: 2D_transfer_vit.py ---"
+echo "--- Starting training for: 2D_transfer_vit.py ---"
+python3 2D_transfer_vit.py && \
+echo "--- Finished training for: 2D_transfer_vit.py ---"
 
 # Add your other 7+ model training scripts here following the same pattern
 # echo "--- Starting training for: [next_model_script.py] ---"
