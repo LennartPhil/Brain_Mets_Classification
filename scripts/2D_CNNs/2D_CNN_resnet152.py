@@ -91,7 +91,7 @@ if training_mode == constants.Training.LEARNING_RATE_TUNING:
 else:
     training_epochs = constants.MAX_TRAINING_EPOCHS #2500
  # for learning rate set to training_epochs to 400
-learning_rate = 0.04 #0.0001
+learning_rate = 0.01 #0.0001
 
 # Regularization
 dropout_rate = constants.REGULAR_DROPOUT_RATE
