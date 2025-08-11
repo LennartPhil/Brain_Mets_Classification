@@ -23,8 +23,8 @@ from typing import Dict, Optional, List
 PROJECT_BASE_DIR = Path("/home/lennart/work").expanduser().resolve()
 
 # If you KNOW the exact scripts directory, set it here, e.g.:
-# SCRIPTS_DIR = PROJECT_BASE_DIR / "github" / "my-repo" / "experiments" / "scripts"
-# Otherwise leave as None and the script will auto-discover by searching under PROJECT_BASE_DIR/github and PROJECT_BASE_DIR
+# SCRIPTS_DIR = PROJECT_BASE_DIR / "Brain_Mets_Classification" / "my-repo" / "experiments" / "scr ipts"
+# Otherwise leave as None and the script will auto-discover by searching under PROJECT_BASE_DIR/Brain_Mets_Classification and PROJECT_BASE_DIR
 SCRIPTS_DIR: Optional[Path] = None
 
 # -------------------------
@@ -65,9 +65,9 @@ def discover_script_path(name: str, cache: Dict[str, Optional[Path]]) -> Optiona
             cache[name] = candidate
             return candidate
 
-    # 2) Search under github/ first, then the entire project base as fallback
+    # 2) Search under Brain_Mets_Classification/ first, then the entire project base as fallback
     search_roots = []
-    github_dir = PROJECT_BASE_DIR / "github"
+    github_dir = PROJECT_BASE_DIR / "Brain_Mets_Classification"
     if github_dir.exists():
         search_roots.append(github_dir)
     search_roots.append(PROJECT_BASE_DIR)
@@ -134,7 +134,7 @@ def main() -> int:
     for name in JOBS:
         script_path = discover_script_path(name, path_cache)
         if script_path is None:
-            print(f"ERROR: Could not find script '{name}' under {PROJECT_BASE_DIR}/github or {PROJECT_BASE_DIR}", file=sys.stderr, flush=True)
+            print(f"ERROR: Could not find script '{name}' under {PROJECT_BASE_DIR}/Brain_Mets_Classification or {PROJECT_BASE_DIR}", file=sys.stderr, flush=True)
             results.append((name, 127, None))  # 127 ~ command not found
             continue
 
