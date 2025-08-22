@@ -351,12 +351,12 @@ def build_transfer_vit_model(trainable = True):
     x = tf.keras.layers.Rescaling(scale = 2, offset= -1, name = "rescale")(x) # Rescale to [-1, 1] range
 
     # Force FP32 for the Hub module
-    x = tf.cast(x, tf.float32, name="to_fp32_for_hub")(x)
+    x = tf.cast(x, tf.float32, name="to_fp32_for_hub")
     # Use the pretrained base model
     x = hub.KerasLayer("https://www.kaggle.com/models/spsayakpaul/vision-transformer/TensorFlow2/vit-b16-fe/1", trainable=trainable)(x)
     # cast back so subsequent layers run in mixed precision
     x = tf.cast(x, tf.keras.mixed_precision.global_policy().compute_dtype,
-                name="back_to_mixed")(x)
+                name="back_to_mixed")
 
     vit_image_features = tf.keras.layers.Flatten(name = "flatten")(x)
 
