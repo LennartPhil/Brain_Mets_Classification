@@ -157,13 +157,37 @@ def train_ai():
         )
 
         # get callbacks
-        callbacks = hf.get_callbacks(
-            path_to_callbacks = path_to_callbacks,
-            fold_num = 0,
-            use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
-            use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
-            early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
-        )
+        callback_args = {
+            "path_to_callbacks": path_to_callbacks,
+            "fold_num": 0,
+            "use_lrscheduler": (training_mode == constants.Training.LEARNING_RATE_TUNING),
+            "use_early_stopping": (training_mode != constants.Training.LEARNING_RATE_TUNING)
+        }
+
+        # Conditionally add the patience argument ONLY when you want to override the default
+        if training_mode == constants.Training.UPPER_LAYER:
+            # We need a special, shorter patience for training only the top layers
+            callback_args["early_stopping_patience"] = constants.early_stopping_patience_upper_layer
+        # In ALL other cases (NORMAL, K_FOLD), we do NOT add the key.
+        # This lets the get_callbacks function use its own default value.
+
+        # Call the function by unpacking the arguments dictionary
+        callbacks = hf.get_callbacks(**callback_args)
+        
+        # callbacks = hf.get_callbacks(
+        #     path_to_callbacks = path_to_callbacks,
+        #     fold_num = fold,
+        #     use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+        #     use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
+        #     early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+        # )
+        # callbacks = hf.get_callbacks(
+        #     path_to_callbacks = path_to_callbacks,
+        #     fold_num = 0,
+        #     use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+        #     use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
+        #     early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+        # )
 
         # build model
         model = build_transfer_resnet50_model(
@@ -207,13 +231,30 @@ def train_ai():
         )
 
         # get callbacks
-        callbacks = hf.get_callbacks(
-            path_to_callbacks = path_to_callbacks,
-            fold_num = 0,
-            use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
-            use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
-            early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
-        )
+        callback_args = {
+            "path_to_callbacks": path_to_callbacks,
+            "fold_num": 0,
+            "use_lrscheduler": (training_mode == constants.Training.LEARNING_RATE_TUNING),
+            "use_early_stopping": (training_mode != constants.Training.LEARNING_RATE_TUNING)
+        }
+
+        # Conditionally add the patience argument ONLY when you want to override the default
+        if training_mode == constants.Training.UPPER_LAYER:
+            # We need a special, shorter patience for training only the top layers
+            callback_args["early_stopping_patience"] = constants.early_stopping_patience_upper_layer
+        # In ALL other cases (NORMAL, K_FOLD), we do NOT add the key.
+        # This lets the get_callbacks function use its own default value.
+
+        # Call the function by unpacking the arguments dictionary
+        callbacks = hf.get_callbacks(**callback_args)
+        
+        # callbacks = hf.get_callbacks(
+        #     path_to_callbacks = path_to_callbacks,
+        #     fold_num = 0,
+        #     use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+        #     use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
+        #     early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+        # )
 
         # build model
         model = build_transfer_resnet50_model(
@@ -267,14 +308,31 @@ def train_ai():
                 rgb = rgb_images,
                 current_fold = fold
             )
+
+            callback_args = {
+                "path_to_callbacks": path_to_callbacks,
+                "fold_num": fold,
+                "use_lrscheduler": (training_mode == constants.Training.LEARNING_RATE_TUNING),
+                "use_early_stopping": (training_mode != constants.Training.LEARNING_RATE_TUNING)
+            }
+
+            # Conditionally add the patience argument ONLY when you want to override the default
+            if training_mode == constants.Training.UPPER_LAYER:
+                # We need a special, shorter patience for training only the top layers
+                callback_args["early_stopping_patience"] = constants.early_stopping_patience_upper_layer
+            # In ALL other cases (NORMAL, K_FOLD), we do NOT add the key.
+            # This lets the get_callbacks function use its own default value.
+
+            # Call the function by unpacking the arguments dictionary
+            callbacks = hf.get_callbacks(**callback_args)
             
-            callbacks = hf.get_callbacks(
-                path_to_callbacks = path_to_callbacks,
-                fold_num = fold,
-                use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
-                use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
-                early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
-            )
+            # callbacks = hf.get_callbacks(
+            #     path_to_callbacks = path_to_callbacks,
+            #     fold_num = fold,
+            #     use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
+            #     use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
+            #     early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+            # )
             
             # hf.check_dataset(train_data, "Training", batch_size, input_shape,
             #                num_classes, clinical_data, use_layer, dataset_type, num_batches_to_check=2)
