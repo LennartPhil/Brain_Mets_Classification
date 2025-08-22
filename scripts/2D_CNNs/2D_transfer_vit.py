@@ -160,7 +160,7 @@ def train_ai():
             fold_num = 0,
             use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
             use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
-            early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+            early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else constants.early_stopping_patience
         )
 
         # build model
@@ -210,7 +210,7 @@ def train_ai():
             fold_num = 0,
             use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
             use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
-            early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+            early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else constants.early_stopping_patience
         )
 
         # build model
@@ -271,7 +271,7 @@ def train_ai():
                 fold_num = fold,
                 use_lrscheduler = True if training_mode == constants.Training.LEARNING_RATE_TUNING else False,
                 use_early_stopping = False if training_mode == constants.Training.LEARNING_RATE_TUNING else True,
-                early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else None
+                early_stopping_patience = constants.early_stopping_patience_upper_layer if training_mode == constants.Training.UPPER_LAYER else constants.early_stopping_patience
             )
             
             # hf.check_dataset(train_data, "Training", batch_size, input_shape,
