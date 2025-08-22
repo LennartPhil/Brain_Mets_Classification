@@ -355,6 +355,7 @@ def build_transfer_bit_model(trainable = True):
 
     # Force FP32 for the Hub module
     x = tf.cast(x, tf.float32, name="to_fp32_for_hub")
+    tf.debugging.assert_type(x, tf.float32)
     x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable)(x)
     # cast back so subsequent layers run in mixed precision
     x = tf.cast(x, tf.keras.mixed_precision.global_policy().compute_dtype,
