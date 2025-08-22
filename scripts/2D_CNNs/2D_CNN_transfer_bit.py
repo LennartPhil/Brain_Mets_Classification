@@ -354,12 +354,12 @@ def build_transfer_bit_model(trainable = True):
     # this is the R152x4 architecture, which unfortunately doesn't fit into memory, so I went down with the size
 
     # Force FP32 for the Hub module
-    x = tf.cast(x, tf.float32, name="to_fp32_for_hub")
-    tf.debugging.assert_type(x, tf.float32)
-    x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable)(x)
+    #x = tf.cast(x, tf.float32, name="to_fp32_for_hub")
+    #tf.debugging.assert_type(x, tf.float32)
+    x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r152x4/1", trainable=trainable, dtype='float32')(x)
     # cast back so subsequent layers run in mixed precision
-    x = tf.cast(x, tf.keras.mixed_precision.global_policy().compute_dtype,
-                name="back_to_mixed")
+    #x = tf.cast(x, tf.keras.mixed_precision.global_policy().compute_dtype,
+    #            name="back_to_mixed")
 
     # R101x3 architecture also didn't fit into memory
     # x = hub.KerasLayer("https://www.kaggle.com/models/google/bit/TensorFlow2/m-r101x3/1", trainable=trainable)(batch_normed_augment)
