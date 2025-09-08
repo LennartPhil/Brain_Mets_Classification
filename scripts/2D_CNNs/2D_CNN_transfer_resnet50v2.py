@@ -100,7 +100,7 @@ if training_mode == constants.Training.UPPER_LAYER:
 
 # Regularization
 dropout_rate = 0.45 #constants.REGULAR_DROPOUT_RATE
-l2_regularization = 0.0003 #constants.REGULAR_L2_REGULARIZATION
+l2_regularization = 0.0005 #constants.REGULAR_L2_REGULARIZATION
 
 image_size = 224
 
