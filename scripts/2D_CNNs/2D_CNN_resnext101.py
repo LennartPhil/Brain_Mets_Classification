@@ -93,7 +93,7 @@ else:
 learning_rate = 0.02
 
 # Regularization
-dropout_rate = constants.REGULAR_DROPOUT_RATE #0.4
+dropout_rate = 0.45 #constants.REGULAR_DROPOUT_RATE #0.4
 l2_regularization = constants.REGULAR_L2_REGULARIZATION#0.0001
 
 codename = "resnext101_00"
