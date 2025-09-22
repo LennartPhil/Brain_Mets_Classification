@@ -28,7 +28,7 @@ print(f"{len(gpus)} GPU(s) detected.")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 cutout = False
 rgb_images = False # using gray scale images as input
@@ -94,7 +94,7 @@ learning_rate = 0.02
 
 # Regularization
 dropout_rate = 0.45 #constants.REGULAR_DROPOUT_RATE #0.4
-l2_regularization = constants.REGULAR_L2_REGULARIZATION#0.0001
+l2_regularization = 0.0005 #constants.REGULAR_L2_REGULARIZATION
 
 codename = "resnext101_00"
 training_codename = hf.get_training_codename(
