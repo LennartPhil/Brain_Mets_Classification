@@ -12,15 +12,15 @@ RUN pip install --upgrade pip
 
 RUN pip install -r /requirements.txt
 
-COPY 2D_CNN_conv.py /conv_skript.py
-COPY 2D_CNN_resnet34.py /resnet34_skript.py
+#COPY 2D_CNN_conv.py /conv_skript.py
+#COPY 2D_CNN_resnet34.py /resnet34_skript.py
 COPY 2D_CNN_resnet152.py /resnet152_skript.py
 COPY 2D_CNN_resnext50.py /resnext50_skript.py
 COPY 2D_CNN_resnext101.py /resnext101_skript.py
-COPY 2D_CNN_transfer_bit.py /bit_skript.py
-COPY 2D_CNN_transfer_efficientv2.py /efficientv2_skript.py
-COPY 2D_CNN_transfer_inceptionv3.py /inceptionv3_skript.py
-COPY 2D_CNN_transfer_resnet50v2.py /resnet50v2_skript.py
+#COPY 2D_CNN_transfer_bit.py /bit_skript.py
+#COPY 2D_CNN_transfer_efficientv2.py /efficientv2_skript.py
+#COPY 2D_CNN_transfer_inceptionv3.py /inceptionv3_skript.py
+#COPY 2D_CNN_transfer_resnet50v2.py /resnet50v2_skript.py
 #COPY 2D_transfer_vit.py /vit_skript.py
 
 COPY helper_funcs.py /helper_funcs.py
@@ -32,6 +32,6 @@ COPY constants.py /constants.py
 # run pretrained scripts
 #ENTRYPOINT [ "sh", "-c", "python3 /bit_skript.py && python3 /inceptionv3_skript.py && python3 /resnet50v2_skript.py"]
 
-ENTRYPOINT [ "sh", "-c", "python3 /conv_skript.py" ]
+ENTRYPOINT [ "sh", "-c", "python3 /resnext101_skript.py" ]
 #ENTRYPOINT [ "sh", "-c",  "python3 /efficientv2_skript.py && python3 /bit_skript.py && python3 /vit_skript.py &&" ]
 #ENTRYPOINT [ "python3", "/skript.py" ]-
