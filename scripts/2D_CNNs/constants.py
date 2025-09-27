@@ -2,19 +2,32 @@ import os
 from enum import Enum, auto
 from pathlib import Path
 
-# --- Path configuration ---
-# Read the base path from the environment variable "PROJECT_BASE_DIR"
-# If not set, use the old relative path
-base_dir_str = os.getenv("PROJECT_BASE_DIR", "/home/lennart")
-path_to_base = Path(base_dir_str)
+USING_DOCKER = True
 
-print(f"INFO: Using project base directory: {path_to_base.resolve()}")
+if USING_DOCKER:
+    # --- Docker Paths ---
+    path_to_logs = Path("/logs")
+    path_to_tfr_dirs = Path("/tfrs")
+    print(f"INFO: Using Docker paths for logs and tfrecords: {path_to_logs.resolve()}, {path_to_tfr_dirs.resolve()}")
+
+else:
+    # --- UKR AI Server Paths ---
+    # non-docker setup
+
+    # Read the base path from the environment variable "PROJECT_BASE_DIR"
+    # If not set, use the old relative path
+    base_dir_str = os.getenv("PROJECT_BASE_DIR", "/home/lennart")
+    path_to_base = Path(base_dir_str)
+
+    path_to_logs = path_to_base / "logs"
+    path_to_tfr_dirs = path_to_base / "tfrs"
+
+    print(f"INFO: Using project base directory: {path_to_base.resolve()}")
 
 
 # --- Path constants ---
 # to use for AI server
-path_to_logs = path_to_base / "logs"
-path_to_tfr_dirs = path_to_base / "tfrs"
+
 path_to_splits = path_to_tfr_dirs / "split_text_files"
 paths_to_rough_pretraining = path_to_tfr_dirs / "rough_pretraining" / "rough_train.tfrecord", path_to_tfr_dirs / "rough_pretraining" / "rough_val.tfrecord"
 path_to_fine_pretraining = path_to_tfr_dirs / "fine_pretraining"
