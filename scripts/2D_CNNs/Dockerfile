@@ -21,7 +21,7 @@ COPY 2D_CNN_transfer_bit.py /bit_skript.py
 COPY 2D_CNN_transfer_efficientv2.py /efficientv2_skript.py
 COPY 2D_CNN_transfer_inceptionv3.py /inceptionv3_skript.py
 COPY 2D_CNN_transfer_resnet50v2.py /resnet50v2_skript.py
-COPY 2D_CNN_transfer_vit.py /vit_skript.py
+#COPY 2D_transfer_vit.py /vit_skript.py
 
 COPY helper_funcs.py /helper_funcs.py
 COPY constants.py /constants.py
