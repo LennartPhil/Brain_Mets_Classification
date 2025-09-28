@@ -2,15 +2,20 @@ import os
 from enum import Enum, auto
 from pathlib import Path
 
-USING_DOCKER = True
+class Environment(Enum):
+    LOCAL = auto()
+    DOCKER = auto()
+    UKR_AI_SERVER = auto()
 
-if USING_DOCKER:
+ENVIRONMENT: Environment = Environment.DOCKER
+
+if ENVIRONMENT == Environment.DOCKER:
     # --- Docker Paths ---
     path_to_logs = Path("/logs")
     path_to_tfr_dirs = Path("/tfrs")
     print(f"INFO: Using Docker paths for logs and tfrecords: {path_to_logs.resolve()}, {path_to_tfr_dirs.resolve()}")
 
-else:
+elif ENVIRONMENT == Environment.UKR_AI_SERVER:
     # --- UKR AI Server Paths ---
     # non-docker setup
 
@@ -23,6 +28,15 @@ else:
     path_to_tfr_dirs = path_to_base / "tfrs"
 
     print(f"INFO: Using project base directory: {path_to_base.resolve()}")
+
+elif ENVIRONMENT == Environment.LOCAL:
+    # --- Local Paths ---
+    path_to_logs = Path("/Users/LennartPhilipp/Desktop/Uni/Prowiss/Training/training_evaluation_09_25")
+    path_to_tfr_dirs = Path("/Users/LennartPhilipp/Desktop/Uni/Prowiss/Datensatz_RGB/regensburg_slices_tfrecords")
+    print(f"INFO: Using local paths for logs and tfrecords: {path_to_logs.resolve()}, {path_to_tfr_dirs.resolve()}")
+
+else:
+    raise ValueError(f"Unknown environment: {ENVIRONMENT}, Please set ENVIRONMENT to one of the defined Environment enum values (LOCAL, DOCKER, UKR_AI_SERVER)")
 
 
 # --- Path constants ---
