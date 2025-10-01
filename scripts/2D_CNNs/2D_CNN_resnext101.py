@@ -30,6 +30,8 @@ print(f"{len(gpus)} GPU(s) detected.")
 dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
 training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
+START_FOLD = 0
+
 cutout = False
 rgb_images = False # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
@@ -229,7 +231,7 @@ def train_ai():
 
         k_fold_amount = 10 if training_mode == constants.Training.K_FOLD else 1
 
-        for fold in range(k_fold_amount):
+        for fold in range(START_FOLD, k_fold_amount):
 
             if training_mode == constants.Training.K_FOLD:
                 hf.print_fold_info(fold, is_start = True)
