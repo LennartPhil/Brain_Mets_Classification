@@ -112,6 +112,7 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
                                      The history is expected to be a dictionary with keys
                                      'loss', 'val_loss', 'accuracy', 'val_accuracy'.
         title (str, optional): A custom title for the plot. Defaults to "".
+        custom_loss_limit (float, optional): A custom upper limit for the loss y-axis.
     """
     try:
         history = np.load(path_to_train_history, allow_pickle=True).item()
@@ -127,8 +128,22 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
         return
 
     # Convert to pandas DataFrame for easy handling
-    df = pd.DataFrame(history)
+    history_clean = {key: [float(v) if v is not None else np.nan for v in values] for key, values in history.items()}
+    df = pd.DataFrame(history_clean)
     epochs = len(df)
+
+    # Robustness Check
+    if df['val_loss'].isnull().all() or df['val_accuracy'].isnull().all():
+        print("="*60)
+        print(f"ERROR for '{title}':")
+        print("The training history contains no valid data for 'val_loss' or 'val_accuracy'.")
+        print("The entire column is NaN, indicating the training run may have failed immediately.")
+        print("Aborting plot.")
+        print("="*60)
+        # You can optionally print the DataFrame to inspect it
+        # print("DataFrame content:")
+        # print(df.to_string())
+        return
 
     # --- Find the best epoch based on validation accuracy ---
     # np.argmax returns the index of the maximum value
@@ -137,12 +152,12 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
     best_val_loss_epoch_idx = df['val_loss'].idxmin()
     best_accuracy_epoch_idc = df['val_accuracy'].idxmax()
 
-    best_loss_accuracy = df['val_accuracy'].iloc[best_val_loss_epoch_idx]
-    best_loss_loss = df['val_loss'].iloc[best_val_loss_epoch_idx]
+    best_loss_accuracy = df.loc[best_val_loss_epoch_idx, 'val_accuracy']
+    best_loss_loss = df.loc[best_val_loss_epoch_idx, 'val_loss']
     
     # Retrieve the values at that best epoch
-    best_accuracy_accuracy = df['val_accuracy'].iloc[best_accuracy_epoch_idc]
-    best_accuracy_loss = df['val_loss'].iloc[best_accuracy_epoch_idc]
+    best_accuracy_accuracy = df.loc[best_accuracy_epoch_idc, 'val_accuracy']
+    best_accuracy_loss = df.loc[best_accuracy_epoch_idc, 'val_loss']
     
     # Add 1 to index because epochs are typically 1-based for humans
     best_val_loss_epoch_num = best_val_loss_epoch_idx + 1
