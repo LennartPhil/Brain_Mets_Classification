@@ -439,16 +439,56 @@ def parse_fine_pretraining_record(record, selected_indices = [0, 1, 2, 3, 4], la
         return image
 
 
-def verify_tfrecord(file_path):
+# def verify_tfrecord(file_path):
+#     try:
+#         for _ in tf.data.TFRecordDataset(file_path, compression_type="GZIP"):
+#             pass
+#         return True
+#     except tf.errors.DataLossError as e:
+#         print(f"Corrupted TFRecord file: {file_path}\n{e}")
+#         return False
+#     except Exception as e:
+#         print(f"Error verifying TFRecord file: {file_path}\nError: {e}")
+#         return False
+
+def verify_tfrecord(file_path, feature_description):
+    """
+    Verifies a TFRecord file for both structural integrity (DataLossError)
+    and content validity (InvalidArgumentError by attempting to parse).
+    """
     try:
-        for _ in tf.data.TFRecordDataset(file_path, compression_type="GZIP"):
+        # Create a dataset from the single file
+        dataset = tf.data.TFRecordDataset(str(file_path), compression_type="GZIP")
+
+        # Define a simple parsing function to use for verification
+        def _parse_function(proto):
+            return tf.io.parse_single_example(proto, feature_description)
+
+        # Map the parsing function. This will fail if content is invalid.
+        parsed_dataset = dataset.map(_parse_function)
+
+        # Iterate through the parsed dataset to trigger the execution
+        for _ in parsed_dataset:
             pass
+        
+        # If the loop completes, the file is valid in structure and content
         return True
+
     except tf.errors.DataLossError as e:
-        print(f"Corrupted TFRecord file: {file_path}\n{e}")
+        print(f"\n!!! CORRUPTION DETECTED (Structural Error) !!!")
+        print(f"File: {file_path}")
+        print(f"Error: {e}\n")
+        return False
+    except tf.errors.InvalidArgumentError as e:
+        print(f"\n!!! CORRUPTION DETECTED (Content/Schema Error) !!!")
+        print(f"File: {file_path}")
+        print(f"Error: This file is structurally valid but its content does not match the expected schema. {e}\n")
         return False
     except Exception as e:
-        print(f"Error verifying TFRecord file: {file_path}\nError: {e}")
+        # Catch other potential errors
+        print(f"\n!!! UNEXPECTED VERIFICATION ERROR !!!")
+        print(f"File: {file_path}")
+        print(f"Error: {e}\n")
         return False
 
 
