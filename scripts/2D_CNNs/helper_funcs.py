@@ -149,19 +149,53 @@ def get_patient_paths(path_to_tfrs):
     return patient_paths
 
 
-def get_tfr_paths_for_patients(patient_paths):
+# def get_tfr_paths_for_patients(patient_paths):
 
-    tfr_paths = []
+#     tfr_paths = []
 
-    for patient in patient_paths:
-        tfr_paths.extend(glob.glob(patient + "/*.tfrecord"))
+#     for patient in patient_paths:
+#         tfr_paths.extend(glob.glob(patient + "/*.tfrecord"))
     
-    for path in tfr_paths:
-        verify_tfrecord(path)
+#     for path in tfr_paths:
+#         verify_tfrecord(path)
 
-    #print(f"total tfrs: {len(tfr_paths)}")
+#     #print(f"total tfrs: {len(tfr_paths)}")
 
-    return tfr_paths
+#     return tfr_paths
+
+def get_tfr_paths_for_patients(patient_paths):
+    """
+    Gathers all .tfrecord paths for a list of patient directories and verifies
+    each one, returning only the list of valid, uncorrupted file paths.
+    """
+    # Define the full feature description that all files are expected to have.
+    # This must match the schema the files were created with.
+    image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
+    feature_description = {
+        "image": tf.io.FixedLenFeature(image_shape, tf.float32),
+        "sex": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+        "age": tf.io.FixedLenFeature([], tf.int64, default_value=constants.AGE_MIN),
+        "layer": tf.io.FixedLenFeature([], tf.int64, default_value=constants.LAYER_MIN),
+        "primary": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+    }
+
+    all_tfr_paths = []
+    for patient in patient_paths:
+        all_tfr_paths.extend(glob.glob(patient + "/*.tfrecord"))
+
+    print(f"Found {len(all_tfr_paths)} total .tfrecord files. Verifying integrity and content schema...")
+    
+    # Pass the feature_description to the new verification function
+    verified_tfr_paths = [
+        path for path in all_tfr_paths if verify_tfrecord(path, feature_description)
+    ]
+
+    num_removed = len(all_tfr_paths) - len(verified_tfr_paths)
+    if num_removed > 0:
+        print(f"WARNING: Removed {num_removed} invalid or corrupted .tfrecord file(s) from the dataset.")
+
+    return verified_tfr_paths
+
 
 def read_data(train_paths, val_paths, selected_indices, batch_size, num_classes = None, test_paths = None, rgb = False, use_clinical_data = True, use_layer = True, dataset_type = constants.Dataset.NORMAL):
 
