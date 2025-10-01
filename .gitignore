@@ -8,3 +8,5 @@ lib
 include
 pyvenv.cfg
 share
+__pycache__/
+*.pyc
