@@ -30,7 +30,7 @@ print(f"{len(gpus)} GPU(s) detected.")
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
 training_mode = constants.Training.K_FOLD # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
-START_FOLD = 8
+START_FOLD = 9
 
 cutout = False
 rgb_images = False # using gray scale images as input
