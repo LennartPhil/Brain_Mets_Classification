@@ -28,7 +28,7 @@ print(f"{len(gpus)} GPU(s) detected.")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 START_FOLD = 0
 
@@ -44,7 +44,7 @@ weight_folder = "conv_00_3cls_slice_no_clin_no_layer_rgb_seq[t1c]_normal_DA_pret
 path_to_weights = constants.path_to_logs / weight_folder
 
 # --- Select Sequences ---
-selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
+selected_sequences = ["t1c"] #["t1", "t1c", "t2", "flair", "mask"]
 
 if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     num_classes = 3
@@ -95,7 +95,7 @@ else:
 learning_rate = 0.03
 
 # Regularization
-dropout_rate = constants.REGULAR_DROPOUT_RATE #0.4
+dropout_rate = 0.45 #constants.REGULAR_DROPOUT_RATE #0.4
 l2_regularization = constants.REGULAR_L2_REGULARIZATION
 
 codename = "resnext101_00"
