@@ -27,7 +27,7 @@ print(f"{len(gpus)} GPU(s) detected.")
 # print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
 training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 START_FOLD = 0
@@ -35,7 +35,7 @@ START_FOLD = 0
 cutout = False
 rgb_images = False # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
-clinical_data = False
+clinical_data = True
 use_layer = False
 num_classes = 2
 
@@ -95,7 +95,7 @@ else:
 learning_rate = 0.03
 
 # Regularization
-dropout_rate = constants.REGULAR_DROPOUT_RATE #0.4
+dropout_rate = 0.45 #constants.REGULAR_DROPOUT_RATE #0.4
 l2_regularization = constants.REGULAR_L2_REGULARIZATION #0.0001
 
 codename = "resnext50_00"
