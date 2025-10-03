@@ -395,6 +395,13 @@ def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = cons
         raise ValueError(f"num_classes must have a value between 2 and 6, got {num_classes}")
 
 
+    # cast to float32 if num_classes is 2, else int64
+    if num_classes == 2:
+        primary_to_return = tf.cast(primary_to_return, tf.float32)
+        # primary_to_return = tf.expand_dims(primary_to_return, axis=-1) # for binary classification with sigmoid output
+
+    sex_float = tf.cast(example["sex"], tf.float32)
+
     # if use_clinical_data is False and use_layer is False, return only the image and the primary
     if use_clinical_data == False and use_layer == False:
         return image, primary_to_return
@@ -405,15 +412,15 @@ def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = cons
     
     # if use_clinical_data is True and use_layer is False, return the image, the sex, the age and the primary
     elif use_clinical_data and use_layer == False and labeled:
-        return (image, example["sex"], scaled_age), primary_to_return #example["primary"]
+        return (image, sex_float, scaled_age), primary_to_return #example["primary"]
     
     # if use_clinical_data is True and use_layer is True and labeled, return the image, the sex, the age, the layer and the primary
     elif use_clinical_data and use_layer and labeled:
-        return (image, example["sex"], scaled_age, scaled_layer), primary_to_return
+        return (image, sex_float, scaled_age, scaled_layer), primary_to_return
 
     # if use_clinical_data is True and use_layer is True and not labeled, return the image, the sex, the age and the layer, not the primary!
     elif use_clinical_data and use_layer and not labeled:
-        return image, example["sex"], scaled_age, scaled_layer
+        return image, sex_float, scaled_age, scaled_layer
 
     else:
         return image
@@ -474,6 +481,8 @@ def parse_fine_pretraining_record(record, selected_indices = [0, 1, 2, 3, 4], la
 
 
     if labeled:
+        primary_to_return = tf.cast(primary_to_return, tf.float32)
+        # primary_to_return = tf.expand_dims(primary_to_return, axis=-1) # for binary classification with sigmoid output
         return image, primary_to_return
     else:
         return image
@@ -616,8 +625,12 @@ def min_max_scale(data, min_val, max_val):
     Returns:
         scaled_data: Tensor scaled to the range [0, 1].
     """
+    data = tf.cast(data, tf.float32)
+    min_val = tf.cast(min_val, tf.float32)
+    max_val = tf.cast(max_val, tf.float32)
+
     scaled_data = (data - min_val) / (max_val - min_val)
-    clipped_data = tf.clip_by_value(scaled_data, 0, 1)
+    clipped_data = tf.clip_by_value(scaled_data, 0.0, 1.0)
 
     return clipped_data
 
