@@ -398,7 +398,7 @@ def parse_record(record, selected_indices = [0, 1, 2, 3, 4], dataset_type = cons
     # cast to float32 if num_classes is 2, else int64
     if num_classes == 2:
         primary_to_return = tf.cast(primary_to_return, tf.float32)
-        # primary_to_return = tf.expand_dims(primary_to_return, axis=-1) # for binary classification with sigmoid output
+        primary_to_return = tf.expand_dims(primary_to_return, axis=-1) # for binary classification with sigmoid output
 
     sex_float = tf.cast(example["sex"], tf.float32)
 
@@ -482,7 +482,7 @@ def parse_fine_pretraining_record(record, selected_indices = [0, 1, 2, 3, 4], la
 
     if labeled:
         primary_to_return = tf.cast(primary_to_return, tf.float32)
-        # primary_to_return = tf.expand_dims(primary_to_return, axis=-1) # for binary classification with sigmoid output
+        primary_to_return = tf.expand_dims(primary_to_return, axis=-1) # for binary classification with sigmoid output
         return image, primary_to_return
     else:
         return image
