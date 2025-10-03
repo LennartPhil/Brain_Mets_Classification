@@ -1,3 +1,6 @@
+# TO-DO:
+# - add option to switch between accuracy and auc for the k-fold plot function
+
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
