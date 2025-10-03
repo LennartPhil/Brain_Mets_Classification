@@ -7,7 +7,7 @@ class Environment(Enum):
     DOCKER = auto()
     UKR_AI_SERVER = auto()
 
-ENVIRONMENT: Environment = Environment.UKR_AI_SERVER
+ENVIRONMENT: Environment = Environment.DOCKER
 
 if ENVIRONMENT == Environment.DOCKER:
     # --- Docker Paths ---
