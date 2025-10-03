@@ -485,7 +485,7 @@ def build_resnet152_model():
                    tf.keras.metrics.AUC(name = "auc"),
                    tf.keras.metrics.Precision(name = "precision", thresholds = 0.5),
                    tf.keras.metrics.Recall(name = "recall", thresholds = 0.5),
-                   tf.keras.metrics.F1Score(name = "f1_score", threshold = 0.5)]
+                   tf.keras.metrics.F1Score(name = "f1_score", threshold = 0.5, average="micro")]
     elif num_classes > 2 and num_classes <= 6:
         x = tf.keras.layers.Dense(num_classes, name = f"dense_output_{num_classes}cls")(x)
         output = tf.keras.layers.Activation('softmax', dtype='float32', name='predictions')(x)
