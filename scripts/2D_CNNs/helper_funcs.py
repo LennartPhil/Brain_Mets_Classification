@@ -79,6 +79,12 @@ def get_patient_paths_for_fold(fold, path_to_tfrs, dataset_type = constants.Data
         txt_train_file_name = "pretraining_fine_train_2_classes.txt"
         txt_val_file_name = "pretraining_fine_val_2_classes.txt"
 
+        image_shape = [constants.IMG_SIZE, constants.IMG_SIZE, 5]
+        feature_description = {
+            "image": tf.io.FixedLenFeature(image_shape, tf.float32),
+            "label": tf.io.FixedLenFeature([], tf.int64, default_value=0),
+        }
+
         with open(f"{str(constants.path_to_splits)}/{txt_train_file_name}", "r") as f:
             train_patients = [line.strip() for line in f]
             train_patients = [f"{path_to_tfrs}/{pat}" for pat in train_patients]
@@ -87,7 +93,7 @@ def get_patient_paths_for_fold(fold, path_to_tfrs, dataset_type = constants.Data
 
             # check if tfrecord is valid
             for pat in train_patients:
-                verify_tfrecord(pat)
+                verify_tfrecord(pat, feature_description)
 
         with open(f"{str(constants.path_to_splits)}/{txt_val_file_name}", "r") as f:
             val_patients = [line.strip() for line in f]
@@ -97,7 +103,7 @@ def get_patient_paths_for_fold(fold, path_to_tfrs, dataset_type = constants.Data
 
             # check if tfrecord is valid
             for pat in val_patients:
-                verify_tfrecord(pat)
+                verify_tfrecord(pat, feature_description)
 
         return train_patients, val_patients
     
