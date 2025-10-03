@@ -100,7 +100,7 @@ def plot_single_history_one_graph(path_to_train_history, epochs = 600, title = "
 
     plt.show()
 
-def plot_training_history(path_to_train_history, title="", custom_loss_limit = None):
+def plot_training_history(path_to_train_history, title="", custom_loss_limit = None, compare_metric="accuracy"):
     """
     Loads and plots the training/validation loss and accuracy from a history file.
 
@@ -113,15 +113,26 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
                                      'loss', 'val_loss', 'accuracy', 'val_accuracy'.
         title (str, optional): A custom title for the plot. Defaults to "".
         custom_loss_limit (float, optional): A custom upper limit for the loss y-axis.
+        compare_metric (str, optional): Which metric to compare on the right axis and for
+                                        "best metric" annotations. Options: "accuracy" or "auc". Defaults to "accuracy".
     """
     try:
         history = np.load(path_to_train_history, allow_pickle=True).item()
     except FileNotFoundError:
         print(f"Error: The file '{path_to_train_history}' was not found.")
         return
+    
+    # --- Resolve which metric to use (accuracy or auc) ---
+    compare_metric = str(compare_metric).lower().strip()
+    if compare_metric not in {"accuracy", "auc"}:
+        print(f"Warning: Unsupported compare_metric='{compare_metric}'. Falling back to 'accuracy'.")
+        compare_metric = "accuracy"
+    train_key = compare_metric
+    val_key   = f"val_{compare_metric}"
+    right_label = "AUC" if compare_metric == "auc" else "Accuracy"
 
     # Ensure all necessary keys are in the history file
-    required_keys = ["loss", "val_loss", "accuracy", "val_accuracy"]
+    required_keys = ["loss", "val_loss", train_key, val_key]
     if not all(key in history for key in required_keys):
         print(f"Error: The history dictionary is missing one of the required keys: {required_keys}")
         print(f"Available keys: {list(history.keys())}")
@@ -133,10 +144,10 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
     epochs = len(df)
 
     # Robustness Check
-    if df['val_loss'].isnull().all() or df['val_accuracy'].isnull().all():
+    if df['val_loss'].isnull().all() or df[val_key].isnull().all():
         print("="*60)
         print(f"ERROR for '{title}':")
-        print("The training history contains no valid data for 'val_loss' or 'val_accuracy'.")
+        print(f"The training history contains no valid data for 'val_loss' or '{val_key}'.")
         print("The entire column is NaN, indicating the training run may have failed immediately.")
         print("Aborting plot.")
         print("="*60)
@@ -150,18 +161,18 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
 
     #best_epoch_idx = df['val_accuracy'].idxmax()
     best_val_loss_epoch_idx = df['val_loss'].idxmin()
-    best_accuracy_epoch_idc = df['val_accuracy'].idxmax()
+    best_accuracy_epoch_idc = df[val_key].idxmax()
 
-    best_loss_accuracy = df.loc[best_val_loss_epoch_idx, 'val_accuracy']
+    best_loss_metric = df.loc[best_val_loss_epoch_idx, val_key]
     best_loss_loss = df.loc[best_val_loss_epoch_idx, 'val_loss']
     
     # Retrieve the values at that best epoch
-    best_accuracy_accuracy = df.loc[best_accuracy_epoch_idc, 'val_accuracy']
-    best_accuracy_loss = df.loc[best_accuracy_epoch_idc, 'val_loss']
+    best_metric_value = df.loc[best_accuracy_epoch_idc, val_key]
+    best_metric_loss = df.loc[best_accuracy_epoch_idc, 'val_loss']
     
     # Add 1 to index because epochs are typically 1-based for humans
     best_val_loss_epoch_num = best_val_loss_epoch_idx + 1
-    best_accuracy_epoch_num = best_accuracy_epoch_idc + 1
+    best_metric_epoch_num = best_accuracy_epoch_idc + 1
 
     # --- Plotting ---
     plt.style.use('seaborn-v0_8-whitegrid') # Use a nice style
@@ -179,21 +190,21 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
     # Create a second y-axis for Accuracy that shares the same x-axis
     ax2 = ax1.twinx()
     color = 'tab:blue'
-    ax2.set_ylabel('Accuracy', color=color, fontsize=12)
-    ax2.plot(df.index + 1, df['accuracy'], 'b-', label='Training Accuracy')
-    ax2.plot(df.index + 1, df['val_accuracy'], 'c-', label='Validation Accuracy')
+    ax2.set_ylabel(right_label, color=color, fontsize=12)
+    ax2.plot(df.index + 1, df[train_key], 'b-', label=f'Training {right_label}')
+    ax2.plot(df.index + 1, df[val_key], 'c-', label=f'Validation {right_label}')
     ax2.tick_params(axis='y', labelcolor=color)
     ax2.legend(loc='upper right')
 
     # --- Add annotation for the best validation accuracy ---
-    plt.axvline(x=best_accuracy_epoch_num, color='k', linestyle='--', linewidth=2,
-                label=f'Best Val Accuracy Epoch ({best_accuracy_epoch_num})')
+    plt.axvline(x=best_metric_epoch_num, color='k', linestyle='--', linewidth=2,
+                label=f'Best Val Accuracy Epoch ({best_metric_epoch_num})')
 
     # Add an annotation box pointing to the best validation accuracy point
-    annotation_text = f'Best val_accuracy: {best_accuracy_accuracy:.4f}\nEpoch: {best_accuracy_epoch_num}'
+    annotation_text = f'Best {val_key}: {best_metric_value:.4f}\nEpoch: {best_metric_epoch_num}'
     ax2.annotate(annotation_text,
-                xy=(best_accuracy_epoch_num, best_accuracy_accuracy),
-                xytext=(best_accuracy_epoch_num - (epochs*0.25), best_accuracy_accuracy - 0.05), # Position text slightly away
+                xy=(best_metric_epoch_num, best_metric_value),
+                xytext=(best_metric_epoch_num - (epochs*0.25), best_metric_value - 0.05), # Position text slightly away
                 arrowprops=dict(facecolor='blue', shrink=0.05, width=1.5, headwidth=8),
                 fontsize=12,
                 fontweight='bold',
@@ -205,10 +216,10 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
                 label=f'Best Epoch ({best_val_loss_epoch_num})')
 
     # Add an annotation box pointing to the best validation accuracy point
-    annotation_text = f'Best val_loss: {best_loss_loss:.4f}\nWith val_accuracy: {best_loss_accuracy:.4f}\nEpoch: {best_val_loss_epoch_num}'
+    annotation_text = f'Best val_loss: {best_loss_loss:.4f}\nWith {val_key}: {best_loss_metric:.4f}\nEpoch: {best_val_loss_epoch_num}'
     ax2.annotate(annotation_text,
-                xy=(best_val_loss_epoch_num, best_loss_loss),
-                xytext=(best_val_loss_epoch_num - (epochs*0.25), best_loss_loss - 0.05), # Position text slightly away
+                xy=(best_val_loss_epoch_num, best_loss_metric),
+                xytext=(best_val_loss_epoch_num - (epochs*0.25), best_loss_metric - 0.05), # Position text slightly away
                 arrowprops=dict(facecolor='green', shrink=0.05, width=1.5, headwidth=8),
                 fontsize=12,
                 fontweight='bold',
@@ -226,7 +237,7 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
         ax1.set_ylim(0, custom_loss_limit)
     else:
         ax1.set_ylim(0, max(df['loss'].max(), df['val_loss'].max()) * 1.1) # Dynamic y-limit for loss
-    ax2.set_ylim(0, 1.05) # Accuracy is between 0 and 1
+    ax2.set_ylim(0, 1.05) # Accuracy/AUC is between 0 and 1
 
     fig.tight_layout() # Adjust plot to prevent labels from overlapping
     plt.show()
@@ -237,10 +248,10 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
     print(f"Total Epochs Trained: {epochs}")
     print("-"*50)
     print(f"Lowest Validation Loss of {best_loss_loss:.4f} achieved at Epoch {best_val_loss_epoch_num}.")
-    print(f"Validation Accuracy at this epoch was {best_loss_accuracy:.4f}.")
+    print(f"Validation {right_label} at this epoch was {best_loss_metric:.4f}.")
     print("-"*50)
-    print(f"Highest Validation Accuracy of {best_accuracy_accuracy:.4f} achieved at Epoch {best_accuracy_epoch_num}.")
-    print(f"Validation Loss at this epoch was {best_accuracy_loss:.4f}.")
+    print(f"Highest Validation {right_label} of {best_metric_value:.4f} achieved at Epoch {best_metric_epoch_num}.")
+    print(f"Validation Loss at this epoch was {best_metric_loss:.4f}.")
     print("="*50)
 
 
