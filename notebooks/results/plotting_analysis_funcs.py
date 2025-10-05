@@ -458,32 +458,45 @@ def plot_lr_history(path_to_train_history, title: str = "", y_axis_max: int = 5)
 
     return best_lr
 
-def plot_kfold_results_with_confidence_band(path_pattern, title="", custom_loss_limit=None):
+def plot_kfold_results_with_confidence_band(path_patterns, title="", custom_loss_limit=None):
     """
     Loads, aggregates, and plots k-fold cross-validation training results
-    from files with complex names.
+    from files potentially spread across multiple directories.
 
-    This function finds all history files matching a given pattern, extracts the
-    fold number, and visualizes the mean training/validation loss and accuracy
-    across all folds, with a shaded region representing one standard deviation.
+    This function finds all history files matching the given list of patterns,
+    extracts the fold number (ensuring no duplicates), and visualizes the
+    mean training/validation loss and accuracy across all folds, with a
+    shaded region representing one standard deviation.
 
     Args:
-        path_pattern (str): A path and file pattern using wildcards to find the
-                            history files. The pattern should have a '*' in place
-                            of variable parts like timestamps.
-                            Example for a file named
-                            'history_..._fold_1_run_..._57.npy':
-                            'path/to/files/history_*_fold_*_run_*.npy'
+        path_patterns (list of str or str): A list of path patterns (or a single string)
+                            using wildcards to find the history files.
+                            Example for a run split into two folders:
+                            [
+                                'run1_partA/history_*_fold_*.npy',
+                                'run1_partB/history_*_fold_*.npy'
+                            ]
         title (str, optional): A custom title for the plot. Defaults to "".
         custom_loss_limit (float, optional): A custom upper limit for the loss y-axis.
                                              Defaults to None (dynamic scaling).
     """
     all_histories = []
     min_epochs = float('inf')
+    seen_folds = set()
 
     # --- 1. Find all history files using the glob pattern ---
-    print(f"Searching for files with pattern: {path_pattern}")
-    filepaths = glob.glob(path_pattern)
+    # Handle case where user passes a single string instead of a list
+    if isinstance(path_patterns, str):
+        path_patterns = [path_patterns]
+
+    filepaths = set() # Use set to avoid exact file duplicates defined by patterns
+    print(f"Searching for files in {len(path_patterns)} location(s)...")
+    for pattern in path_patterns:
+        found = glob.glob(pattern)
+        print(f"Pattern '{pattern}' found {len(found)} files.")
+        filepaths.update(found)
+    
+    filepaths = list(filepaths)
 
     if not filepaths:
         print("\n--- ERROR ---")
@@ -493,7 +506,7 @@ def plot_kfold_results_with_confidence_band(path_pattern, title="", custom_loss_
         print("'path/to/dir/*_fold_*_run_*.npy'")
         return
 
-    print(f"Found {len(filepaths)} matching files.")
+    print(f"Total unique files found: {len(filepaths)}")
 
     # --- 2. Load files, parse fold number, and find min epochs ---
     for f_path in filepaths:
@@ -504,6 +517,10 @@ def plot_kfold_results_with_confidence_band(path_pattern, title="", custom_loss_
             continue
         
         fold_num = int(match.group(1)) # group(1) is the captured digits (\d+)
+
+        if fold_num in seen_folds:
+            print(f"Note: Fold {fold_num} already loaded. Skipping duplicate file: {f_path}")
+            continue
 
         try:
             history = np.load(f_path, allow_pickle=True).item()
@@ -516,6 +533,8 @@ def plot_kfold_results_with_confidence_band(path_pattern, title="", custom_loss_
             
             # Store dataframe with its fold number for context
             all_histories.append({'fold': fold_num, 'df': df})
+            seen_folds.add(fold_num)
+
             if len(df) < min_epochs:
                 min_epochs = len(df)
         except Exception as e:
@@ -527,10 +546,14 @@ def plot_kfold_results_with_confidence_band(path_pattern, title="", custom_loss_
 
     # Sort by fold number for consistent coloring, if ever needed
     all_histories.sort(key=lambda x: x['fold'])
-    
-    # Inform the user about truncation
-    print(f"All runs will be truncated to the shortest run length of {min_epochs} epochs for fair comparison.")
+    loaded_folds = [x['fold'] for x in all_histories]
 
+    # Inform the user about truncation and folds found
+    print("="*60)
+    print(f"Successfully loaded {len(all_histories)} folds: {loaded_folds}")
+    print(f"All runs will be truncated to the shortest run length of {min_epochs} epochs for fair comparison.")
+    print("="*60)
+    
     # --- 3. Truncate all histories and collect metrics ---
     metrics = ['loss', 'val_loss', 'accuracy', 'val_accuracy']
     metric_data = {metric: [] for metric in metrics}
@@ -583,32 +606,42 @@ def plot_kfold_results_with_confidence_band(path_pattern, title="", custom_loss_
     best_val_acc_epoch = mean_metrics['val_accuracy'].idxmax()
     best_val_acc = mean_metrics['val_accuracy'].max()
     
-    ax1.axvline(x=best_val_loss_epoch, color='gray', linestyle=':', linewidth=2)
-    annotation_text_loss = f'Lowest Avg. Val Loss: {best_val_loss:.4f}\n(Val Acc: {val_acc_at_best_loss:.4f})\nEpoch: {best_val_loss_epoch + 1}'
-    ax1.annotate(annotation_text_loss, xy=(best_val_loss_epoch, best_val_loss),
-                 xytext=(best_val_loss_epoch + 5, best_val_loss + 0.2),
-                 arrowprops=dict(facecolor='magenta', shrink=0.05, width=1.5, headwidth=8),
-                 fontsize=10, bbox=dict(boxstyle="round,pad=0.3", fc="lightpink", alpha=0.8))
-    
-    ax2.axvline(x=best_val_acc_epoch, color='black', linestyle='--', linewidth=2)
-    annotation_text_acc = f'Highest Avg. Val Acc: {best_val_acc:.4f}\nEpoch: {best_val_acc_epoch + 1}'
-    ax2.annotate(annotation_text_acc, xy=(best_val_acc_epoch, best_val_acc),
-                 xytext=(best_val_acc_epoch - (min_epochs*0.4), best_val_acc - 0.1),
-                 arrowprops=dict(facecolor='cyan', shrink=0.05, width=1.5, headwidth=8),
-                 fontsize=10, bbox=dict(boxstyle="round,pad=0.3", fc="lightblue", alpha=0.8))
+    # Annotations can sometimes clutter; wrap in try/except just in case of layout issues
+    try:
+        ax1.axvline(x=best_val_loss_epoch, color='gray', linestyle=':', linewidth=2)
+        annotation_text_loss = f'Lowest Avg. Val Loss: {best_val_loss:.4f}\n(Val Acc: {val_acc_at_best_loss:.4f})\nEpoch: {best_val_loss_epoch + 1}'
+        ax1.annotate(annotation_text_loss, xy=(best_val_loss_epoch, best_val_loss),
+                    xytext=(best_val_loss_epoch + 5, best_val_loss + 0.2),
+                    arrowprops=dict(facecolor='magenta', shrink=0.05, width=1.5, headwidth=8),
+                    fontsize=10, bbox=dict(boxstyle="round,pad=0.3", fc="lightpink", alpha=0.8))
+        
+        ax2.axvline(x=best_val_acc_epoch, color='black', linestyle='--', linewidth=2)
+        annotation_text_acc = f'Highest Avg. Val Acc: {best_val_acc:.4f}\nEpoch: {best_val_acc_epoch + 1}'
+        ax2.annotate(annotation_text_acc, xy=(best_val_acc_epoch, best_val_acc),
+                    xytext=(best_val_acc_epoch - (min_epochs*0.4), best_val_acc - 0.1),
+                    arrowprops=dict(facecolor='cyan', shrink=0.05, width=1.5, headwidth=8),
+                    fontsize=10, bbox=dict(boxstyle="round,pad=0.3", fc="lightblue", alpha=0.8))
+    except Exception as e:
+        print(f"Warning: Could not add annotations due to: {e}")
 
     # --- 7. Final plot styling ---
-    plot_title = "K-Fold Cross-Validation Performance"
+    plot_title = f"K-Fold ({len(all_histories)} folds) CV Performance"
     if title:
         plot_title = f"{title} - {plot_title}"
     plt.title(plot_title, fontsize=16, fontweight='bold')
     
     ax1.set_xlim(0, min_epochs -1) # Adjust x-axis limit
+
     if custom_loss_limit is not None:
         ax1.set_ylim(0, custom_loss_limit)
     else:
-        ylim_max = np.percentile(mean_metrics['val_loss'].dropna(), 98) * 1.2
-        ax1.set_ylim(0, min(ylim_max, 5))
+        # Ignore the first 5% of epochs or first 2 epochs (whichever is larger) for scaling
+        start_idx = max(2, int(min_epochs * 0.05))
+        if start_idx < len(mean_metrics['val_loss']):
+            # 98th percentile of the remaining data
+            ylim_max = np.nanpercentile(mean_metrics['val_loss'].iloc[start_idx:], 98) * 1.3
+            ax1.set_ylim(0, max(ylim_max, 1.0)) # Ensure it's at least 1.0
+
     ax2.set_ylim(0, 1.05)
     
     fig.tight_layout()
@@ -617,7 +650,7 @@ def plot_kfold_results_with_confidence_band(path_pattern, title="", custom_loss_
     # --- 8. Print summary to the console ---
     print("="*60)
     print(f"K-Fold Cross-Validation Summary for: '{title}'")
-    print(f"Analyzed {len(all_histories)} folds from pattern.")
+    print(f"Analyzed {len(all_histories)} folds (Folds: {loaded_folds}).")
     print(f"Metrics truncated to {min_epochs} epochs.")
     print("-"*60)
     print(f"Best Average Validation Loss: {best_val_loss:.4f} at epoch {best_val_loss_epoch + 1}")
@@ -626,17 +659,19 @@ def plot_kfold_results_with_confidence_band(path_pattern, title="", custom_loss_
     print("="*60)
 
 
-def summarize_kfold_results(path_pattern, title=""):
+def summarize_kfold_results(path_patterns, title=""):
     """
-    Analyzes and summarizes k-fold cross-validation results without truncation.
+    Analyzes and summarizes k-fold cross-validation results from multiple locations
+    without truncation.
 
-    This function loads all history files matching a pattern, calculates key
-    performance indicators for each fold at its best epoch (based on validation
-    accuracy), and presents a detailed summary table and analysis.
+    This function loads all history files matching the provided patterns,
+    ensures unique folds, calculates key performance indicators for each
+    fold at its best epoch (based on validation accuracy), and presents
+    a detailed summary table and analysis.
 
     Args:
-        path_pattern (str): A path and file pattern using wildcards to find the
-                            history files.
+        path_patterns (list of str or str): A list of path patterns (or a single string)
+                            to find the history files.
         title (str, optional): A custom title for the summary output.
     """
     print("="*80)
@@ -646,12 +681,24 @@ def summarize_kfold_results(path_pattern, title=""):
     print(summary_title)
     print("="*80)
 
-    filepaths = glob.glob(path_pattern)
+    # Handle case where user passes a single string
+    if isinstance(path_patterns, str):
+        path_patterns = [path_patterns]
+
+    filepaths = set()
+    print(f"Searching for files in {len(path_patterns)} location(s)...")
+    for pattern in path_patterns:
+        found = glob.glob(pattern)
+        filepaths.update(found)
+
+    filepaths = list(filepaths)
+
     if not filepaths:
         print("\n--- ERROR: No files found matching the specified pattern. ---\n")
         return
 
     results_list = []
+    seen_folds = set()
 
     # --- 1. Loop through each fold's history file ---
     for f_path in filepaths:
@@ -659,6 +706,11 @@ def summarize_kfold_results(path_pattern, title=""):
         if not match:
             continue
         fold_num = int(match.group(1))
+
+        if fold_num in seen_folds:
+            # Skip duplicates silently in summary or print a small not
+            print(f"Debug: Skipping duplicate fold {fold_num}")
+            continue
 
         try:
             history = np.load(f_path, allow_pickle=True).item()
@@ -687,6 +739,9 @@ def summarize_kfold_results(path_pattern, title=""):
                 'Train Accuracy': train_acc_at_best,
                 'Overfitting Gap (Acc)': overfitting_gap
             })
+
+            seen_folds.add(fold_num)
+
         except Exception as e:
             print(f"Could not process file {f_path}: {e}")
 
@@ -700,21 +755,31 @@ def summarize_kfold_results(path_pattern, title=""):
     # Set display format for better readability
     pd.set_option('display.float_format', '{:.4f}'.format)
     
-    print("\n--- Performance of Each Fold (at its best epoch) ---\n")
+    print(f"\n--- Performance of {len(results_df)} Unique Folds (at their individual best epochs) ---\n")
     print(results_df)
 
     # --- 6. Calculate and display aggregate statistics ---
     print("\n\n--- Aggregate Performance Across All Folds ---\n")
-    summary_stats = results_df.describe().loc[['mean', 'std', 'min', 'max']]
+    # Select only numeric columns for description in case non-numerics slipped in
+    numeric_cols = ['Total Epochs', 'Best Epoch', 'Val Accuracy', 'Val Loss', 'Train Accuracy', 'Overfitting Gap (Acc)']
+    summary_stats = results_df[numeric_cols].describe().loc[['mean', 'std', 'min', 'max']]
     print(summary_stats)
     
     # --- 7. Provide analysis on Over/Underfitting ---
     print("\n\n--- Overfitting and Underfitting Analysis ---\n")
     avg_val_acc = results_df['Val Accuracy'].mean()
     avg_gap = results_df['Overfitting Gap (Acc)'].mean()
+    std_val_acc = results_df['Val Accuracy'].std()
+
+    # Stability Check
+    print("0. Stability Check:")
+    if std_val_acc > 0.10:
+        print(f"   - WARNING: High standard deviation in Val Accuracy ({std_val_acc:.4f}). Result highly dependent on data split.")
+    else:
+        print(f"   - Results appear relatively stable across folds (Std Dev: {std_val_acc:.4f}).")
 
     # Underfitting Check
-    print("1. Underfitting Check:")
+    print("\n2. Performance/Underfitting:")
     if avg_val_acc < 0.6: # This threshold is an example; adjust based on your problem's difficulty
         print(f"   - The average validation accuracy is low ({avg_val_acc:.4f}).")
         print("   - The model may be UNDERFITTING. It might be too simple, need more training time, or require better features.")
