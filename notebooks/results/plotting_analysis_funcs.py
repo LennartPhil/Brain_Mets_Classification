@@ -190,7 +190,7 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
     ax1.tick_params(axis='y', labelcolor=color)
     ax1.legend(loc='upper left')
 
-    # Create a second y-axis for Accuracy that shares the same x-axis
+    # Create a second y-axis for Accuracy / AUC that shares the same x-axis
     ax2 = ax1.twinx()
     color = 'tab:blue'
     ax2.set_ylabel(right_label, color=color, fontsize=12)
@@ -201,7 +201,7 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
 
     # --- Add annotation for the best validation accuracy ---
     plt.axvline(x=best_metric_epoch_num, color='k', linestyle='--', linewidth=2,
-                label=f'Best Val Accuracy Epoch ({best_metric_epoch_num})')
+                label=f'Epoch with Best Val {right_label} ({best_metric_epoch_num})')
 
     # Add an annotation box pointing to the best validation accuracy point
     annotation_text = f'Best {val_key}: {best_metric_value:.4f}\nEpoch: {best_metric_epoch_num}'
@@ -216,7 +216,7 @@ def plot_training_history(path_to_train_history, title="", custom_loss_limit = N
     # --- Add annotation for the validation loss epoch ---
     # Draw a vertical line to mark the best epoch
     plt.axvline(x=best_val_loss_epoch_num, color='k', linestyle=':', linewidth=2,
-                label=f'Best Epoch ({best_val_loss_epoch_num})')
+                label=f'Epoch with Best Val Loss ({best_val_loss_epoch_num})')
 
     # Add an annotation box pointing to the best validation accuracy point
     annotation_text = f'Best val_loss: {best_loss_loss:.4f}\nWith {val_key}: {best_loss_metric:.4f}\nEpoch: {best_val_loss_epoch_num}'
