@@ -27,7 +27,7 @@ print(f"{len(gpus)} GPU(s) detected.")
 # print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
 training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 START_FOLD = 0
@@ -93,10 +93,10 @@ if training_mode == constants.Training.LEARNING_RATE_TUNING:
 else:
     training_epochs = 3500
  # for learning rate set to training_epochs to 400
-learning_rate = 0.01 #0.0001
+learning_rate = 0.03 #0.0001
 
 # Regularization
-dropout_rate = constants.REGULAR_DROPOUT_RATE
+dropout_rate = 0.45 #constants.REGULAR_DROPOUT_RATE
 l2_regularization = constants.REGULAR_L2_REGULARIZATION
 
 codename = "resnet152_00"
