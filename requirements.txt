@@ -1,23 +1,15 @@
-sys
-os
-tensorflow
-nibabel
 numpy
 pandas
-matplotlib
 scipy
-dateutil
-nipype
-tqdm
-datetime
-shutil
-math
-typing
-multiprocessing
+matplotlib
+
+# Medical Imaging Libraries
+nibabel
 SimpleITK
 nipype
-intensity_normalization
-ants
-pathlib
-subprocess
-intensity_normalization
+antspyx  # This is the correct package for ANTs
+intensity-normalization
+
+# Utility Libraries
+python-dateutil  # This is the correct package name for dateutil
+tqdm
