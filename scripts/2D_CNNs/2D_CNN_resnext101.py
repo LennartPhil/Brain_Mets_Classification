@@ -28,15 +28,15 @@ print(f"{len(gpus)} GPU(s) detected.")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 START_FOLD = 0
 
 cutout = False
 rgb_images = False # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
-clinical_data = True
-use_layer = True
+clinical_data = False
+use_layer = False
 num_classes = 2
 
 use_pretrained_weights = False # if True, will load weights from path_to_weights if it exists
