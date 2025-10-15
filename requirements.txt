@@ -2,6 +2,9 @@ numpy
 pandas
 scipy
 matplotlib
+tensorflow
+scikit-learn
+scikit-image
 
 # Medical Imaging Libraries
 nibabel
@@ -9,7 +12,12 @@ SimpleITK
 nipype
 antspyx  # This is the correct package for ANTs
 intensity-normalization
+opencv-python
 
 # Utility Libraries
 python-dateutil  # This is the correct package name for dateutil
 tqdm
+
+# Jupyter Environment
+notebook
+ipykernel
