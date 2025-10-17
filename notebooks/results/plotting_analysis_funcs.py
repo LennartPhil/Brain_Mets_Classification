@@ -4,9 +4,13 @@
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.figure
+import matplotlib.axes
 import pandas as pd
 import glob
 import re
+
+from typing import Union, Dict, List, Tuple
 
 # helper functions for the plots
 
@@ -798,3 +802,212 @@ def summarize_kfold_results(path_patterns, title=""):
         print(f"   - The overfitting gap ({avg_gap:.4f}) is small. The model appears to generalize well.")
     
     print("\n" + "="*80)
+
+
+
+    
+
+
+
+
+# K-FOLD Plotting functions
+
+
+def _extract_fold_number(path: str) -> Union[int, None]:
+    """Extracts the fold number from a file path using regex."""
+    match = re.search(r"fold_(\d+)", str(path))
+    return int(match.group(1)) if match else None
+
+
+def summarize_single_model(
+    path_pattern: str,
+    selection_metric: str = "val_accuracy",
+    higher_is_better: bool = True
+) -> pd.DataFrame:
+    """
+    Load all fold histories for a single model and summarize performance
+    at the best epoch for each fold.
+
+    Args:
+        path_pattern (str): Glob pattern to find the history .npy files for a model's folds.
+        selection_metric (str): The metric used to select the best epoch (e.g., 'val_accuracy').
+        higher_is_better (bool): True if a higher value of the selection_metric is better.
+
+    Returns:
+        pd.DataFrame: A DataFrame summarizing the results, with one row per fold.
+    """
+    files = sorted(glob.glob(path_pattern))
+    if not files:
+        print(f"[INFO] No history files found for pattern: {path_pattern}")
+        return pd.DataFrame()
+
+    rows = []
+    for f in files:
+        fold_num = _extract_fold_number(f)
+        if fold_num is None:
+            print(f"[WARN] Could not extract fold number from path: {f}. Skipping.")
+            continue
+
+        try:
+            history = np.load(f, allow_pickle=True).item()
+            df = pd.DataFrame(history)
+
+            if selection_metric not in df.columns:
+                print(f"[WARN] Selection metric '{selection_metric}' not found in {f}. Skipping.")
+                continue
+
+            best_idx = df[selection_metric].idxmax() if higher_is_better else df[selection_metric].idxmin()
+
+            row = {
+                "Fold": fold_num,
+                "Best Epoch": int(best_idx) + 1,
+                "Val Accuracy": float(df.get("val_accuracy", pd.Series([np.nan])).iloc[best_idx]),
+                "Val Loss": float(df.get("val_loss", pd.Series([np.nan])).iloc[best_idx]),
+                "Train Accuracy": float(df.get("accuracy", pd.Series([np.nan])).iloc[best_idx]),
+                "Train Loss": float(df.get("loss", pd.Series([np.nan])).iloc[best_idx]),
+            }
+            row["Overfitting Gap (Acc)"] = row["Train Accuracy"] - row["Val Accuracy"]
+            rows.append(row)
+        except Exception as e:
+            print(f"[ERROR] Could not process file {f}: {e}")
+
+    if not rows:
+        return pd.DataFrame()
+
+    return pd.DataFrame(rows).sort_values("Fold").reset_index(drop=True)
+
+
+def summarize_all_models(
+    model_patterns: Dict[str, str],
+    selection_metric: str = "val_accuracy",
+    higher_is_better: bool = True
+) -> Tuple[Dict[str, pd.DataFrame], pd.DataFrame]:
+    """
+    Summarizes results for all models defined in the model_patterns dictionary.
+
+    Args:
+        model_patterns (Dict[str, str]): A dictionary mapping model names to their file path glob patterns.
+        selection_metric (str): The metric used to select the best epoch.
+        higher_is_better (bool): True if a higher value of the selection_metric is better.
+
+    Returns:
+        Tuple[Dict[str, pd.DataFrame], pd.DataFrame]:
+            - A dictionary where keys are model names and values are the summary DataFrames per fold.
+            - A single combined DataFrame with all results and an added 'Model' column.
+    """
+    per_model_results = {}
+    combined_rows = []
+    for model_name, pattern in model_patterns.items():
+        print(f"--- Processing model: {model_name} ---")
+        df = summarize_single_model(pattern, selection_metric, higher_is_better)
+        if not df.empty:
+            per_model_results[model_name] = df
+            temp_df = df.copy()
+            temp_df.insert(0, "Model", model_name)
+            combined_rows.append(temp_df)
+
+    combined_df = pd.concat(combined_rows, ignore_index=True) if combined_rows else pd.DataFrame()
+    return per_model_results, combined_df
+
+
+# --- Plotting and Analysis Functions ---
+
+def plot_model_comparison_boxplot(
+    per_model_results: Dict[str, pd.DataFrame],
+    metric: str = "Val Accuracy",
+    **kwargs
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """
+    Generates a boxplot comparing a specified metric across all models.
+
+    Args:
+        per_model_results (Dict[str, pd.DataFrame]): Dictionary of model results from summarize_all_models.
+        metric (str): The column name of the metric to plot (e.g., 'Val Accuracy', 'Val Loss').
+        **kwargs: Additional keyword arguments passed to plt.figure().
+
+    Returns:
+        Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]: The figure and axes objects of the plot.
+    """
+    models = list(per_model_results.keys())
+    data = [per_model_results[m][metric].dropna().values for m in models if not per_model_results[m].empty]
+
+    fig, ax = plt.subplots(**kwargs)
+    ax.boxplot(data,
+               showmeans=True,
+               medianprops=dict(color="red", linewidth=1.5),
+               meanprops=dict(marker="D", markerfacecolor="black", markeredgecolor="black", markersize=5))
+
+    ax.set_xticklabels(models, rotation=20, ha="right")
+    ax.set_ylabel(metric)
+    ax.set_title(f"K-Fold {metric} by Model")
+
+    median_handle = plt.Line2D([], [], color="red", linewidth=1.5, label="Median")
+    mean_handle = plt.Line2D([], [], marker="D", linestyle="None",
+                             markerfacecolor="black", markeredgecolor="black",
+                             markersize=5, label="Mean")
+    ax.legend(handles=[median_handle, mean_handle])
+    
+    fig.tight_layout()
+    plt.show()
+    return fig, ax
+
+
+def plot_model_summary_bar(
+    combined_df: pd.DataFrame,
+    metric: str = "Val Accuracy",
+    **kwargs
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """
+    Generates a bar chart showing the mean and standard deviation of a metric for each model.
+
+    Args:
+        combined_df (pd.DataFrame): The combined DataFrame of all model results.
+        metric (str): The column name of the metric to plot.
+        **kwargs: Additional keyword arguments passed to plt.figure().
+
+    Returns:
+        Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]: The figure and axes objects of the plot.
+    """
+    if metric not in combined_df.columns:
+        print(f"[ERROR] Metric '{metric}' not found in DataFrame. Cannot generate bar plot.")
+        return None, None
+        
+    summary = (combined_df
+               .groupby("Model")[metric]
+               .agg(["mean", "std"])
+               .sort_values("mean", ascending=False))
+
+    fig, ax = plt.subplots(**kwargs)
+    ax.bar(summary.index, summary["mean"], yerr=summary["std"], capsize=4)
+    ax.set_ylabel(f"{metric} (mean ± SD)")
+    ax.set_title(f"Mean {metric} Across Folds")
+    ax.tick_params(axis='x', rotation=20, ha="right")
+
+    fig.tight_layout()
+    plt.show()
+    
+    print(f"\nSummary statistics for {metric}:")
+    display(summary) # 'display' works in notebooks; in a script, 'print' would be used.
+    
+    return fig, ax
+
+
+# --- Utility Functions ---
+
+def save_summary_to_csv(
+    combined_df: pd.DataFrame,
+    output_path: Union[str, Path] = "kfold_combined_summary.csv"
+) -> None:
+    """
+    Saves the combined summary DataFrame to a CSV file.
+
+    Args:
+        combined_df (pd.DataFrame): The combined DataFrame of all model results.
+        output_path (Union[str, Path]): The path where the CSV file will be saved.
+    """
+    try:
+        out_path = Path(output_path).resolve()
+        combined_df.to_csv(out_path, index=False, float_format="%.4f")
+        print(f"Successfully saved combined summary to: {out_path}")
+    except Exception as e:
+        print(f"[ERROR] Failed to save summary file: {e}")
