@@ -27,8 +27,8 @@ print(f"{len(gpus)} GPU(s) detected.")
 # print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.PRETRAIN_FINE # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 START_FOLD = 0
 
@@ -39,8 +39,8 @@ clinical_data = False
 use_layer = False
 num_classes = 2
 
-use_pretrained_weights = False # if True, will load weights from path_to_weights if it exists
-weight_folder = "conv_00_3cls_slice_no_clin_no_layer_rgb_seq[t1c]_normal_DA_pretrain_rough_normal_run_2025_07_06_13_53_53/fold_0" + "/saved_weights.weights.h5"
+use_pretrained_weights = True # if True, will load weights from path_to_weights if it exists
+weight_folder = "/home/lennart/work/weights/pretrain_fine/ResNet152/resnet152_00_2cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_fine_normal_run_2025_10_18_16_28_38" + "/saved_weights.weights.h5"
 path_to_weights = constants.path_to_logs / weight_folder
 
 # --- Select Sequences ---
