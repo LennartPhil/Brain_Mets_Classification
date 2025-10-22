@@ -374,7 +374,7 @@ def build_transfer_resnet50_model(trainable = True):
     x = base_model(x, training = False if not trainable else True)
     x = tf.keras.layers.GlobalMaxPool2D(name = "gap")(x)
 
-    resnet50_image_features = tf.keras.layers.Flatten(name = "flatte")(x)
+    resnet50_image_features = tf.keras.layers.Flatten(name = "flatten")(x)
 
     # --- Feature Concatenation ---
     # use 'clinical_data' and 'use_layer'
