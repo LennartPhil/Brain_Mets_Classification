@@ -69,7 +69,7 @@ LAYER_MAX = 154
 
 IMG_SIZE = 240
 
-ROUGH_NUM_IMAGES = 3 # 3 rgb images
+ROUGH_NUM_IMAGES = 1 # gray scale images, thus only one channel
 
 # --- Sequence / Channel Mapping ---
 SEQUENCE_TO_INDEX = {
