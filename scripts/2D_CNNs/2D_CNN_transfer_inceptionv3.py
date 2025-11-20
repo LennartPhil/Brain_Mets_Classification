@@ -55,7 +55,7 @@ if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     cutout = False
     clinical_data = False
     use_layer = False
-    rgb_images = True
+    rgb_images = False
     selected_sequences = ["t1c"]
     if training_mode == constants.Training.K_FOLD:
         raise ValueError(f"For PRETRAIN_ROUGH dataset, only UPPER_LAYER, LEARNING_RATE_TUNING and NORMAL training modes are supported. Current mode: {training_mode}")
