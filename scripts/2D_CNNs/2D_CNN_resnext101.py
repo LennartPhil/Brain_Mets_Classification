@@ -27,8 +27,8 @@ print(f"{len(gpus)} GPU(s) detected.")
 # print("tensorflow_setup successful")
 
 # --- Configuration ---
-dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.K_FOLD # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+dataset_type = constants.Dataset.PRETRAIN_ROUGH # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 START_FOLD = 0
 
