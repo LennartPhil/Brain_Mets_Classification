@@ -28,7 +28,7 @@ print(f"{len(gpus)} GPU(s) detected.")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.PRETRAIN_ROUGH # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.NORMAL # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 START_FOLD = 0
 
@@ -40,7 +40,7 @@ use_layer = False
 num_classes = 2
 
 use_pretrained_weights = True # if True, will load weights from path_to_weights if it exists
-weight_folder = "/home/lennart/work/weights/pretrain_fine/ResNeXt50/resnext50_00_2cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_fine_normal_run_2025_10_19_12_37_29" + "/saved_weights.weights.h5"
+weight_folder = "/home/lennart/work/logs/resnext50_00_3cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_rough_normal_run_2025_11_23_06_39_34/fold_0" + "/saved_weights.weights.h5"
 path_to_weights = constants.path_to_logs / weight_folder
 
 # --- Select Sequences ---
