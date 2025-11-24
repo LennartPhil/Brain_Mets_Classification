@@ -91,7 +91,7 @@ batch_size = 50#10 #20 #50
 if training_mode == constants.Training.LEARNING_RATE_TUNING:
     training_epochs = constants.LEARNING_RATE_EPOCHS #400
 else:
-    training_epochs = 3500
+    training_epochs = constants.MAX_TRAINING_EPOCHS #3500
  # for learning rate set to training_epochs to 400
 learning_rate = 0.01 #0.0001
 
@@ -156,6 +156,21 @@ def train_ai():
 
         # build model
         model = build_resnet152_model()
+
+        if use_pretrained_weights == True and path_to_weights is not None and Path(path_to_weights).exists(): #'path_to_weights' in locals() and 
+            try:
+                print(f"Loading weights from: {path_to_weights}")
+                # Use by_name=True and skip_mismatch=True for flexibility
+                model.load_weights(str(path_to_weights), by_name=True, skip_mismatch=True)
+                print("Weights loaded successfully.")
+            except Exception as e:
+                print(f"ERROR: Could not load weights from {path_to_weights}. Training from scratch. Error: {e}")
+                raise e
+        else:
+            if path_to_weights is not None:
+                print(f"Weight file not found at {path_to_weights}. Training from scratch.")
+            else:
+                print("No path_to_weights specified or it's None. Training from scratch (expected for Stage 1).")
 
         # traing model
         history = model.fit(
