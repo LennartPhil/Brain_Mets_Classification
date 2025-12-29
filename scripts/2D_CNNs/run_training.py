@@ -33,7 +33,7 @@ SCRIPTS_DIR: Optional[Path] = None
 JOBS: List[str] = [
     # "2D_CNN_conv.py",
     # "2D_CNN_resnet34.py",
-    #"2D_CNN_resnet152.py",
+    "2D_CNN_resnet152.py",
     "2D_CNN_resnext50.py",
     "2D_CNN_resnext101.py",
     #"2D_CNN_transfer_bit.py",
