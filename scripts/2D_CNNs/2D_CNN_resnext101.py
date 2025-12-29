@@ -28,15 +28,15 @@ print(f"{len(gpus)} GPU(s) detected.")
 
 # --- Configuration ---
 dataset_type = constants.Dataset.NORMAL # PRETRAIN_ROUGH, PRETRAIN_FINE, NORMAL
-training_mode = constants.Training.K_FOLD # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
+training_mode = constants.Training.LEARNING_RATE_TUNING # LEARNING_RATE_TUNING, NORMAL, K_FOLD, UPPER_LAYER
 
 START_FOLD = 4
 
 cutout = False
 rgb_images = False # using gray scale images as input
 contrast_DA = False # data augmentation with contrast
-clinical_data = False
-use_layer = False
+clinical_data = True
+use_layer = True
 num_classes = 2
 
 use_pretrained_weights = True # if True, will load weights from path_to_weights if it exists
@@ -44,7 +44,7 @@ weight_folder = "/home/lennart/work/logs/resnext101_00_3cls_slice_no_clin_no_lay
 path_to_weights = constants.path_to_logs / weight_folder
 
 # --- Select Sequences ---
-selected_sequences = ["t1c"] #["t1", "t1c", "t2", "flair", "mask"]
+selected_sequences = ["t1", "t1c", "t2", "flair", "mask"]
 
 if dataset_type == constants.Dataset.PRETRAIN_ROUGH:
     num_classes = 3
@@ -95,8 +95,8 @@ else:
 learning_rate = 0.003
 
 # Regularization
-dropout_rate = 0.45 #constants.REGULAR_DROPOUT_RATE #0.4
-l2_regularization = 0.001 #constants.REGULAR_L2_REGULARIZATION
+dropout_rate = constants.REGULAR_DROPOUT_RATE #0.4
+l2_regularization = constants.REGULAR_L2_REGULARIZATION
 
 codename = "resnext101_00"
 training_codename = hf.get_training_codename(
