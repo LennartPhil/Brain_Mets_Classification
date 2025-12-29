@@ -39,7 +39,7 @@ clinical_data = True
 use_layer = True
 num_classes = 2
 
-use_pretrained_weights = True # if True, will load weights from path_to_weights if it exists
+use_pretrained_weights = False # if True, will load weights from path_to_weights if it exists
 weight_folder = "/home/lennart/work/logs/resnet152_00_3cls_slice_no_clin_no_layer_gray_seq[t1c]_normal_DA_pretrain_rough_normal_run_2025_11_22_11_31_26/fold_0" + "/saved_weights.weights.h5"
 path_to_weights = constants.path_to_logs / weight_folder
 
