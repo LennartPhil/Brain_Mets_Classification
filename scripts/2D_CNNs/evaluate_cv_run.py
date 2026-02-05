@@ -131,6 +131,94 @@ def find_weight_for_fold(run_dir: Path, fold: int, weights_name: str, prefer_fir
     return matches[0]
 
 
+def safe_load_weights(model: tf.keras.Model, weight_path: Path, allow_mismatch: bool):
+    """
+    Try strict loading first. If it fails and allow_mismatch=True, retry with by_name+skip_mismatch.
+    Also prints an approximate 'how many tensors updated' indicator for mismatch mode.
+    Returns (loaded_ok: bool, used_mismatch_mode: bool, updated_tensors: int, total_tensors: int).
+    """
+    try:
+        model.load_weights(str(weight_path))
+        print(f"[EVAL] Weights loaded STRICT OK: {weight_path.name}")
+        return True, False, -1, -1
+    except Exception as e:
+        print("\n" + "!" * 90)
+        print(f"[EVAL][WEIGHT LOAD ERROR] Strict load failed for: {weight_path}")
+        print(f"[EVAL][WEIGHT LOAD ERROR] Exception: {type(e).__name__}: {e}")
+        print("!" * 90 + "\n")
+
+        if not allow_mismatch:
+            return False, False, -1, -1
+
+    # Retry mismatch mode
+    try:
+        before = [w.numpy().copy() for w in model.weights]
+
+        model.load_weights(str(weight_path), by_name=True, skip_mismatch=True)
+
+        after = [w.numpy() for w in model.weights]
+        changed = 0
+        for b, a in zip(before, after):
+            if b.shape != a.shape:
+                changed += 1
+                continue
+            if not np.array_equal(b, a):
+                changed += 1
+
+        total = len(after)
+
+        print("\n" + "-" * 90)
+        print(f"[EVAL][WEIGHT LOAD WARNING] Loaded with by_name=True, skip_mismatch=True: {weight_path.name}")
+        print(f"[EVAL][WEIGHT LOAD WARNING] Approx. updated tensors: {changed}/{total}")
+        print("[EVAL][WEIGHT LOAD WARNING] This suggests at least some mismatch vs the architecture used in training.")
+        print("-" * 90 + "\n")
+
+        return True, True, changed, total
+
+    except Exception as e2:
+        print("\n" + "!" * 90)
+        print(f"[EVAL][WEIGHT LOAD ERROR] Mismatch-mode load ALSO failed for: {weight_path}")
+        print(f"[EVAL][WEIGHT LOAD ERROR] Exception: {type(e2).__name__}: {e2}")
+        print("!" * 90 + "\n")
+        return False, True, -1, -1
+
+
+def check_model_input_shape(model: tf.keras.Model, expected_hw: int, expected_channels: int):
+    """
+    Warn if the model's image input shape doesn't match the expected TFRecord image shape.
+    This catches the common mistake: evaluating a model trained on different channels/sequences.
+    """
+    # Find an input tensor that looks like an image (rank 4)
+    img_shape = None
+    if isinstance(model.input_shape, list):
+        for shp in model.input_shape:
+            if isinstance(shp, tuple) and len(shp) == 4:
+                img_shape = shp
+                break
+    else:
+        if isinstance(model.input_shape, tuple) and len(model.input_shape) == 4:
+            img_shape = model.input_shape
+
+    if img_shape is None:
+        print("[EVAL][SHAPE WARNING] Could not identify a rank-4 image input in model.input_shape.")
+        print(f"[EVAL][SHAPE WARNING] model.input_shape = {model.input_shape}")
+        return
+
+    # shape is typically (None, H, W, C)
+    _, h, w, c = img_shape
+    ok = (h == expected_hw and w == expected_hw and c == expected_channels)
+
+    if not ok:
+        print("\n" + "!" * 90)
+        print("[EVAL][SHAPE WARNING] Model image input shape mismatch!")
+        print(f"[EVAL][SHAPE WARNING] Expected image input: (None, {expected_hw}, {expected_hw}, {expected_channels})")
+        print(f"[EVAL][SHAPE WARNING] Detected image input: {img_shape}")
+        print("[EVAL][SHAPE WARNING] This usually means selected_sequences/rgb flag does not match the run.")
+        print("!" * 90 + "\n")
+    else:
+        print(f"[EVAL] Model image input shape OK: {img_shape}")
+
+
 def set_builder_globals(
     mod,
     *,
@@ -267,6 +355,12 @@ def main():
     ap.add_argument("--contrast_DA", action="store_true")
     ap.add_argument("--no_contrast_DA", action="store_true")
 
+    # NEW: weight loading behavior flags
+    ap.add_argument("--allow_mismatch", action="store_true",
+                    help="If set: retry weight loading with by_name=True, skip_mismatch=True when strict loading fails.")
+    ap.add_argument("--stop_on_weight_error", action="store_true",
+                    help="If set: stop evaluation immediately if any fold weight loading fails.")
+
     ap.add_argument("--batch_size", default=50, type=int)
     ap.add_argument("--num_classes", default=2, type=int)
     ap.add_argument("--threshold", default=0.5, type=float)
@@ -282,6 +376,9 @@ def main():
     selected_indices = [constants.SEQUENCE_TO_INDEX[s] for s in seqs]
 
     img_size = constants.IMG_SIZE  # TFRecord image size in your pipeline (240)
+
+    # Expected model input channels (image input only)
+    expected_channels = 3 if args.rgb else len(selected_indices)
 
     contrast_flag = None
     if args.contrast_DA and args.no_contrast_DA:
@@ -359,7 +456,18 @@ def main():
 
         print(f"[EVAL] Fold {fold}: using weights: {w.resolve()}")
         model = builder(**builder_kwargs) if builder_kwargs else builder()
-        model.load_weights(str(w))
+
+        # sanity-check the model's image input shape before loading weights
+        check_model_input_shape(model, expected_hw=img_size, expected_channels=expected_channels)
+
+        # safe weight loading with notifier for failures/mismatches
+        ok, mismatch_mode, changed, total = safe_load_weights(model, w, allow_mismatch=args.allow_mismatch)
+        if not ok:
+            msg = f"[EVAL] Fold {fold}: weight loading failed. Skipping fold."
+            if args.stop_on_weight_error:
+                raise RuntimeError(msg)
+            print(msg)
+            continue
 
         p_int = model.predict(internal_ds, verbose=1).reshape(-1)
         p_ext = model.predict(external_ds, verbose=1).reshape(-1)
