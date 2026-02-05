@@ -39,7 +39,6 @@ def build_test_ds(
     use_clinical_data: bool,
     use_layer: bool,
 ):
-    # Use test_paths -> test_data (clean semantics)
     dummy = tfr_paths[:1] if tfr_paths else []
     _, _, test_data = hf.read_data(
         train_paths=dummy,
@@ -97,83 +96,95 @@ def summarize(metrics_list: list[dict]) -> dict:
     out = {}
     for k in keys:
         vals = np.array([m[k] for m in metrics_list], dtype=float)
-        out[k] = {
-            "mean": float(vals.mean()),
-            "std": float(vals.std(ddof=1)) if len(vals) > 1 else 0.0,
-        }
+        out[k] = {"mean": float(vals.mean()), "std": float(vals.std(ddof=1)) if len(vals) > 1 else 0.0}
     return out
+
+
+def find_weight_for_fold(run_dir: Path, fold: int, weights_name: str, prefer_first: bool = False) -> Path | None:
+    # Find all fold_k weight files anywhere under run_dir
+    pattern = f"**/fold_{fold}/{weights_name}"
+    matches = list(run_dir.glob(pattern))
+    if not matches:
+        return None
+    if prefer_first:
+        return sorted(matches)[0]
+    # otherwise pick newest by mtime (best for resumed training / crashes)
+    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return matches[0]
 
 
 def set_builder_globals(
     mod,
     *,
+    seqs: list[str],
+    selected_indices: list[int],
     channels: int,
     img_size: int,
+    rgb: bool,
     clinical_data: bool,
     use_layer: bool,
     num_classes: int,
     dropout_rate: float,
     l2_regularization: float,
+    image_size_override: int | None,
     learning_rate: float | None,
     activation_func: str | None,
     contrast_DA: bool | None,
 ):
-    """
-    Your builders rely on module-level globals.
-    We set them here so the rebuilt model matches training exactly.
-    """
-    # Required for Input(...)
+    # Make the module reflect the eval config (fixes your #1)
+    mod.selected_sequences = seqs
+    mod.selected_indices = selected_indices
+
+    # scripts use either rgb_images or rgb; set both safely
+    mod.rgb_images = bool(rgb)
+
+    # input tensor size (TFRecord image size)
     mod.input_shape = (img_size, img_size, channels)
 
-    # Flags controlling inputs/concatenation
-    mod.clinical_data = clinical_data
-    mod.use_layer = use_layer
-    mod.num_classes = num_classes
+    mod.clinical_data = bool(clinical_data)
+    mod.use_layer = bool(use_layer)
+    mod.num_classes = int(num_classes)
 
-    # Regularization / hyperparams that affect graph
     mod.dropout_rate = float(dropout_rate)
     mod.l2_regularization = float(l2_regularization)
 
-    # DA flag affects the augment layer choice inside the builder
+    # Inception/ResNet50V2 transfer scripts resize internally using image_size
+    if image_size_override is not None:
+        mod.image_size = int(image_size_override)
+
     if contrast_DA is not None:
         mod.contrast_DA = bool(contrast_DA)
     elif not hasattr(mod, "contrast_DA"):
         mod.contrast_DA = False
 
-    # compile-only params (don’t affect predictions, but builder references them)
+    # compile-only (but referenced)
     if learning_rate is not None:
         mod.learning_rate = float(learning_rate)
     elif not hasattr(mod, "learning_rate"):
         mod.learning_rate = 1e-3
 
-    # activation func name affects Dense activations in your builders (graph-relevant)
     if activation_func is not None:
         mod.activation_func = activation_func
-        # some scripts use constants.activation_func explicitly; keep it consistent
         constants.activation_func = activation_func
     else:
         if not hasattr(mod, "activation_func"):
             mod.activation_func = constants.activation_func
 
-    # Ensure dataset_type exists for NORMAL dataset input selection
     mod.dataset_type = constants.Dataset.NORMAL
 
-    # Ensure hf exists if script expects it as module var
     if not hasattr(mod, "hf"):
         mod.hf = hf
 
 
-# ------------------ main ------------------
-
 def main():
     ap = argparse.ArgumentParser()
-
     ap.add_argument("--run_dir", required=True, type=str)
     ap.add_argument("--weights_name", default="saved_weights.weights.h5", type=str)
+    ap.add_argument("--prefer_first_weight", action="store_true", help="If set: pick first matching weight file instead of newest")
 
     ap.add_argument("--model_py", required=True, type=str)
     ap.add_argument("--builder_fn", required=True, type=str)
-    ap.add_argument("--builder_kwargs", default="{}", type=str, help='JSON string, e.g. {"architecture":"ResNeXt101"}')
+    ap.add_argument("--builder_kwargs", default="{}", type=str)
 
     ap.add_argument("--internal_tfr_root", required=True, type=str)
     ap.add_argument("--internal_ids", required=True, type=str)
@@ -183,20 +194,22 @@ def main():
 
     ap.add_argument("--out_dir", required=True, type=str)
 
-    ap.add_argument("--selected_sequences", default="t1c", type=str, help="comma-separated: t1,t1c,t2,flair")
+    ap.add_argument("--selected_sequences", default="t1c", type=str, help="comma-separated: t1,t1c,t2,flair,(mask)")
     ap.add_argument("--rgb", action="store_true")
+
     ap.add_argument("--use_clinical_data", action="store_true")
     ap.add_argument("--use_layer", action="store_true")
 
-    # NEW: run-specific regularization params
-    ap.add_argument("--dropout_rate", required=True, type=float, help="Must match the run (e.g. 0.4)")
-    ap.add_argument("--l2_regularization", required=True, type=float, help="Must match the run (e.g. 1e-4)")
+    ap.add_argument("--dropout_rate", required=True, type=float)
+    ap.add_argument("--l2_regularization", required=True, type=float)
 
-    # Optional extras (sometimes referenced in builders)
+    # NEW: for transfer models (InceptionV3, ResNet50V2) that use internal resizing
+    ap.add_argument("--image_size", default=None, type=int, help="e.g. 299 for InceptionV3, 224 for ResNet50V2 (only used if script has image_size)")
+
     ap.add_argument("--learning_rate", default=None, type=float)
-    ap.add_argument("--activation_func", default=None, type=str, help='e.g. "mish" or "relu"')
-    ap.add_argument("--contrast_DA", action="store_true", help="Set if run used contrast_DA=True")
-    ap.add_argument("--no_contrast_DA", action="store_true", help="Set if run used contrast_DA=False explicitly")
+    ap.add_argument("--activation_func", default=None, type=str)
+    ap.add_argument("--contrast_DA", action="store_true")
+    ap.add_argument("--no_contrast_DA", action="store_true")
 
     ap.add_argument("--batch_size", default=50, type=int)
     ap.add_argument("--num_classes", default=2, type=int)
@@ -213,7 +226,7 @@ def main():
     selected_indices = [constants.SEQUENCE_TO_INDEX[s] for s in seqs]
 
     channels = 3 if args.rgb else len(selected_indices)
-    img_size = constants.IMG_SIZE
+    img_size = constants.IMG_SIZE  # TFRecord image size in your pipeline (240)
 
     contrast_flag = None
     if args.contrast_DA and args.no_contrast_DA:
@@ -223,22 +236,24 @@ def main():
     if args.no_contrast_DA:
         contrast_flag = False
 
-    # Load module and builder
     mod = load_module(Path(args.model_py))
     if not hasattr(mod, args.builder_fn):
         raise ValueError(f"{args.builder_fn} not found in {args.model_py}")
     builder = getattr(mod, args.builder_fn)
 
-    # Set globals used by builder
     set_builder_globals(
         mod,
+        seqs=seqs,
+        selected_indices=selected_indices,
         channels=channels,
         img_size=img_size,
+        rgb=args.rgb,
         clinical_data=args.use_clinical_data,
         use_layer=args.use_layer,
         num_classes=args.num_classes,
         dropout_rate=args.dropout_rate,
         l2_regularization=args.l2_regularization,
+        image_size_override=args.image_size,
         learning_rate=args.learning_rate,
         activation_func=args.activation_func,
         contrast_DA=contrast_flag,
@@ -246,7 +261,7 @@ def main():
 
     builder_kwargs = json.loads(args.builder_kwargs)
 
-    # Build datasets
+    # datasets
     internal_ids = read_ids(Path(args.internal_ids))
     internal_tfr_paths = ids_to_tfrecord_paths(internal_ids, Path(args.internal_tfr_root))
     internal_ds = build_test_ds(
@@ -273,20 +288,18 @@ def main():
     )
     y_true_external = collect_y_true(external_ds)
 
-    # Evaluate folds
+    # fold evaluation
     internal_fold_metrics, external_fold_metrics = [], []
     internal_probs, external_probs = [], []
 
     for fold in range(args.max_folds):
-        w = run_dir / f"fold_{fold}" / args.weights_name
-        if not w.exists():
-            print(f"Stopping at fold {fold}: missing {w}")
+        w = find_weight_for_fold(run_dir, fold, args.weights_name, prefer_first=args.prefer_first_weight)
+        if w is None:
+            print(f"Stopping at fold {fold}: no weights found under {run_dir} matching fold_{fold}/{args.weights_name}")
             break
 
-        print(f"[Fold {fold}] building model via {args.builder_fn}({builder_kwargs})")
+        print(f"[Fold {fold}] using weights: {w}")
         model = builder(**builder_kwargs) if builder_kwargs else builder()
-
-        print(f"[Fold {fold}] loading weights: {w}")
         model.load_weights(str(w))
 
         p_int = model.predict(internal_ds, verbose=1).reshape(-1)
@@ -310,23 +323,15 @@ def main():
             f"EXTERNAL acc={m_ext['accuracy']:.4f} auc={m_ext['auc']:.4f}"
         )
 
-    # Summaries
-    internal_summary = summarize(internal_fold_metrics)
-    external_summary = summarize(external_fold_metrics)
+    (out_dir / "internal_summary_across_folds.json").write_text(json.dumps(summarize(internal_fold_metrics), indent=2))
+    (out_dir / "external_summary_across_folds.json").write_text(json.dumps(summarize(external_fold_metrics), indent=2))
 
-    (out_dir / "internal_summary_across_folds.json").write_text(json.dumps(internal_summary, indent=2))
-    (out_dir / "external_summary_across_folds.json").write_text(json.dumps(external_summary, indent=2))
-
-    # Ensemble across folds (mean probability)
     if len(internal_probs) >= 2:
         p_int_ens = np.mean(np.stack(internal_probs, axis=0), axis=0)
         p_ext_ens = np.mean(np.stack(external_probs, axis=0), axis=0)
 
-        m_int_ens = compute_binary_metrics(y_true_internal, p_int_ens, args.threshold)
-        m_ext_ens = compute_binary_metrics(y_true_external, p_ext_ens, args.threshold)
-
-        (out_dir / "internal_ensemble.json").write_text(json.dumps(m_int_ens, indent=2))
-        (out_dir / "external_ensemble.json").write_text(json.dumps(m_ext_ens, indent=2))
+        (out_dir / "internal_ensemble.json").write_text(json.dumps(compute_binary_metrics(y_true_internal, p_int_ens, args.threshold), indent=2))
+        (out_dir / "external_ensemble.json").write_text(json.dumps(compute_binary_metrics(y_true_external, p_ext_ens, args.threshold), indent=2))
 
         np.savez_compressed(out_dir / "internal_preds_ensemble.npz", y_true=y_true_internal, y_prob=p_int_ens)
         np.savez_compressed(out_dir / "external_preds_ensemble.npz", y_true=y_true_external, y_prob=p_ext_ens)
