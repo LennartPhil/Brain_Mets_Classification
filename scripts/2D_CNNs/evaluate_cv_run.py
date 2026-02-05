@@ -12,11 +12,29 @@ import constants
 
 # ------------------ utilities ------------------
 
-def load_module(py_path: Path):
+def load_module(py_path: Path, quiet: bool = True):
+    """
+    Loads a python file as a module.
+
+    IMPORTANT: Many of your training scripts execute code at import-time
+    (including prints, path creation, etc.). To avoid misleading output
+    (e.g. showing the script's hardcoded selected_sequences), we silence
+    stdout/stderr by default.
+    """
+    import contextlib
+    import io
+
     spec = importlib.util.spec_from_file_location(py_path.stem, str(py_path))
     mod = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
-    spec.loader.exec_module(mod)  # type: ignore
+
+    if quiet:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            spec.loader.exec_module(mod)  # type: ignore
+    else:
+        spec.loader.exec_module(mod)  # type: ignore
+
     return mod
 
 
@@ -118,7 +136,6 @@ def set_builder_globals(
     *,
     seqs: list[str],
     selected_indices: list[int],
-    channels: int,
     img_size: int,
     rgb: bool,
     clinical_data: bool,
@@ -131,15 +148,21 @@ def set_builder_globals(
     activation_func: str | None,
     contrast_DA: bool | None,
 ):
-    # Make the module reflect the eval config (fixes your #1)
-    mod.selected_sequences = seqs
-    mod.selected_indices = selected_indices
+    """
+    Many of the builders depend on module-level globals.
+    We overwrite those globals and ALSO recompute derived variables
+    (selected_indices/num_selected_channels/input_shape) the same way
+    the training scripts do.
 
-    # scripts use either rgb_images or rgb; set both safely
+    This ensures the CLI --selected_sequences actually changes the
+    model graph at evaluation time.
+    """
+
+    # ---- Core flags used by the builders ----
+    mod.dataset_type = constants.Dataset.NORMAL
+
+    # Your scripts typically use rgb_images, not rgb
     mod.rgb_images = bool(rgb)
-
-    # input tensor size (TFRecord image size)
-    mod.input_shape = (img_size, img_size, channels)
 
     mod.clinical_data = bool(clinical_data)
     mod.use_layer = bool(use_layer)
@@ -165,15 +188,48 @@ def set_builder_globals(
 
     if activation_func is not None:
         mod.activation_func = activation_func
+        # some builders reference constants.activation_func explicitly
         constants.activation_func = activation_func
     else:
         if not hasattr(mod, "activation_func"):
             mod.activation_func = constants.activation_func
 
-    mod.dataset_type = constants.Dataset.NORMAL
-
+    # Ensure hf exists if script expects it as module var
     if not hasattr(mod, "hf"):
         mod.hf = hf
+
+    # ---- Sequence globals + derived globals (matches your training script logic) ----
+    mod.selected_sequences = seqs
+    mod.selected_indices = selected_indices
+    mod.num_selected_channels = len(selected_indices)
+
+    if mod.num_selected_channels == 0:
+        raise ValueError("[EVAL] selected_sequences cannot be empty.")
+
+    # mirror your script's shape derivation
+    if mod.num_selected_channels == 1 and mod.rgb_images is True:
+        mod.input_shape = (img_size, img_size, 3)
+    else:
+        if mod.rgb_images is True:
+            raise ValueError("[EVAL] rgb_images cannot be used when multiple sequences are selected.")
+        mod.input_shape = (img_size, img_size, mod.num_selected_channels)
+
+    # ---- Confirmation prints (so you can verify what the builder sees) ----
+    print("\n" + "=" * 90)
+    print("[EVAL] Module globals AFTER override (THIS is what the builder will use):")
+    print(f"[EVAL] selected_sequences    = {mod.selected_sequences}")
+    print(f"[EVAL] selected_indices      = {mod.selected_indices}")
+    print(f"[EVAL] num_selected_channels = {mod.num_selected_channels}")
+    print(f"[EVAL] rgb_images            = {mod.rgb_images}")
+    print(f"[EVAL] input_shape           = {mod.input_shape}")
+    print(f"[EVAL] clinical_data         = {mod.clinical_data}")
+    print(f"[EVAL] use_layer             = {mod.use_layer}")
+    print(f"[EVAL] num_classes           = {mod.num_classes}")
+    print(f"[EVAL] dropout_rate          = {mod.dropout_rate}")
+    print(f"[EVAL] l2_regularization     = {mod.l2_regularization}")
+    if hasattr(mod, "image_size"):
+        print(f"[EVAL] image_size            = {getattr(mod, 'image_size')}")
+    print("=" * 90 + "\n")
 
 
 def main():
@@ -203,8 +259,8 @@ def main():
     ap.add_argument("--dropout_rate", required=True, type=float)
     ap.add_argument("--l2_regularization", required=True, type=float)
 
-    # NEW: for transfer models (InceptionV3, ResNet50V2) that use internal resizing
-    ap.add_argument("--image_size", default=None, type=int, help="e.g. 299 for InceptionV3, 224 for ResNet50V2 (only used if script has image_size)")
+    # for transfer models (InceptionV3, ResNet50V2) that use internal resizing
+    ap.add_argument("--image_size", default=None, type=int, help="e.g. 299 for InceptionV3, 224 for ResNet50V2")
 
     ap.add_argument("--learning_rate", default=None, type=float)
     ap.add_argument("--activation_func", default=None, type=str)
@@ -225,7 +281,6 @@ def main():
     seqs = [s.strip() for s in args.selected_sequences.split(",") if s.strip()]
     selected_indices = [constants.SEQUENCE_TO_INDEX[s] for s in seqs]
 
-    channels = 3 if args.rgb else len(selected_indices)
     img_size = constants.IMG_SIZE  # TFRecord image size in your pipeline (240)
 
     contrast_flag = None
@@ -236,7 +291,8 @@ def main():
     if args.no_contrast_DA:
         contrast_flag = False
 
-    mod = load_module(Path(args.model_py))
+    # Quiet import prevents misleading "Using sequences: ..." prints from the training script
+    mod = load_module(Path(args.model_py), quiet=True)
     if not hasattr(mod, args.builder_fn):
         raise ValueError(f"{args.builder_fn} not found in {args.model_py}")
     builder = getattr(mod, args.builder_fn)
@@ -245,7 +301,6 @@ def main():
         mod,
         seqs=seqs,
         selected_indices=selected_indices,
-        channels=channels,
         img_size=img_size,
         rgb=args.rgb,
         clinical_data=args.use_clinical_data,
@@ -264,6 +319,7 @@ def main():
     # datasets
     internal_ids = read_ids(Path(args.internal_ids))
     internal_tfr_paths = ids_to_tfrecord_paths(internal_ids, Path(args.internal_tfr_root))
+    print(f"[EVAL] Internal: {len(internal_ids)} patients -> {len(internal_tfr_paths)} TFRecord files")
     internal_ds = build_test_ds(
         internal_tfr_paths,
         selected_indices=selected_indices,
@@ -274,9 +330,11 @@ def main():
         use_layer=args.use_layer,
     )
     y_true_internal = collect_y_true(internal_ds)
+    print(f"[EVAL] Internal: collected y_true of length {len(y_true_internal)}")
 
     external_ids = read_ids(Path(args.external_ids))
     external_tfr_paths = ids_to_tfrecord_paths(external_ids, Path(args.external_tfr_root))
+    print(f"[EVAL] External: {len(external_ids)} patients -> {len(external_tfr_paths)} TFRecord files")
     external_ds = build_test_ds(
         external_tfr_paths,
         selected_indices=selected_indices,
@@ -287,6 +345,7 @@ def main():
         use_layer=args.use_layer,
     )
     y_true_external = collect_y_true(external_ds)
+    print(f"[EVAL] External: collected y_true of length {len(y_true_external)}")
 
     # fold evaluation
     internal_fold_metrics, external_fold_metrics = [], []
@@ -295,10 +354,10 @@ def main():
     for fold in range(args.max_folds):
         w = find_weight_for_fold(run_dir, fold, args.weights_name, prefer_first=args.prefer_first_weight)
         if w is None:
-            print(f"Stopping at fold {fold}: no weights found under {run_dir} matching fold_{fold}/{args.weights_name}")
+            print(f"[EVAL] Stopping at fold {fold}: no weights found under {run_dir} matching fold_{fold}/{args.weights_name}")
             break
 
-        print(f"[Fold {fold}] using weights: {w}")
+        print(f"[EVAL] Fold {fold}: using weights: {w.resolve()}")
         model = builder(**builder_kwargs) if builder_kwargs else builder()
         model.load_weights(str(w))
 
@@ -319,7 +378,7 @@ def main():
         np.savez_compressed(out_dir / f"external_preds_fold_{fold}.npz", y_true=y_true_external, y_prob=p_ext)
 
         print(
-            f"[Fold {fold}] INTERNAL acc={m_int['accuracy']:.4f} auc={m_int['auc']:.4f} | "
+            f"[EVAL] Fold {fold} | INTERNAL acc={m_int['accuracy']:.4f} auc={m_int['auc']:.4f} | "
             f"EXTERNAL acc={m_ext['accuracy']:.4f} auc={m_ext['auc']:.4f}"
         )
 
@@ -330,8 +389,12 @@ def main():
         p_int_ens = np.mean(np.stack(internal_probs, axis=0), axis=0)
         p_ext_ens = np.mean(np.stack(external_probs, axis=0), axis=0)
 
-        (out_dir / "internal_ensemble.json").write_text(json.dumps(compute_binary_metrics(y_true_internal, p_int_ens, args.threshold), indent=2))
-        (out_dir / "external_ensemble.json").write_text(json.dumps(compute_binary_metrics(y_true_external, p_ext_ens, args.threshold), indent=2))
+        (out_dir / "internal_ensemble.json").write_text(
+            json.dumps(compute_binary_metrics(y_true_internal, p_int_ens, args.threshold), indent=2)
+        )
+        (out_dir / "external_ensemble.json").write_text(
+            json.dumps(compute_binary_metrics(y_true_external, p_ext_ens, args.threshold), indent=2)
+        )
 
         np.savez_compressed(out_dir / "internal_preds_ensemble.npz", y_true=y_true_internal, y_prob=p_int_ens)
         np.savez_compressed(out_dir / "external_preds_ensemble.npz", y_true=y_true_external, y_prob=p_ext_ens)
