@@ -1,6 +1,23 @@
+#!/usr/bin/env python3
+"""
+evaluate_cv_run.py
+
+Evaluates a cross-validation run (multiple folds) on internal + external TFRecord datasets,
+and writes per-fold + ensemble predictions/metrics.
+
+IMPORTANT CHANGE vs your previous version:
+- Collects a patient_id for every TFRecord example (lesion)
+- Aggregates lesion-level predictions to patient-level (default: mean prob across lesions)
+- Computes patient-level AUC + patient-level bootstrap confidence intervals (resampling patients)
+- Saves BOTH lesion-level and patient-level arrays into the .npz files
+
+This is the correct approach when you have multiple lesions per patient.
+"""
+
 import argparse
 import importlib.util
 import json
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -47,7 +64,23 @@ def ids_to_tfrecord_paths(patient_ids: list[str], tfr_root: Path) -> list[str]:
     return hf.get_tfr_paths_for_patients(patient_dirs)
 
 
-def build_test_ds(
+def _normalize_path_sep(fn: tf.Tensor) -> tf.Tensor:
+    # make Windows paths safe too
+    return tf.strings.regex_replace(fn, r"\\", "/")
+
+
+def _patient_id_from_filename(fn: tf.Tensor) -> tf.Tensor:
+    """
+    Assumes TFRecords live in:
+      .../<patient_id>/<file>.tfrecord
+    and returns the parent folder as patient_id.
+    """
+    fn = _normalize_path_sep(fn)
+    parts = tf.strings.split(fn, "/")
+    return parts[-2]
+
+
+def build_test_ds_with_patient_ids(
     tfr_paths: list[str],
     *,
     selected_indices: list[int],
@@ -56,28 +89,77 @@ def build_test_ds(
     rgb: bool,
     use_clinical_data: bool,
     use_layer: bool,
+    dataset_type,
 ):
-    dummy = tfr_paths[:1] if tfr_paths else []
-    _, _, test_data = hf.read_data(
-        train_paths=dummy,
-        val_paths=dummy,
-        test_paths=tfr_paths,
-        selected_indices=selected_indices,
-        batch_size=batch_size,
-        num_classes=num_classes,
-        rgb=rgb,
+    """
+    Returns a dataset of (inputs, y, patient_id) batches.
+
+    Uses helper_funcs.parse_record() for consistent parsing with training.
+    """
+    if not tfr_paths:
+        raise ValueError("No TFRecord paths provided.")
+
+    files = tf.data.Dataset.from_tensor_slices(tfr_paths)
+
+    # dataset yields (filename, serialized_example)
+    ds = files.interleave(
+        lambda fn: tf.data.TFRecordDataset([fn], compression_type="GZIP")
+                    .map(lambda rec: (fn, rec), num_parallel_calls=tf.data.AUTOTUNE),
+        num_parallel_calls=tf.data.AUTOTUNE,
+        deterministic=True,
+    )
+
+    # Ensure selected_indices is a Tensor so parse_record's rgb branch (tf.shape) is safe.
+    sel_idx_t = tf.constant(selected_indices, dtype=tf.int32)
+
+    parse_partial = partial(
+        hf.parse_record,
+        selected_indices=sel_idx_t,
+        dataset_type=dataset_type,
         use_clinical_data=use_clinical_data,
         use_layer=use_layer,
-        dataset_type=constants.Dataset.NORMAL,
+        labeled=True,
+        num_classes=num_classes,
+        rgb=rgb,
     )
-    return test_data
+
+    def _map_fn(fn, rec):
+        inputs, y = parse_partial(rec)
+        pid = _patient_id_from_filename(fn)
+        return inputs, y, pid
+
+    ds = ds.map(_map_fn, num_parallel_calls=tf.data.AUTOTUNE)
+    ds = ds.batch(batch_size)
+    ds = ds.prefetch(1)
+    return ds
 
 
-def collect_y_true(ds: tf.data.Dataset) -> np.ndarray:
-    ys = []
-    for x, y in ds:
+def ds_for_prediction(ds_with_pid: tf.data.Dataset) -> tf.data.Dataset:
+    """Convert (x, y, pid) -> x only, for model.predict()."""
+    return ds_with_pid.map(lambda x, y, pid: x)
+
+
+def collect_y_true_and_patient_ids(ds: tf.data.Dataset) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Collect lesion-level y_true and patient_id in the exact order produced by the dataset.
+    y_true is returned as int array shape (N,).
+    patient_ids is returned as object array shape (N,) with strings.
+    """
+    ys, pids = [], []
+    for x, y, pid in ds:
         ys.append(y.numpy().reshape(-1))
-    return np.concatenate(ys).astype(int)
+        pids.append(pid.numpy().reshape(-1))  # bytes
+
+    y_true = np.concatenate(ys)
+
+    # In your pipeline, binary labels are float32 with shape (N,1) -> convert to int
+    y_true = y_true.astype(float)
+    y_true = np.rint(y_true).astype(int).reshape(-1)
+
+    pid_bytes = np.concatenate(pids).astype("S")
+    patient_ids = np.array([p.decode("utf-8") for p in pid_bytes], dtype=object)
+
+    return y_true, patient_ids
 
 
 def compute_binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, thr: float = 0.5) -> dict:
@@ -118,6 +200,128 @@ def summarize(metrics_list: list[dict]) -> dict:
     return out
 
 
+# ------------------ patient-level aggregation + bootstrap ------------------
+
+def aggregate_to_patient_level(
+    y_true_lesion: np.ndarray,
+    y_prob_lesion: np.ndarray,
+    patient_ids_lesion: np.ndarray,
+    how: str = "mean",
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Aggregate lesion-level arrays into patient-level arrays.
+
+    Returns:
+      y_true_patient: (N_patients,)
+      y_prob_patient: (N_patients,)
+      patient_ids_unique: (N_patients,) object array of patient IDs
+
+    Assumes y_true is constant within each patient.
+    """
+    y_true_lesion = np.asarray(y_true_lesion).reshape(-1).astype(int)
+    y_prob_lesion = np.asarray(y_prob_lesion).reshape(-1).astype(float)
+    patient_ids_lesion = np.asarray(patient_ids_lesion).reshape(-1)
+
+    uniq = np.unique(patient_ids_lesion)
+    yt_p, yp_p = [], []
+
+    for pid in uniq:
+        idx = np.where(patient_ids_lesion == pid)[0]
+        yt = y_true_lesion[idx]
+        yp = y_prob_lesion[idx]
+
+        if yt.size == 0:
+            continue
+
+        # sanity: should be one label per patient
+        if not np.all(yt == yt[0]):
+            raise ValueError(f"Inconsistent labels within patient {pid}: {np.unique(yt)}")
+
+        yt_p.append(int(yt[0]))
+
+        if how == "mean":
+            yp_p.append(float(np.mean(yp)))
+        elif how == "max":
+            yp_p.append(float(np.max(yp)))
+        elif how == "median":
+            yp_p.append(float(np.median(yp)))
+        else:
+            raise ValueError("how must be one of: mean, max, median")
+
+    return np.array(yt_p, dtype=int), np.array(yp_p, dtype=float), uniq
+
+
+def roc_auc_tf(y_true: np.ndarray, y_prob: np.ndarray) -> float:
+    m = tf.keras.metrics.AUC(curve="ROC")
+    m.update_state(y_true.reshape(-1).astype(int), y_prob.reshape(-1).astype(float))
+    return float(m.result().numpy())
+
+
+def bootstrap_auc_ci_patient_level(
+    y_true_patient: np.ndarray,
+    y_prob_patient: np.ndarray,
+    n_boot: int = 2000,
+    alpha: float = 0.05,
+    seed: int = 42,
+) -> dict:
+    """
+    Bootstrap CI for AUC by resampling patients (NOT lesions).
+    """
+    rng = np.random.default_rng(seed)
+    y_true_patient = np.asarray(y_true_patient).reshape(-1).astype(int)
+    y_prob_patient = np.asarray(y_prob_patient).reshape(-1).astype(float)
+
+    n = len(y_true_patient)
+    if n == 0:
+        return {
+            "auc": float("nan"),
+            "auc_ci_low": float("nan"),
+            "auc_ci_high": float("nan"),
+            "n_patients": 0,
+            "n_boot_used": 0,
+            "n_boot_failed_one_class": n_boot,
+        }
+
+    aucs = []
+    n_fail = 0
+
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, size=n)  # sample patients with replacement
+        yt = y_true_patient[idx]
+        yp = y_prob_patient[idx]
+
+        # AUC undefined if only one class present
+        if len(np.unique(yt)) < 2:
+            n_fail += 1
+            continue
+
+        aucs.append(roc_auc_tf(yt, yp))
+
+    aucs = np.asarray(aucs, dtype=float)
+    auc_point = roc_auc_tf(y_true_patient, y_prob_patient)
+
+    if len(aucs) == 0:
+        return {
+            "auc": auc_point,
+            "auc_ci_low": float("nan"),
+            "auc_ci_high": float("nan"),
+            "n_patients": int(n),
+            "n_boot_used": 0,
+            "n_boot_failed_one_class": int(n_fail),
+        }
+
+    return {
+        "auc": auc_point,
+        "auc_ci_low": float(np.quantile(aucs, alpha / 2)),
+        "auc_ci_high": float(np.quantile(aucs, 1 - alpha / 2)),
+        "n_patients": int(n),
+        "n_boot_used": int(len(aucs)),
+        "n_boot_failed_one_class": int(n_fail),
+    }
+
+
+# ------------------ weights + model helpers ------------------
+
 def find_weight_for_fold(run_dir: Path, fold: int, weights_name: str, prefer_first: bool = False) -> Path | None:
     # Find all fold_k weight files anywhere under run_dir
     pattern = f"**/fold_{fold}/{weights_name}"
@@ -153,10 +357,9 @@ def safe_load_weights(model: tf.keras.Model, weight_path: Path, allow_mismatch: 
     # Retry mismatch mode
     try:
         before = [w.numpy().copy() for w in model.weights]
-
         model.load_weights(str(weight_path), by_name=True, skip_mismatch=True)
-
         after = [w.numpy() for w in model.weights]
+
         changed = 0
         for b, a in zip(before, after):
             if b.shape != a.shape:
@@ -320,11 +523,15 @@ def set_builder_globals(
     print("=" * 90 + "\n")
 
 
+# ------------------ main ------------------
+
 def main():
     ap = argparse.ArgumentParser()
+
     ap.add_argument("--run_dir", required=True, type=str)
     ap.add_argument("--weights_name", default="saved_weights.weights.h5", type=str)
-    ap.add_argument("--prefer_first_weight", action="store_true", help="If set: pick first matching weight file instead of newest")
+    ap.add_argument("--prefer_first_weight", action="store_true",
+                    help="If set: pick first matching weight file instead of newest")
 
     ap.add_argument("--model_py", required=True, type=str)
     ap.add_argument("--builder_fn", required=True, type=str)
@@ -338,7 +545,8 @@ def main():
 
     ap.add_argument("--out_dir", required=True, type=str)
 
-    ap.add_argument("--selected_sequences", default="t1c", type=str, help="comma-separated: t1,t1c,t2,flair,(mask)")
+    ap.add_argument("--selected_sequences", default="t1c", type=str,
+                    help="comma-separated: t1,t1c,t2,flair,(mask)")
     ap.add_argument("--rgb", action="store_true")
 
     ap.add_argument("--use_clinical_data", action="store_true")
@@ -348,23 +556,32 @@ def main():
     ap.add_argument("--l2_regularization", required=True, type=float)
 
     # for transfer models (InceptionV3, ResNet50V2) that use internal resizing
-    ap.add_argument("--image_size", default=None, type=int, help="e.g. 299 for InceptionV3, 224 for ResNet50V2")
+    ap.add_argument("--image_size", default=None, type=int,
+                    help="e.g. 299 for InceptionV3, 224 for ResNet50V2")
 
     ap.add_argument("--learning_rate", default=None, type=float)
     ap.add_argument("--activation_func", default=None, type=str)
     ap.add_argument("--contrast_DA", action="store_true")
     ap.add_argument("--no_contrast_DA", action="store_true")
 
-    # NEW: weight loading behavior flags
+    # weight loading behavior flags
     ap.add_argument("--allow_mismatch", action="store_true",
-                    help="If set: retry weight loading with by_name=True, skip_mismatch=True when strict loading fails.")
+                    help="Retry weight loading with by_name=True, skip_mismatch=True if strict loading fails.")
     ap.add_argument("--stop_on_weight_error", action="store_true",
-                    help="If set: stop evaluation immediately if any fold weight loading fails.")
+                    help="Stop evaluation immediately if any fold weight loading fails.")
 
     ap.add_argument("--batch_size", default=50, type=int)
     ap.add_argument("--num_classes", default=2, type=int)
     ap.add_argument("--threshold", default=0.5, type=float)
     ap.add_argument("--max_folds", default=10, type=int)
+
+    # NEW: patient aggregation + bootstrap settings
+    ap.add_argument("--patient_agg", default="mean", type=str, choices=["mean", "max", "median"],
+                    help="How to aggregate lesion probabilities to patient level.")
+    ap.add_argument("--n_boot", default=2000, type=int,
+                    help="Number of bootstrap resamples for patient-level AUC CI.")
+    ap.add_argument("--boot_seed", default=42, type=int,
+                    help="Random seed for bootstrap.")
 
     args = ap.parse_args()
 
@@ -388,7 +605,7 @@ def main():
     if args.no_contrast_DA:
         contrast_flag = False
 
-    # Quiet import prevents misleading "Using sequences: ..." prints from the training script
+    # Quiet import prevents misleading prints from the training script
     mod = load_module(Path(args.model_py), quiet=True)
     if not hasattr(mod, args.builder_fn):
         raise ValueError(f"{args.builder_fn} not found in {args.model_py}")
@@ -413,11 +630,13 @@ def main():
 
     builder_kwargs = json.loads(args.builder_kwargs)
 
-    # datasets
+    # ------------------ datasets (collect y_true + patient_id once) ------------------
+
     internal_ids = read_ids(Path(args.internal_ids))
     internal_tfr_paths = ids_to_tfrecord_paths(internal_ids, Path(args.internal_tfr_root))
     print(f"[EVAL] Internal: {len(internal_ids)} patients -> {len(internal_tfr_paths)} TFRecord files")
-    internal_ds = build_test_ds(
+
+    internal_ds_pid = build_test_ds_with_patient_ids(
         internal_tfr_paths,
         selected_indices=selected_indices,
         batch_size=args.batch_size,
@@ -425,14 +644,19 @@ def main():
         rgb=args.rgb,
         use_clinical_data=args.use_clinical_data,
         use_layer=args.use_layer,
+        dataset_type=constants.Dataset.NORMAL,
     )
-    y_true_internal = collect_y_true(internal_ds)
-    print(f"[EVAL] Internal: collected y_true of length {len(y_true_internal)}")
+    y_true_internal_lesion, pid_internal_lesion = collect_y_true_and_patient_ids(internal_ds_pid)
+    internal_ds = ds_for_prediction(internal_ds_pid)
+
+    print(f"[EVAL] Internal: collected lesion-level y_true length {len(y_true_internal_lesion)} "
+          f"({len(np.unique(pid_internal_lesion))} unique patients)")
 
     external_ids = read_ids(Path(args.external_ids))
     external_tfr_paths = ids_to_tfrecord_paths(external_ids, Path(args.external_tfr_root))
     print(f"[EVAL] External: {len(external_ids)} patients -> {len(external_tfr_paths)} TFRecord files")
-    external_ds = build_test_ds(
+
+    external_ds_pid = build_test_ds_with_patient_ids(
         external_tfr_paths,
         selected_indices=selected_indices,
         batch_size=args.batch_size,
@@ -440,13 +664,18 @@ def main():
         rgb=args.rgb,
         use_clinical_data=args.use_clinical_data,
         use_layer=args.use_layer,
+        dataset_type=constants.Dataset.NORMAL,
     )
-    y_true_external = collect_y_true(external_ds)
-    print(f"[EVAL] External: collected y_true of length {len(y_true_external)}")
+    y_true_external_lesion, pid_external_lesion = collect_y_true_and_patient_ids(external_ds_pid)
+    external_ds = ds_for_prediction(external_ds_pid)
 
-    # fold evaluation
-    internal_fold_metrics, external_fold_metrics = [], []
-    internal_probs, external_probs = [], []
+    print(f"[EVAL] External: collected lesion-level y_true length {len(y_true_external_lesion)} "
+          f"({len(np.unique(pid_external_lesion))} unique patients)")
+
+    # ------------------ fold evaluation ------------------
+
+    internal_fold_metrics_patient, external_fold_metrics_patient = [], []
+    internal_probs_lesion, external_probs_lesion = [], []
 
     for fold in range(args.max_folds):
         w = find_weight_for_fold(run_dir, fold, args.weights_name, prefer_first=args.prefer_first_weight)
@@ -460,7 +689,6 @@ def main():
         # sanity-check the model's image input shape before loading weights
         check_model_input_shape(model, expected_hw=img_size, expected_channels=expected_channels)
 
-        # safe weight loading with notifier for failures/mismatches
         ok, mismatch_mode, changed, total = safe_load_weights(model, w, allow_mismatch=args.allow_mismatch)
         if not ok:
             msg = f"[EVAL] Fold {fold}: weight loading failed. Skipping fold."
@@ -469,43 +697,160 @@ def main():
             print(msg)
             continue
 
-        p_int = model.predict(internal_ds, verbose=1).reshape(-1)
-        p_ext = model.predict(external_ds, verbose=1).reshape(-1)
+        # lesion-level probabilities (aligned with pid_*_lesion)
+        p_int_lesion = model.predict(internal_ds, verbose=1).reshape(-1)
+        p_ext_lesion = model.predict(external_ds, verbose=1).reshape(-1)
 
-        m_int = compute_binary_metrics(y_true_internal, p_int, args.threshold)
-        m_ext = compute_binary_metrics(y_true_external, p_ext, args.threshold)
+        # aggregate to patient-level
+        yt_int_p, yp_int_p, pid_int_p = aggregate_to_patient_level(
+            y_true_internal_lesion, p_int_lesion, pid_internal_lesion, how=args.patient_agg
+        )
+        yt_ext_p, yp_ext_p, pid_ext_p = aggregate_to_patient_level(
+            y_true_external_lesion, p_ext_lesion, pid_external_lesion, how=args.patient_agg
+        )
 
-        internal_fold_metrics.append(m_int)
-        external_fold_metrics.append(m_ext)
-        internal_probs.append(p_int)
-        external_probs.append(p_ext)
+        # patient-level metrics + patient-level AUC CI
+        m_int_p = compute_binary_metrics(yt_int_p, yp_int_p, args.threshold)
+        m_ext_p = compute_binary_metrics(yt_ext_p, yp_ext_p, args.threshold)
 
-        (out_dir / f"internal_metrics_fold_{fold}.json").write_text(json.dumps(m_int, indent=2))
-        (out_dir / f"external_metrics_fold_{fold}.json").write_text(json.dumps(m_ext, indent=2))
-        np.savez_compressed(out_dir / f"internal_preds_fold_{fold}.npz", y_true=y_true_internal, y_prob=p_int)
-        np.savez_compressed(out_dir / f"external_preds_fold_{fold}.npz", y_true=y_true_external, y_prob=p_ext)
+        ci_int = bootstrap_auc_ci_patient_level(
+            yt_int_p, yp_int_p, n_boot=args.n_boot, seed=args.boot_seed
+        )
+        ci_ext = bootstrap_auc_ci_patient_level(
+            yt_ext_p, yp_ext_p, n_boot=args.n_boot, seed=args.boot_seed
+        )
+
+        m_int_p.update({
+            "auc_ci_low": ci_int["auc_ci_low"],
+            "auc_ci_high": ci_int["auc_ci_high"],
+            "n_patients": ci_int["n_patients"],
+            "patient_agg": args.patient_agg,
+            "n_boot": args.n_boot,
+            "boot_seed": args.boot_seed,
+            "n_boot_used": ci_int["n_boot_used"],
+            "n_boot_failed_one_class": ci_int["n_boot_failed_one_class"],
+        })
+        m_ext_p.update({
+            "auc_ci_low": ci_ext["auc_ci_low"],
+            "auc_ci_high": ci_ext["auc_ci_high"],
+            "n_patients": ci_ext["n_patients"],
+            "patient_agg": args.patient_agg,
+            "n_boot": args.n_boot,
+            "boot_seed": args.boot_seed,
+            "n_boot_used": ci_ext["n_boot_used"],
+            "n_boot_failed_one_class": ci_ext["n_boot_failed_one_class"],
+        })
+
+        internal_fold_metrics_patient.append(m_int_p)
+        external_fold_metrics_patient.append(m_ext_p)
+        internal_probs_lesion.append(p_int_lesion)
+        external_probs_lesion.append(p_ext_lesion)
+
+        # Write per-fold metrics (patient-level)
+        (out_dir / f"internal_metrics_fold_{fold}.json").write_text(json.dumps(m_int_p, indent=2))
+        (out_dir / f"external_metrics_fold_{fold}.json").write_text(json.dumps(m_ext_p, indent=2))
+
+        # Write per-fold predictions with BOTH lesion and patient arrays
+        np.savez_compressed(
+            out_dir / f"internal_preds_fold_{fold}.npz",
+            y_true_lesion=y_true_internal_lesion,
+            y_prob_lesion=p_int_lesion,
+            patient_id_lesion=pid_internal_lesion,
+            y_true_patient=yt_int_p,
+            y_prob_patient=yp_int_p,
+            patient_id_patient=pid_int_p,
+        )
+        np.savez_compressed(
+            out_dir / f"external_preds_fold_{fold}.npz",
+            y_true_lesion=y_true_external_lesion,
+            y_prob_lesion=p_ext_lesion,
+            patient_id_lesion=pid_external_lesion,
+            y_true_patient=yt_ext_p,
+            y_prob_patient=yp_ext_p,
+            patient_id_patient=pid_ext_p,
+        )
 
         print(
-            f"[EVAL] Fold {fold} | INTERNAL acc={m_int['accuracy']:.4f} auc={m_int['auc']:.4f} | "
-            f"EXTERNAL acc={m_ext['accuracy']:.4f} auc={m_ext['auc']:.4f}"
+            f"[EVAL] Fold {fold} | INTERNAL patient-level acc={m_int_p['accuracy']:.4f} "
+            f"auc={m_int_p['auc']:.4f} [{m_int_p['auc_ci_low']:.4f}, {m_int_p['auc_ci_high']:.4f}] | "
+            f"EXTERNAL patient-level acc={m_ext_p['accuracy']:.4f} "
+            f"auc={m_ext_p['auc']:.4f} [{m_ext_p['auc_ci_low']:.4f}, {m_ext_p['auc_ci_high']:.4f}]"
         )
 
-    (out_dir / "internal_summary_across_folds.json").write_text(json.dumps(summarize(internal_fold_metrics), indent=2))
-    (out_dir / "external_summary_across_folds.json").write_text(json.dumps(summarize(external_fold_metrics), indent=2))
+    # Summaries across folds (patient-level)
+    (out_dir / "internal_summary_across_folds.json").write_text(
+        json.dumps(summarize(internal_fold_metrics_patient), indent=2)
+    )
+    (out_dir / "external_summary_across_folds.json").write_text(
+        json.dumps(summarize(external_fold_metrics_patient), indent=2)
+    )
 
-    if len(internal_probs) >= 2:
-        p_int_ens = np.mean(np.stack(internal_probs, axis=0), axis=0)
-        p_ext_ens = np.mean(np.stack(external_probs, axis=0), axis=0)
+    # ------------------ ensemble across folds (lesion-level ensemble -> patient aggregation) ------------------
 
-        (out_dir / "internal_ensemble.json").write_text(
-            json.dumps(compute_binary_metrics(y_true_internal, p_int_ens, args.threshold), indent=2)
+    if len(internal_probs_lesion) >= 2:
+        p_int_ens_lesion = np.mean(np.stack(internal_probs_lesion, axis=0), axis=0)
+        p_ext_ens_lesion = np.mean(np.stack(external_probs_lesion, axis=0), axis=0)
+
+        # patient aggregation
+        yt_int_p, yp_int_p, pid_int_p = aggregate_to_patient_level(
+            y_true_internal_lesion, p_int_ens_lesion, pid_internal_lesion, how=args.patient_agg
         )
-        (out_dir / "external_ensemble.json").write_text(
-            json.dumps(compute_binary_metrics(y_true_external, p_ext_ens, args.threshold), indent=2)
+        yt_ext_p, yp_ext_p, pid_ext_p = aggregate_to_patient_level(
+            y_true_external_lesion, p_ext_ens_lesion, pid_external_lesion, how=args.patient_agg
         )
 
-        np.savez_compressed(out_dir / "internal_preds_ensemble.npz", y_true=y_true_internal, y_prob=p_int_ens)
-        np.savez_compressed(out_dir / "external_preds_ensemble.npz", y_true=y_true_external, y_prob=p_ext_ens)
+        m_int_p = compute_binary_metrics(yt_int_p, yp_int_p, args.threshold)
+        m_ext_p = compute_binary_metrics(yt_ext_p, yp_ext_p, args.threshold)
+
+        ci_int = bootstrap_auc_ci_patient_level(
+            yt_int_p, yp_int_p, n_boot=args.n_boot, seed=args.boot_seed
+        )
+        ci_ext = bootstrap_auc_ci_patient_level(
+            yt_ext_p, yp_ext_p, n_boot=args.n_boot, seed=args.boot_seed
+        )
+
+        m_int_p.update({
+            "auc_ci_low": ci_int["auc_ci_low"],
+            "auc_ci_high": ci_int["auc_ci_high"],
+            "n_patients": ci_int["n_patients"],
+            "patient_agg": args.patient_agg,
+            "n_boot": args.n_boot,
+            "boot_seed": args.boot_seed,
+            "n_boot_used": ci_int["n_boot_used"],
+            "n_boot_failed_one_class": ci_int["n_boot_failed_one_class"],
+        })
+        m_ext_p.update({
+            "auc_ci_low": ci_ext["auc_ci_low"],
+            "auc_ci_high": ci_ext["auc_ci_high"],
+            "n_patients": ci_ext["n_patients"],
+            "patient_agg": args.patient_agg,
+            "n_boot": args.n_boot,
+            "boot_seed": args.boot_seed,
+            "n_boot_used": ci_ext["n_boot_used"],
+            "n_boot_failed_one_class": ci_ext["n_boot_failed_one_class"],
+        })
+
+        (out_dir / "internal_ensemble.json").write_text(json.dumps(m_int_p, indent=2))
+        (out_dir / "external_ensemble.json").write_text(json.dumps(m_ext_p, indent=2))
+
+        np.savez_compressed(
+            out_dir / "internal_preds_ensemble.npz",
+            y_true_lesion=y_true_internal_lesion,
+            y_prob_lesion=p_int_ens_lesion,
+            patient_id_lesion=pid_internal_lesion,
+            y_true_patient=yt_int_p,
+            y_prob_patient=yp_int_p,
+            patient_id_patient=pid_int_p,
+        )
+        np.savez_compressed(
+            out_dir / "external_preds_ensemble.npz",
+            y_true_lesion=y_true_external_lesion,
+            y_prob_lesion=p_ext_ens_lesion,
+            patient_id_lesion=pid_external_lesion,
+            y_true_patient=yt_ext_p,
+            y_prob_patient=yp_ext_p,
+            patient_id_patient=pid_ext_p,
+        )
 
     print("Done. Results written to:", out_dir)
 
