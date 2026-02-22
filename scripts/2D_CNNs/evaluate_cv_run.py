@@ -19,6 +19,7 @@ import importlib.util
 import json
 from functools import partial
 from pathlib import Path
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -586,7 +587,7 @@ def main():
     args = ap.parse_args()
 
     run_dir = Path(args.run_dir)
-    out_dir = Path(args.out_dir)
+    out_dir = Path(f"{args.out_dir}_{time.strftime('%d_%m_%Y')}")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     seqs = [s.strip() for s in args.selected_sequences.split(",") if s.strip()]
