@@ -5,13 +5,19 @@ evaluate_cv_run.py
 Evaluates a cross-validation run (multiple folds) on internal + external TFRecord datasets,
 and writes per-fold + ensemble predictions/metrics.
 
-IMPORTANT CHANGE vs your previous version:
-- Collects a patient_id for every TFRecord example (lesion)
-- Aggregates lesion-level predictions to patient-level (default: mean prob across lesions)
-- Computes patient-level AUC + patient-level bootstrap confidence intervals (resampling patients)
-- Saves BOTH lesion-level and patient-level arrays into the .npz files
+Supports BOTH:
+- lesion-level evaluation (each TFRecord example = one lesion/slice)
+- patient-level evaluation (aggregate lesion probs per patient, then compute metrics)
 
-This is the correct approach when you have multiple lesions per patient.
+Also:
+- Collects a patient_id for every TFRecord example (lesion)
+- Saves BOTH lesion-level and patient-level arrays into the .npz files
+- Computes AUC + bootstrap confidence intervals at the chosen eval level
+
+Key fixes/features:
+- model.predict() works for multi-input models by returning (x,) from the dataset
+- --eval_level {patient,lesion} controls metrics/CI level
+- output folder name includes eval-level tag, and metric/summary/ensemble JSON names include eval-level tag
 """
 
 import argparse
@@ -105,7 +111,7 @@ def build_test_ds_with_patient_ids(
     # dataset yields (filename, serialized_example)
     ds = files.interleave(
         lambda fn: tf.data.TFRecordDataset([fn], compression_type="GZIP")
-                    .map(lambda rec: (fn, rec), num_parallel_calls=tf.data.AUTOTUNE),
+        .map(lambda rec: (fn, rec), num_parallel_calls=tf.data.AUTOTUNE),
         num_parallel_calls=tf.data.AUTOTUNE,
         deterministic=True,
     )
@@ -139,10 +145,9 @@ def ds_for_prediction(ds_with_pid: tf.data.Dataset) -> tf.data.Dataset:
     """
     Convert (x, y, pid) -> (x,) for model.predict().
 
-    IMPORTANT:
-    - If x is multi-input (tuple/list), returning x directly makes Keras think
-      it's (x, y, sample_weight).
-    - Wrapping as (x,) guarantees Keras interprets it as "features only".
+    CRITICAL:
+    If x is multi-input (tuple/list/dict), returning x directly makes Keras
+    interpret it as (x, y, sample_weight). Wrapping as (x,) forces "features only".
     """
     return ds_with_pid.map(lambda x, y, pid: (x,), num_parallel_calls=tf.data.AUTOTUNE)
 
@@ -154,7 +159,7 @@ def collect_y_true_and_patient_ids(ds: tf.data.Dataset) -> tuple[np.ndarray, np.
     patient_ids is returned as object array shape (N,) with strings.
     """
     ys, pids = [], []
-    for x, y, pid in ds:
+    for _, y, pid in ds:
         ys.append(y.numpy().reshape(-1))
         pids.append(pid.numpy().reshape(-1))  # bytes
 
@@ -194,7 +199,10 @@ def compute_binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, thr: float = 
         "auc": auc,
         "sensitivity": sens,
         "specificity": spec,
-        "tp": tp, "tn": tn, "fp": fp, "fn": fn,
+        "tp": tp,
+        "tn": tn,
+        "fp": fp,
+        "fn": fn,
         "threshold": float(thr),
     }
 
@@ -265,40 +273,43 @@ def roc_auc_tf(y_true: np.ndarray, y_prob: np.ndarray) -> float:
     return float(m.result().numpy())
 
 
-def bootstrap_auc_ci_patient_level(
-    y_true_patient: np.ndarray,
-    y_prob_patient: np.ndarray,
+def bootstrap_auc_ci(
+    y_true: np.ndarray,
+    y_prob: np.ndarray,
+    *,
     n_boot: int = 2000,
     alpha: float = 0.05,
     seed: int = 42,
 ) -> dict:
     """
-    Bootstrap CI for AUC by resampling patients (NOT lesions).
+    Bootstrap CI for AUC by resampling rows of (y_true, y_prob).
+    - Lesion-level: rows == lesions
+    - Patient-level: rows == patients (after aggregation)
     """
     rng = np.random.default_rng(seed)
-    y_true_patient = np.asarray(y_true_patient).reshape(-1).astype(int)
-    y_prob_patient = np.asarray(y_prob_patient).reshape(-1).astype(float)
+    y_true = np.asarray(y_true).reshape(-1).astype(int)
+    y_prob = np.asarray(y_prob).reshape(-1).astype(float)
 
-    n = len(y_true_patient)
+    n = len(y_true)
     if n == 0:
         return {
             "auc": float("nan"),
             "auc_ci_low": float("nan"),
             "auc_ci_high": float("nan"),
-            "n_patients": 0,
+            "n_units": 0,
             "n_boot_used": 0,
             "n_boot_failed_one_class": n_boot,
         }
 
+    auc_point = roc_auc_tf(y_true, y_prob)
+
     aucs = []
     n_fail = 0
-
     for _ in range(n_boot):
-        idx = rng.integers(0, n, size=n)  # sample patients with replacement
-        yt = y_true_patient[idx]
-        yp = y_prob_patient[idx]
+        idx = rng.integers(0, n, size=n)
+        yt = y_true[idx]
+        yp = y_prob[idx]
 
-        # AUC undefined if only one class present
         if len(np.unique(yt)) < 2:
             n_fail += 1
             continue
@@ -306,14 +317,13 @@ def bootstrap_auc_ci_patient_level(
         aucs.append(roc_auc_tf(yt, yp))
 
     aucs = np.asarray(aucs, dtype=float)
-    auc_point = roc_auc_tf(y_true_patient, y_prob_patient)
 
     if len(aucs) == 0:
         return {
             "auc": auc_point,
             "auc_ci_low": float("nan"),
             "auc_ci_high": float("nan"),
-            "n_patients": int(n),
+            "n_units": int(n),
             "n_boot_used": 0,
             "n_boot_failed_one_class": int(n_fail),
         }
@@ -322,7 +332,7 @@ def bootstrap_auc_ci_patient_level(
         "auc": auc_point,
         "auc_ci_low": float(np.quantile(aucs, alpha / 2)),
         "auc_ci_high": float(np.quantile(aucs, 1 - alpha / 2)),
-        "n_patients": int(n),
+        "n_units": int(n),
         "n_boot_used": int(len(aucs)),
         "n_boot_failed_one_class": int(n_fail),
     }
@@ -531,6 +541,37 @@ def set_builder_globals(
     print("=" * 90 + "\n")
 
 
+# ------------------ naming helpers ------------------
+
+def _tag_eval_level(eval_level: str) -> str:
+    return "patient" if eval_level == "patient" else "lesion"
+
+
+def metrics_json_name(split: str, fold: int, eval_level: str) -> str:
+    tag = _tag_eval_level(eval_level)
+    return f"{split}_metrics_{tag}_fold_{fold}.json"
+
+
+def preds_npz_name(split: str, fold: int) -> str:
+    # keep stable: contains BOTH lesion + patient arrays regardless of eval level
+    return f"{split}_preds_fold_{fold}.npz"
+
+
+def summary_json_name(split: str, eval_level: str) -> str:
+    tag = _tag_eval_level(eval_level)
+    return f"{split}_summary_across_folds_{tag}.json"
+
+
+def ensemble_json_name(split: str, eval_level: str) -> str:
+    tag = _tag_eval_level(eval_level)
+    return f"{split}_ensemble_{tag}.json"
+
+
+def ensemble_preds_npz_name(split: str) -> str:
+    # keep stable: contains BOTH lesion + patient arrays regardless of eval level
+    return f"{split}_preds_ensemble.npz"
+
+
 # ------------------ main ------------------
 
 def main():
@@ -583,18 +624,29 @@ def main():
     ap.add_argument("--threshold", default=0.5, type=float)
     ap.add_argument("--max_folds", default=10, type=int)
 
-    # NEW: patient aggregation + bootstrap settings
+    # evaluation level switch
+    ap.add_argument(
+        "--eval_level",
+        default="patient",
+        choices=["patient", "lesion"],
+        help="Compute metrics on patient-aggregated predictions or directly on lesion-level predictions.",
+    )
+
+    # patient aggregation + bootstrap settings
     ap.add_argument("--patient_agg", default="mean", type=str, choices=["mean", "max", "median"],
-                    help="How to aggregate lesion probabilities to patient level.")
+                    help="How to aggregate lesion probabilities to patient level (used if eval_level=patient).")
     ap.add_argument("--n_boot", default=2000, type=int,
-                    help="Number of bootstrap resamples for patient-level AUC CI.")
+                    help="Number of bootstrap resamples for AUC CI at the chosen eval level.")
     ap.add_argument("--boot_seed", default=42, type=int,
                     help="Random seed for bootstrap.")
 
     args = ap.parse_args()
 
     run_dir = Path(args.run_dir)
-    out_dir = Path(f"{args.out_dir}_{time.strftime('%d_%m_%Y')}")
+
+    # --- OUTPUT FOLDER NAME: includes eval level tag + date ---
+    eval_tag = _tag_eval_level(args.eval_level)
+    out_dir = Path(f"{args.out_dir}_{eval_tag}_{time.strftime('%d_%m_%Y')}")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     seqs = [s.strip() for s in args.selected_sequences.split(",") if s.strip()]
@@ -657,8 +709,10 @@ def main():
     y_true_internal_lesion, pid_internal_lesion = collect_y_true_and_patient_ids(internal_ds_pid)
     internal_ds = ds_for_prediction(internal_ds_pid)
 
-    print(f"[EVAL] Internal: collected lesion-level y_true length {len(y_true_internal_lesion)} "
-          f"({len(np.unique(pid_internal_lesion))} unique patients)")
+    print(
+        f"[EVAL] Internal: collected lesion-level y_true length {len(y_true_internal_lesion)} "
+        f"({len(np.unique(pid_internal_lesion))} unique patients)"
+    )
 
     external_ids = read_ids(Path(args.external_ids))
     external_tfr_paths = ids_to_tfrecord_paths(external_ids, Path(args.external_tfr_root))
@@ -677,18 +731,22 @@ def main():
     y_true_external_lesion, pid_external_lesion = collect_y_true_and_patient_ids(external_ds_pid)
     external_ds = ds_for_prediction(external_ds_pid)
 
-    print(f"[EVAL] External: collected lesion-level y_true length {len(y_true_external_lesion)} "
-          f"({len(np.unique(pid_external_lesion))} unique patients)")
+    print(
+        f"[EVAL] External: collected lesion-level y_true length {len(y_true_external_lesion)} "
+        f"({len(np.unique(pid_external_lesion))} unique patients)"
+    )
 
     # ------------------ fold evaluation ------------------
 
-    internal_fold_metrics_patient, external_fold_metrics_patient = [], []
+    internal_fold_metrics, external_fold_metrics = [], []
     internal_probs_lesion, external_probs_lesion = [], []
 
     for fold in range(args.max_folds):
         w = find_weight_for_fold(run_dir, fold, args.weights_name, prefer_first=args.prefer_first_weight)
         if w is None:
-            print(f"[EVAL] Stopping at fold {fold}: no weights found under {run_dir} matching fold_{fold}/{args.weights_name}")
+            print(
+                f"[EVAL] Stopping at fold {fold}: no weights found under {run_dir} matching fold_{fold}/{args.weights_name}"
+            )
             break
 
         print(f"[EVAL] Fold {fold}: using weights: {w.resolve()}")
@@ -697,7 +755,7 @@ def main():
         # sanity-check the model's image input shape before loading weights
         check_model_input_shape(model, expected_hw=img_size, expected_channels=expected_channels)
 
-        ok, mismatch_mode, changed, total = safe_load_weights(model, w, allow_mismatch=args.allow_mismatch)
+        ok, _, _, _ = safe_load_weights(model, w, allow_mismatch=args.allow_mismatch)
         if not ok:
             msg = f"[EVAL] Fold {fold}: weight loading failed. Skipping fold."
             if args.stop_on_weight_error:
@@ -709,7 +767,7 @@ def main():
         p_int_lesion = model.predict(internal_ds, verbose=1).reshape(-1)
         p_ext_lesion = model.predict(external_ds, verbose=1).reshape(-1)
 
-        # aggregate to patient-level
+        # always compute patient-level arrays (so npz always contains both)
         yt_int_p, yp_int_p, pid_int_p = aggregate_to_patient_level(
             y_true_internal_lesion, p_int_lesion, pid_internal_lesion, how=args.patient_agg
         )
@@ -717,50 +775,60 @@ def main():
             y_true_external_lesion, p_ext_lesion, pid_external_lesion, how=args.patient_agg
         )
 
-        # patient-level metrics + patient-level AUC CI
-        m_int_p = compute_binary_metrics(yt_int_p, yp_int_p, args.threshold)
-        m_ext_p = compute_binary_metrics(yt_ext_p, yp_ext_p, args.threshold)
+        # choose evaluation level
+        if args.eval_level == "lesion":
+            yt_int_eval, yp_int_eval = y_true_internal_lesion, p_int_lesion
+            yt_ext_eval, yp_ext_eval = y_true_external_lesion, p_ext_lesion
+            unit_label = "lesions"
+        else:
+            yt_int_eval, yp_int_eval = yt_int_p, yp_int_p
+            yt_ext_eval, yp_ext_eval = yt_ext_p, yp_ext_p
+            unit_label = "patients"
 
-        ci_int = bootstrap_auc_ci_patient_level(
-            yt_int_p, yp_int_p, n_boot=args.n_boot, seed=args.boot_seed
-        )
-        ci_ext = bootstrap_auc_ci_patient_level(
-            yt_ext_p, yp_ext_p, n_boot=args.n_boot, seed=args.boot_seed
-        )
+        # metrics + CI at chosen eval level
+        m_int = compute_binary_metrics(yt_int_eval, yp_int_eval, args.threshold)
+        m_ext = compute_binary_metrics(yt_ext_eval, yp_ext_eval, args.threshold)
 
-        m_int_p.update({
+        ci_int = bootstrap_auc_ci(yt_int_eval, yp_int_eval, n_boot=args.n_boot, seed=args.boot_seed)
+        ci_ext = bootstrap_auc_ci(yt_ext_eval, yp_ext_eval, n_boot=args.n_boot, seed=args.boot_seed)
+
+        m_int.update({
             "auc_ci_low": ci_int["auc_ci_low"],
             "auc_ci_high": ci_int["auc_ci_high"],
-            "n_patients": ci_int["n_patients"],
-            "patient_agg": args.patient_agg,
+            "eval_level": args.eval_level,
+            "unit_label": unit_label,
+            "n_units": ci_int["n_units"],
+            "patient_agg": args.patient_agg if args.eval_level == "patient" else None,
             "n_boot": args.n_boot,
             "boot_seed": args.boot_seed,
             "n_boot_used": ci_int["n_boot_used"],
             "n_boot_failed_one_class": ci_int["n_boot_failed_one_class"],
         })
-        m_ext_p.update({
+        m_ext.update({
             "auc_ci_low": ci_ext["auc_ci_low"],
             "auc_ci_high": ci_ext["auc_ci_high"],
-            "n_patients": ci_ext["n_patients"],
-            "patient_agg": args.patient_agg,
+            "eval_level": args.eval_level,
+            "unit_label": unit_label,
+            "n_units": ci_ext["n_units"],
+            "patient_agg": args.patient_agg if args.eval_level == "patient" else None,
             "n_boot": args.n_boot,
             "boot_seed": args.boot_seed,
             "n_boot_used": ci_ext["n_boot_used"],
             "n_boot_failed_one_class": ci_ext["n_boot_failed_one_class"],
         })
 
-        internal_fold_metrics_patient.append(m_int_p)
-        external_fold_metrics_patient.append(m_ext_p)
+        internal_fold_metrics.append(m_int)
+        external_fold_metrics.append(m_ext)
         internal_probs_lesion.append(p_int_lesion)
         external_probs_lesion.append(p_ext_lesion)
 
-        # Write per-fold metrics (patient-level)
-        (out_dir / f"internal_metrics_fold_{fold}.json").write_text(json.dumps(m_int_p, indent=2))
-        (out_dir / f"external_metrics_fold_{fold}.json").write_text(json.dumps(m_ext_p, indent=2))
+        # Write per-fold metrics (tagged by eval level)
+        (out_dir / metrics_json_name("internal", fold, args.eval_level)).write_text(json.dumps(m_int, indent=2))
+        (out_dir / metrics_json_name("external", fold, args.eval_level)).write_text(json.dumps(m_ext, indent=2))
 
         # Write per-fold predictions with BOTH lesion and patient arrays
         np.savez_compressed(
-            out_dir / f"internal_preds_fold_{fold}.npz",
+            out_dir / preds_npz_name("internal", fold),
             y_true_lesion=y_true_internal_lesion,
             y_prob_lesion=p_int_lesion,
             patient_id_lesion=pid_internal_lesion,
@@ -769,7 +837,7 @@ def main():
             patient_id_patient=pid_int_p,
         )
         np.savez_compressed(
-            out_dir / f"external_preds_fold_{fold}.npz",
+            out_dir / preds_npz_name("external", fold),
             y_true_lesion=y_true_external_lesion,
             y_prob_lesion=p_ext_lesion,
             patient_id_lesion=pid_external_lesion,
@@ -779,27 +847,29 @@ def main():
         )
 
         print(
-            f"[EVAL] Fold {fold} | INTERNAL patient-level acc={m_int_p['accuracy']:.4f} "
-            f"auc={m_int_p['auc']:.4f} [{m_int_p['auc_ci_low']:.4f}, {m_int_p['auc_ci_high']:.4f}] | "
-            f"EXTERNAL patient-level acc={m_ext_p['accuracy']:.4f} "
-            f"auc={m_ext_p['auc']:.4f} [{m_ext_p['auc_ci_low']:.4f}, {m_ext_p['auc_ci_high']:.4f}]"
+            f"[EVAL] Fold {fold} | INTERNAL ({unit_label}) n={m_int['n']} "
+            f"acc={m_int['accuracy']:.4f} auc={m_int['auc']:.4f} "
+            f"[{m_int['auc_ci_low']:.4f}, {m_int['auc_ci_high']:.4f}] | "
+            f"EXTERNAL ({unit_label}) n={m_ext['n']} "
+            f"acc={m_ext['accuracy']:.4f} auc={m_ext['auc']:.4f} "
+            f"[{m_ext['auc_ci_low']:.4f}, {m_ext['auc_ci_high']:.4f}]"
         )
 
-    # Summaries across folds (patient-level)
-    (out_dir / "internal_summary_across_folds.json").write_text(
-        json.dumps(summarize(internal_fold_metrics_patient), indent=2)
+    # Summaries across folds (tagged by eval level)
+    (out_dir / summary_json_name("internal", args.eval_level)).write_text(
+        json.dumps(summarize(internal_fold_metrics), indent=2)
     )
-    (out_dir / "external_summary_across_folds.json").write_text(
-        json.dumps(summarize(external_fold_metrics_patient), indent=2)
+    (out_dir / summary_json_name("external", args.eval_level)).write_text(
+        json.dumps(summarize(external_fold_metrics), indent=2)
     )
 
-    # ------------------ ensemble across folds (lesion-level ensemble -> patient aggregation) ------------------
+    # ------------------ ensemble across folds (lesion-level ensemble -> optional patient aggregation) ------------------
 
     if len(internal_probs_lesion) >= 2:
         p_int_ens_lesion = np.mean(np.stack(internal_probs_lesion, axis=0), axis=0)
         p_ext_ens_lesion = np.mean(np.stack(external_probs_lesion, axis=0), axis=0)
 
-        # patient aggregation
+        # compute patient-level arrays for saving
         yt_int_p, yp_int_p, pid_int_p = aggregate_to_patient_level(
             y_true_internal_lesion, p_int_ens_lesion, pid_internal_lesion, how=args.patient_agg
         )
@@ -807,42 +877,52 @@ def main():
             y_true_external_lesion, p_ext_ens_lesion, pid_external_lesion, how=args.patient_agg
         )
 
-        m_int_p = compute_binary_metrics(yt_int_p, yp_int_p, args.threshold)
-        m_ext_p = compute_binary_metrics(yt_ext_p, yp_ext_p, args.threshold)
+        # choose evaluation level
+        if args.eval_level == "lesion":
+            yt_int_eval, yp_int_eval = y_true_internal_lesion, p_int_ens_lesion
+            yt_ext_eval, yp_ext_eval = y_true_external_lesion, p_ext_ens_lesion
+            unit_label = "lesions"
+        else:
+            yt_int_eval, yp_int_eval = yt_int_p, yp_int_p
+            yt_ext_eval, yp_ext_eval = yt_ext_p, yp_ext_p
+            unit_label = "patients"
 
-        ci_int = bootstrap_auc_ci_patient_level(
-            yt_int_p, yp_int_p, n_boot=args.n_boot, seed=args.boot_seed
-        )
-        ci_ext = bootstrap_auc_ci_patient_level(
-            yt_ext_p, yp_ext_p, n_boot=args.n_boot, seed=args.boot_seed
-        )
+        m_int = compute_binary_metrics(yt_int_eval, yp_int_eval, args.threshold)
+        m_ext = compute_binary_metrics(yt_ext_eval, yp_ext_eval, args.threshold)
 
-        m_int_p.update({
+        ci_int = bootstrap_auc_ci(yt_int_eval, yp_int_eval, n_boot=args.n_boot, seed=args.boot_seed)
+        ci_ext = bootstrap_auc_ci(yt_ext_eval, yp_ext_eval, n_boot=args.n_boot, seed=args.boot_seed)
+
+        m_int.update({
             "auc_ci_low": ci_int["auc_ci_low"],
             "auc_ci_high": ci_int["auc_ci_high"],
-            "n_patients": ci_int["n_patients"],
-            "patient_agg": args.patient_agg,
+            "eval_level": args.eval_level,
+            "unit_label": unit_label,
+            "n_units": ci_int["n_units"],
+            "patient_agg": args.patient_agg if args.eval_level == "patient" else None,
             "n_boot": args.n_boot,
             "boot_seed": args.boot_seed,
             "n_boot_used": ci_int["n_boot_used"],
             "n_boot_failed_one_class": ci_int["n_boot_failed_one_class"],
         })
-        m_ext_p.update({
+        m_ext.update({
             "auc_ci_low": ci_ext["auc_ci_low"],
             "auc_ci_high": ci_ext["auc_ci_high"],
-            "n_patients": ci_ext["n_patients"],
-            "patient_agg": args.patient_agg,
+            "eval_level": args.eval_level,
+            "unit_label": unit_label,
+            "n_units": ci_ext["n_units"],
+            "patient_agg": args.patient_agg if args.eval_level == "patient" else None,
             "n_boot": args.n_boot,
             "boot_seed": args.boot_seed,
             "n_boot_used": ci_ext["n_boot_used"],
             "n_boot_failed_one_class": ci_ext["n_boot_failed_one_class"],
         })
 
-        (out_dir / "internal_ensemble.json").write_text(json.dumps(m_int_p, indent=2))
-        (out_dir / "external_ensemble.json").write_text(json.dumps(m_ext_p, indent=2))
+        (out_dir / ensemble_json_name("internal", args.eval_level)).write_text(json.dumps(m_int, indent=2))
+        (out_dir / ensemble_json_name("external", args.eval_level)).write_text(json.dumps(m_ext, indent=2))
 
         np.savez_compressed(
-            out_dir / "internal_preds_ensemble.npz",
+            out_dir / ensemble_preds_npz_name("internal"),
             y_true_lesion=y_true_internal_lesion,
             y_prob_lesion=p_int_ens_lesion,
             patient_id_lesion=pid_internal_lesion,
@@ -851,7 +931,7 @@ def main():
             patient_id_patient=pid_int_p,
         )
         np.savez_compressed(
-            out_dir / "external_preds_ensemble.npz",
+            out_dir / ensemble_preds_npz_name("external"),
             y_true_lesion=y_true_external_lesion,
             y_prob_lesion=p_ext_ens_lesion,
             patient_id_lesion=pid_external_lesion,
