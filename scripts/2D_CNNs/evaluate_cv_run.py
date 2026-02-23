@@ -136,8 +136,15 @@ def build_test_ds_with_patient_ids(
 
 
 def ds_for_prediction(ds_with_pid: tf.data.Dataset) -> tf.data.Dataset:
-    """Convert (x, y, pid) -> x only, for model.predict()."""
-    return ds_with_pid.map(lambda x, y, pid: x)
+    """
+    Convert (x, y, pid) -> (x,) for model.predict().
+
+    IMPORTANT:
+    - If x is multi-input (tuple/list), returning x directly makes Keras think
+      it's (x, y, sample_weight).
+    - Wrapping as (x,) guarantees Keras interprets it as "features only".
+    """
+    return ds_with_pid.map(lambda x, y, pid: (x,), num_parallel_calls=tf.data.AUTOTUNE)
 
 
 def collect_y_true_and_patient_ids(ds: tf.data.Dataset) -> tuple[np.ndarray, np.ndarray]:
