@@ -29,9 +29,37 @@ import time
 
 import numpy as np
 import tensorflow as tf
+from sklearn.metrics import roc_auc_score
 
 import helper_funcs as hf
 import constants
+
+import sys
+
+class Tee:
+    """Write to multiple file-like streams (stdout+logfile)."""
+    def __init__(self, *streams):
+        self.streams = streams
+    def write(self, data):
+        for s in self.streams:
+            try:
+                s.write(data)
+                s.flush()
+            except Exception:
+                pass
+    def flush(self):
+        for s in self.streams:
+            try:
+                s.flush()
+            except Exception:
+                pass
+
+def setup_logging_to_file(log_path: Path):
+    """Mirror stdout/stderr to a logfile inside out_dir."""
+    log_f = open(log_path, "w", encoding="utf-8")
+    sys.stdout = Tee(sys.__stdout__, log_f)
+    sys.stderr = Tee(sys.__stderr__, log_f)
+    return log_f
 
 
 # ------------------ utilities ------------------
@@ -175,28 +203,44 @@ def collect_y_true_and_patient_ids(ds: tf.data.Dataset) -> tuple[np.ndarray, np.
     return y_true, patient_ids
 
 
-def compute_binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, thr: float = 0.5) -> dict:
-    y_true = y_true.reshape(-1).astype(int)
-    y_prob = y_prob.reshape(-1)
-    y_pred = (y_prob >= thr).astype(int)
+def assert_finite_probs(probs: np.ndarray, tag: str):
+    probs = np.asarray(probs).reshape(-1)
+    bad = int(np.sum(~np.isfinite(probs)))
+    if bad > 0:
+        raise ValueError(f"[EVAL] Non-finite probabilities in {tag}: {bad}/{probs.size}")
+    return probs
 
-    tp = int(np.sum((y_true == 1) & (y_pred == 1)))
-    tn = int(np.sum((y_true == 0) & (y_pred == 0)))
-    fp = int(np.sum((y_true == 0) & (y_pred == 1)))
-    fn = int(np.sum((y_true == 1) & (y_pred == 0)))
+
+def compute_binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, thr: float = 0.5) -> dict:
+    y_true = np.asarray(y_true).reshape(-1).astype(int)
+    y_prob = np.asarray(y_prob).reshape(-1).astype(float)
+
+    finite = np.isfinite(y_prob)
+    n_dropped = int((~finite).sum())
+    y_true = y_true[finite]
+    y_prob = y_prob[finite]
+
+    y_pred = (y_prob >= thr).astype(int) if y_prob.size else np.array([], dtype=int)
+
+    tp = int(np.sum((y_true == 1) & (y_pred == 1))) if y_true.size else 0
+    tn = int(np.sum((y_true == 0) & (y_pred == 0))) if y_true.size else 0
+    fp = int(np.sum((y_true == 0) & (y_pred == 1))) if y_true.size else 0
+    fn = int(np.sum((y_true == 1) & (y_pred == 0))) if y_true.size else 0
 
     acc = float((tp + tn) / max(tp + tn + fp + fn, 1))
     sens = float(tp / max(tp + fn, 1))
     spec = float(tn / max(tn + fp, 1))
 
-    auc_m = tf.keras.metrics.AUC(curve="ROC")
-    auc_m.update_state(y_true, y_prob)
-    auc = float(auc_m.result().numpy())
+    # Exact ROC-AUC (tie-aware). Returns NaN if only one class present or no data.
+    auc = roc_auc_sklearn(y_true, y_prob)
+
+    # diagnostic: constant predictions often yield AUC ~ 0.5
+    is_constant_prob = bool(y_prob.size and np.nanstd(y_prob) == 0.0)
 
     return {
         "n": int(len(y_true)),
         "accuracy": acc,
-        "auc": auc,
+        "auc": float(auc) if np.isfinite(auc) else float("nan"),
         "sensitivity": sens,
         "specificity": spec,
         "tp": tp,
@@ -204,6 +248,8 @@ def compute_binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, thr: float = 
         "fp": fp,
         "fn": fn,
         "threshold": float(thr),
+        "n_dropped_nonfinite_prob": n_dropped,
+        "constant_prob": bool(is_constant_prob),
     }
 
 
@@ -267,10 +313,20 @@ def aggregate_to_patient_level(
     return np.array(yt_p, dtype=int), np.array(yp_p, dtype=float), uniq
 
 
-def roc_auc_tf(y_true: np.ndarray, y_prob: np.ndarray) -> float:
-    m = tf.keras.metrics.AUC(curve="ROC")
-    m.update_state(y_true.reshape(-1).astype(int), y_prob.reshape(-1).astype(float))
-    return float(m.result().numpy())
+def roc_auc_sklearn(y_true: np.ndarray, y_prob: np.ndarray) -> float:
+    """Exact ROC-AUC (tie-aware) using scikit-learn. Filters non-finite probs."""
+    y_true = np.asarray(y_true).reshape(-1).astype(int)
+    y_prob = np.asarray(y_prob).reshape(-1).astype(float)
+
+    finite = np.isfinite(y_prob)
+    y_true = y_true[finite]
+    y_prob = y_prob[finite]
+
+    if y_true.size == 0 or len(np.unique(y_true)) < 2:
+        return float("nan")
+
+    return float(roc_auc_score(y_true, y_prob))
+
 
 
 def bootstrap_auc_ci(
@@ -290,6 +346,11 @@ def bootstrap_auc_ci(
     y_true = np.asarray(y_true).reshape(-1).astype(int)
     y_prob = np.asarray(y_prob).reshape(-1).astype(float)
 
+    # drop NaN/Inf probabilities (invalid predictions)
+    finite = np.isfinite(y_prob)
+    y_true = y_true[finite]
+    y_prob = y_prob[finite]
+
     n = len(y_true)
     if n == 0:
         return {
@@ -301,7 +362,7 @@ def bootstrap_auc_ci(
             "n_boot_failed_one_class": n_boot,
         }
 
-    auc_point = roc_auc_tf(y_true, y_prob)
+    auc_point = roc_auc_sklearn(y_true, y_prob)
 
     aucs = []
     n_fail = 0
@@ -314,7 +375,7 @@ def bootstrap_auc_ci(
             n_fail += 1
             continue
 
-        aucs.append(roc_auc_tf(yt, yp))
+        aucs.append(roc_auc_sklearn(yt, yp))
 
     aucs = np.asarray(aucs, dtype=float)
 
@@ -594,6 +655,9 @@ def main():
 
     ap.add_argument("--out_dir", required=True, type=str)
 
+    ap.add_argument("--log_name", default="eval.log", type=str,
+                    help="Log filename to write inside the output folder.")
+
     ap.add_argument("--selected_sequences", default="t1c", type=str,
                     help="comma-separated: t1,t1c,t2,flair,(mask)")
     ap.add_argument("--rgb", action="store_true")
@@ -648,6 +712,10 @@ def main():
     eval_tag = _tag_eval_level(args.eval_level)
     out_dir = Path(f"{args.out_dir}_{eval_tag}_{time.strftime('%d_%m_%Y')}")
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Mirror stdout/stderr to a logfile inside out_dir for reproducibility
+    log_f = setup_logging_to_file(out_dir / args.log_name)
+    print(f"[EVAL] Logging to: {out_dir / args.log_name}")
 
     seqs = [s.strip() for s in args.selected_sequences.split(",") if s.strip()]
     selected_indices = [constants.SEQUENCE_TO_INDEX[s] for s in seqs]
@@ -767,6 +835,15 @@ def main():
         p_int_lesion = model.predict(internal_ds, verbose=1).reshape(-1)
         p_ext_lesion = model.predict(external_ds, verbose=1).reshape(-1)
 
+        # Fail fast if the model produced NaN/Inf probabilities
+        try:
+            assert_finite_probs(p_int_lesion, f"fold {fold} INTERNAL lesion")
+            assert_finite_probs(p_ext_lesion, f"fold {fold} EXTERNAL lesion")
+        except ValueError as e:
+            print(str(e))
+            print(f"[EVAL] Fold {fold}: skipping due to non-finite predictions.")
+            continue
+
         # always compute patient-level arrays (so npz always contains both)
         yt_int_p, yp_int_p, pid_int_p = aggregate_to_patient_level(
             y_true_internal_lesion, p_int_lesion, pid_internal_lesion, how=args.patient_agg
@@ -869,6 +946,14 @@ def main():
         p_int_ens_lesion = np.mean(np.stack(internal_probs_lesion, axis=0), axis=0)
         p_ext_ens_lesion = np.mean(np.stack(external_probs_lesion, axis=0), axis=0)
 
+        try:
+            assert_finite_probs(p_int_ens_lesion, "ENSEMBLE INTERNAL lesion")
+            assert_finite_probs(p_ext_ens_lesion, "ENSEMBLE EXTERNAL lesion")
+        except ValueError as e:
+            print(str(e))
+            print("[EVAL] Ensemble: skipping due to non-finite predictions.")
+            return
+
         # compute patient-level arrays for saving
         yt_int_p, yp_int_p, pid_int_p = aggregate_to_patient_level(
             y_true_internal_lesion, p_int_ens_lesion, pid_internal_lesion, how=args.patient_agg
@@ -941,6 +1026,10 @@ def main():
         )
 
     print("Done. Results written to:", out_dir)
+    try:
+        log_f.close()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
