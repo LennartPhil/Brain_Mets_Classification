@@ -62,6 +62,54 @@ def setup_logging_to_file(log_path: Path):
     return log_f
 
 
+def log_model_signature(model: tf.keras.Model, tag: str):
+    print("\n" + "-" * 90)
+    print(f"[EVAL][MODEL SIG] {tag}")
+    print(f"[EVAL][MODEL SIG] global policy: {tf.keras.mixed_precision.global_policy()}")
+    try:
+        print(f"[EVAL][MODEL SIG] model.compute_dtype: {getattr(model, 'compute_dtype', None)}")
+    except Exception:
+        pass
+
+    # Inputs
+    if isinstance(model.inputs, (list, tuple)):
+        for i, inp in enumerate(model.inputs):
+            print(f"[EVAL][MODEL SIG] input[{i}]: name={inp.name}, shape={inp.shape}, dtype={inp.dtype}")
+    else:
+        inp = model.inputs
+        print(f"[EVAL][MODEL SIG] input: name={inp.name}, shape={inp.shape}, dtype={inp.dtype}")
+
+    # Output
+    try:
+        out = model.outputs[0]
+        print(f"[EVAL][MODEL SIG] output: name={out.name}, shape={out.shape}, dtype={out.dtype}")
+    except Exception:
+        pass
+
+    print("-" * 90 + "\n")
+
+
+def assert_expected_num_inputs(model: tf.keras.Model, args):
+    expected = 1 + (2 if args.use_clinical_data else 0) + (1 if args.use_layer else 0)
+    actual = len(model.inputs) if isinstance(model.inputs, (list, tuple)) else 1
+    if actual != expected:
+        raise ValueError(
+            f"[EVAL] Input-count mismatch: model has {actual} inputs but flags expect {expected} "
+            f"(use_clinical_data={args.use_clinical_data}, use_layer={args.use_layer})"
+        )
+
+
+def assert_finite_weights(model: tf.keras.Model, tag: str):
+    bad_tensors = 0
+    for w in model.weights:
+        a = w.numpy()
+        if not np.all(np.isfinite(a)):
+            bad = int(np.sum(~np.isfinite(a)))
+            print(f"[EVAL][WEIGHTS NONFINITE] {tag}: {w.name} has {bad}/{a.size} non-finite")
+            bad_tensors += 1
+    if bad_tensors > 0:
+        raise ValueError(f"[EVAL] Non-finite weights detected in {tag}: {bad_tensors} tensors")
+
 # ------------------ utilities ------------------
 
 def load_module(py_path: Path, quiet: bool = True):
@@ -820,6 +868,11 @@ def main():
         print(f"[EVAL] Fold {fold}: using weights: {w.resolve()}")
         model = builder(**builder_kwargs) if builder_kwargs else builder()
 
+        # verify the built model matches the flags
+        log_model_signature(model, tag=f"fold {fold} BEFORE loading weights")
+        assert_expected_num_inputs(model, args)
+
+
         # sanity-check the model's image input shape before loading weights
         check_model_input_shape(model, expected_hw=img_size, expected_channels=expected_channels)
 
@@ -830,6 +883,9 @@ def main():
                 raise RuntimeError(msg)
             print(msg)
             continue
+
+        # verify weights are numerically sane after loading
+        assert_finite_weights(model, tag=f"fold {fold} AFTER loading weights")
 
         # lesion-level probabilities (aligned with pid_*_lesion)
         p_int_lesion = model.predict(internal_ds, verbose=1).reshape(-1)
