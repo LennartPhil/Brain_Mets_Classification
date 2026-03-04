@@ -68,7 +68,7 @@ run_eval "4seq_scratch_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_04_03_2026/lung_vs_nolung_2cls_4seq_scratch_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_lesion_level_float32_04_03_2026/lung_vs_nolung_2cls_4seq_scratch_resnet152 \
         --selected_sequences t1,t1c,t2,flair \
         --dropout_rate 0.4 \
         --l2_regularization 0.0005 \
@@ -123,7 +123,7 @@ run_eval "maxinfo_scratch_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_04_03_2026/lung_vs_nolung_2cls_maxinfo_scratch_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_lesion_level_float32_04_03_2026/lung_vs_nolung_2cls_maxinfo_scratch_resnet152 \
         --selected_sequences t1,t1c,t2,flair,mask \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
@@ -178,7 +178,7 @@ run_eval "t1c_clin_scratch_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_04_03_2026/lung_vs_nolung_2cls_t1c_clin_scratch_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_lesion_level_float32_04_03_2026/lung_vs_nolung_2cls_t1c_clin_scratch_resnet152 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
