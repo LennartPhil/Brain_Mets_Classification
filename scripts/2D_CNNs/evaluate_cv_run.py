@@ -259,6 +259,23 @@ def assert_finite_probs(probs: np.ndarray, tag: str):
     return probs
 
 
+
+def assert_finite_weights(model: tf.keras.Model, tag: str = ""):
+    """Raise ValueError if any model weights contain NaN/Inf."""
+    bad_tensors = 0
+    for w in model.weights:
+        try:
+            a = w.numpy()
+        except Exception:
+            # If a weight cannot be materialized, skip (rare)
+            continue
+        if not np.all(np.isfinite(a)):
+            bad = int(np.sum(~np.isfinite(a)))
+            print(f"[EVAL][WEIGHTS NONFINITE] {tag}: {w.name} has {bad}/{a.size} non-finite")
+            bad_tensors += 1
+    if bad_tensors > 0:
+        raise ValueError(f"[EVAL] Non-finite weights detected in {tag}: {bad_tensors} tensors")
+
 def compute_binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, thr: float = 0.5) -> dict:
     y_true = np.asarray(y_true).reshape(-1).astype(int)
     y_prob = np.asarray(y_prob).reshape(-1).astype(float)
@@ -884,8 +901,16 @@ def main():
             print(msg)
             continue
 
-        # verify weights are numerically sane after loading
-        assert_finite_weights(model, tag=f"fold {fold} AFTER loading weights")
+        # Skip fold if checkpoint contains non-finite weights (NaN/Inf).
+        try:
+            assert_finite_weights(model, tag=f"fold {fold} AFTER loading weights")
+        except ValueError as e:
+            msg = f"[EVAL] Fold {fold}: {e}. Skipping fold."
+            if args.stop_on_weight_error:
+                raise RuntimeError(msg)
+            print(msg)
+            continue
+
 
         # lesion-level probabilities (aligned with pid_*_lesion)
         p_int_lesion = model.predict(internal_ds, verbose=1).reshape(-1)
