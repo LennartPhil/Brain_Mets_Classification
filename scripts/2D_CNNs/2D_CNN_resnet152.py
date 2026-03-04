@@ -8,7 +8,7 @@ import numpy as np
 import constants
 
 # mixed precision setup
-tf.keras.mixed_precision.set_global_policy('mixed_float16')
+tf.keras.mixed_precision.set_global_policy('float32') #previously 'mixed_float16', changed to 'float32' due to non finite values in the predictions
 
 # --- GPU setup --
 gpus = tf.config.list_physical_devices('GPU')
