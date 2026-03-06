@@ -35,12 +35,12 @@ run_eval "4seq_scratch_resnext50" \
         --model_py /home/lennart/work/Brain_Mets_Classification/scripts/2D_CNNs/2D_CNN_resnext50.py \
         --builder_fn build_resnext_model \
         --builder_kwargs '{"architecture":"ResNeXt50"}' \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_4seq_scratch_resnext50 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_4seq_scratch_resnext50 \
         --selected_sequences t1,t1c,t2,flair \
         --dropout_rate 0.45 \
         --l2_regularization 0.0005 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "4seq_scratch_resnext101" \
   python evaluate_cv_run.py \
@@ -52,12 +52,12 @@ run_eval "4seq_scratch_resnext101" \
     --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
     --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
     --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-    --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_4seq_scratch_resnext101 \
+    --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_4seq_scratch_resnext101 \
     --selected_sequences t1,t1c,t2,flair \
     --dropout_rate 0.45 \
     --l2_regularization 0.0005 \
     --no_contrast_DA \
-    --eval_level lesion
+    --eval_level patient
 
 run_eval "4seq_scratch_resnet152" \
     python evaluate_cv_run.py \
@@ -68,12 +68,12 @@ run_eval "4seq_scratch_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_4seq_scratch_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_4seq_scratch_resnet152 \
         --selected_sequences t1,t1c,t2,flair \
         --dropout_rate 0.4 \
         --l2_regularization 0.0005 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 
 run_eval "maxinfo_scratch_resnext50" \
@@ -86,14 +86,14 @@ run_eval "maxinfo_scratch_resnext50" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_maxinfo_scratch_resnext50 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_maxinfo_scratch_resnext50 \
         --selected_sequences t1,t1c,t2,flair,mask \
         --dropout_rate 0.4 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
         --use_clinical_data \
         --use_layer \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "maxinfo_scratch_resnext101" \
     python evaluate_cv_run.py \
@@ -105,14 +105,14 @@ run_eval "maxinfo_scratch_resnext101" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_maxinfo_scratch_resnext101 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_maxinfo_scratch_resnext101 \
         --selected_sequences t1,t1c,t2,flair,mask \
         --dropout_rate 0.4 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
         --use_clinical_data \
         --use_layer \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "maxinfo_scratch_resnet152" \
     python evaluate_cv_run.py \
@@ -123,14 +123,14 @@ run_eval "maxinfo_scratch_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_maxinfo_scratch_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_maxinfo_scratch_resnet152 \
         --selected_sequences t1,t1c,t2,flair,mask \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
         --use_clinical_data \
         --use_layer \
-        --eval_level lesion
+        --eval_level patient
 
 
 run_eval "t1c_clin_scratch_resnext50" \
@@ -143,13 +143,13 @@ run_eval "t1c_clin_scratch_resnext50" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_clin_scratch_resnext50 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_clin_scratch_resnext50 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
         --use_clinical_data \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_clin_scratch_resnext101" \
     python evaluate_cv_run.py \
@@ -161,13 +161,13 @@ run_eval "t1c_clin_scratch_resnext101" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_clin_scratch_resnext101 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_clin_scratch_resnext101 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
         --use_clinical_data \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_clin_scratch_resnet152" \
     python evaluate_cv_run.py \
@@ -178,13 +178,13 @@ run_eval "t1c_clin_scratch_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_clin_scratch_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_clin_scratch_resnet152 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
         --use_clinical_data \
-        --eval_level lesion
+        --eval_level patient
 
 
 run_eval "t1c_scratch_resnext50" \
@@ -197,12 +197,12 @@ run_eval "t1c_scratch_resnext50" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnext50 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnext50 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_scratch_resnext101" \
     python evaluate_cv_run.py \
@@ -214,12 +214,12 @@ run_eval "t1c_scratch_resnext101" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnext101 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnext101 \
         --selected_sequences t1c \
         --dropout_rate 0.4 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_scratch_resnet152" \
     python evaluate_cv_run.py \
@@ -230,12 +230,12 @@ run_eval "t1c_scratch_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnet152 \
         --selected_sequences t1c \
         --dropout_rate 0.4 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_scratch_base_conv" \
     python evaluate_cv_run.py \
@@ -246,12 +246,12 @@ run_eval "t1c_scratch_base_conv" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_scratch_base_conv \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_scratch_base_conv \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_scratch_resnet34" \
     python evaluate_cv_run.py \
@@ -262,12 +262,12 @@ run_eval "t1c_scratch_resnet34" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnet34 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnet34 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_scratch_inceptionv3" \
     python evaluate_cv_run.py \
@@ -279,13 +279,13 @@ run_eval "t1c_scratch_inceptionv3" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_scratch_inceptionv3 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_scratch_inceptionv3 \
         --selected_sequences t1c \
         --dropout_rate 0.4 \
         --l2_regularization 0.001 \
         --no_contrast_DA \
         --rgb \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_scratch_resnet50v2" \
     python evaluate_cv_run.py \
@@ -297,13 +297,13 @@ run_eval "t1c_scratch_resnet50v2" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnet50v2 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_scratch_resnet50v2 \
         --selected_sequences t1c \
         --dropout_rate 0.4 \
         --l2_regularization 0.0003 \
         --no_contrast_DA \
         --rgb \
-        --eval_level lesion
+        --eval_level patient
 
 
 run_eval "t1c_rough_resnext50" \
@@ -316,12 +316,12 @@ run_eval "t1c_rough_resnext50" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_rough_resnext50 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_rough_resnext50 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_rough_resnext101" \
     python evaluate_cv_run.py \
@@ -333,12 +333,12 @@ run_eval "t1c_rough_resnext101" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_rough_resnext101 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_rough_resnext101 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_rough_resnet152" \
     python evaluate_cv_run.py \
@@ -349,12 +349,12 @@ run_eval "t1c_rough_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_rough_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_rough_resnet152 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_fine_resnext50" \
     python evaluate_cv_run.py \
@@ -366,12 +366,12 @@ run_eval "t1c_fine_resnext50" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_fine_resnext50 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_fine_resnext50 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_fine_resnext101" \
     python evaluate_cv_run.py \
@@ -383,12 +383,12 @@ run_eval "t1c_fine_resnext101" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_fine_resnext101 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_fine_resnext101 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
 
 run_eval "t1c_fine_resnet152" \
     python evaluate_cv_run.py \
@@ -399,9 +399,9 @@ run_eval "t1c_fine_resnet152" \
         --internal_ids /home/lennart/work/tfrs/split_text_files/test_ids.txt \
         --external_tfr_root /home/lennart/work/tfrs/yale_slices_tfrecords/all_pats_single_slice_gray \
         --external_ids /home/lennart/work/tfrs/yale_slices_tfrecords/split_text_files/external_ids.txt \
-        --out_dir /home/lennart/work/eval_internal_external_lesion_level_04_03_2026/lung_vs_nolung_2cls_t1c_fine_resnet152 \
+        --out_dir /home/lennart/work/eval_internal_external_patient_level_06_03_2026/lung_vs_nolung_2cls_t1c_fine_resnet152 \
         --selected_sequences t1c \
         --dropout_rate 0.45 \
         --l2_regularization 0.0001 \
         --no_contrast_DA \
-        --eval_level lesion
+        --eval_level patient
